@@ -148,7 +148,7 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
   }, [handleGlobalScan]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-900 font-sans">
+    <div className="flex h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden">
       {/* Sidebar Navigation */}
       <aside className="w-64 bg-white border-r hidden md:flex flex-col shadow-sm sticky top-0 h-screen overflow-y-auto scrollbar-hide">
         <div className="min-h-[110px] flex flex-col justify-center px-5 border-b bg-brand-primaryLight/5 relative shrink-0">
@@ -326,7 +326,7 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
         )}
 
         <div className="flex-1 flex flex-col min-h-0 bg-gray-50/50 relative">
-          <div className="flex-1 p-6 md:p-8 overflow-hidden flex flex-col">
+          <div className="flex-1 p-4 md:p-8 overflow-y-auto scrollbar-hide flex flex-col">
             <Outlet />
           </div>
         </div>
