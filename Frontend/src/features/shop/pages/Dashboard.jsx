@@ -305,7 +305,7 @@ const Dashboard = () => {
       <div className="flex-none pr-4">
         <div className="mb-4 flex flex-col md:flex-row md:items-end justify-between gap-4 pt-2">
           <div>
-            <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase leading-none mb-1">
+            <h1 className="text-2xl md:text-4xl font-black text-gray-900 tracking-tighter uppercase leading-none mb-1">
               {shop?.name || 'My Store'}
             </h1>
             <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em] flex items-center gap-2">
@@ -397,7 +397,7 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           {/* Revenue Chart Section */}
-          <div className="lg:col-span-2 bg-white rounded-[40px] shadow-2xl shadow-gray-200/50 border border-gray-100 overflow-hidden flex flex-col p-6 h-full">
+          <div className="lg:col-span-2 bg-white rounded-[32px] md:rounded-[40px] shadow-2xl shadow-gray-200/50 border border-gray-100 overflow-hidden flex flex-col p-4 md:p-6 h-full">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h2 className="font-black text-xl text-gray-900 tracking-tight uppercase leading-none">Revenue Growth</h2>
@@ -425,7 +425,7 @@ const Dashboard = () => {
 
           {/* Right Panel: Video Guides */}
           {/* Right Panel: Category Earnings */}
-          <div className="lg:col-span-1 bg-white rounded-[40px] shadow-2xl shadow-gray-200/50 border border-gray-100 overflow-hidden flex flex-col p-6 h-full min-h-0">
+          <div className="lg:col-span-1 bg-white rounded-[32px] md:rounded-[40px] shadow-2xl shadow-gray-200/50 border border-gray-100 overflow-hidden flex flex-col p-4 md:p-6 h-full min-h-0">
             <div className="mb-2 shrink-0">
               <h2 className="font-black text-xl text-gray-900 tracking-tight uppercase leading-none">Category Sales</h2>
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Revenue by product type</p>
