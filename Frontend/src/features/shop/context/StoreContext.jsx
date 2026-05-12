@@ -1,0 +1,747 @@
+import React, { createContext, useState, useContext, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useAuth } from '../../auth/context/AuthContext';
+import { toast } from 'sonner';
+import api from '../../../config/api.js';
+
+const StoreContext = createContext();
+
+export const StoreProvider = ({ children }) => {
+  const { user, token } = useAuth();
+
+  // -- State --
+  const [products, setProducts] = useState([]);
+  const [shops, setShops] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [vendorShop, setVendorShop] = useState(null);
+  const [currentShopId, setCurrentShopId] = useState(() => localStorage.getItem('currentShopId'));
+  const [customerGstin, setCustomerGstin] = useState('');
+
+  const [cart, setCart] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cart');
+      const parsed = saved ? JSON.parse(saved) : {};
+      // 🧹 CLEANUP: Remove ghost keys caused by argument mismatches
+      if (parsed["[object Object]"]) delete parsed["[object Object]"];
+      if (parsed["undefined"]) delete parsed["undefined"];
+      return parsed;
+    } catch { return {}; }
+  });
+
+  // -- Refs --
+  const isFetchingRef = useRef(false);
+
+  // -- Persistence --
+  useEffect(() => { localStorage.setItem('cart', JSON.stringify(cart)); }, [cart]);
+  useEffect(() => {
+    if (currentShopId) localStorage.setItem('currentShopId', currentShopId);
+    else localStorage.removeItem('currentShopId');
+  }, [currentShopId]);
+
+  // -- Data Fetching --
+  const fetchData = useCallback(async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    setLoading(true);
+    try {
+      // Fetch all shops
+      const shopsRes = await api.get('/shops');
+      if (shopsRes.data?.shops) setShops(shopsRes.data.shops);
+
+      if (user?._id || user?.id) {
+        const userId = user?._id || user?.id;
+        if (user.role === 'vendor' || user.role === 'staff') {
+          // Fetch vendor's shop
+          const shopRes = await api.get('/shops/my');
+          const vShop = shopRes.data?.shop || null;
+          setVendorShop(vShop);
+
+          if (vShop) {
+            // Fetch products for vendor shop
+            const [prodRes, ordRes] = await Promise.all([
+              api.get(`/products?shopId=${vShop._id}`),
+              api.get(`/orders?shopId=${vShop._id}`),
+            ]);
+            if (prodRes.data?.products) setProducts(prodRes.data.products);
+            if (ordRes.data?.orders) setOrders(ordRes.data.orders);
+          }
+        } else {
+          // Customer: fetch their orders
+          const ordRes = await api.get('/orders/my');
+          if (ordRes.data?.orders) setOrders(ordRes.data.orders);
+        }
+      }
+    } catch (err) {
+      console.error('fetchData error:', err.message);
+    } finally {
+      setLoading(false);
+      isFetchingRef.current = false;
+    }
+  }, [user?._id, user?.id, user?.role]);
+
+  useEffect(() => {
+    if (token !== undefined) fetchData();
+  }, [token, fetchData]);
+
+  // -- Vendor Shop Fetch --
+  const fetchVendorShop = useCallback(async () => {
+    try {
+      const { data } = await api.get('/shops/my');
+      setVendorShop(data.shop || null);
+      return data.shop;
+    } catch (err) {
+      console.error('fetchVendorShop error:', err.message);
+      return null;
+    }
+  }, []);
+
+  // -- Toggle Shop Status --
+  const toggleShopStatus = useCallback(async () => {
+    if (!vendorShop?._id) return { success: false };
+    try {
+      const { data } = await api.patch(`/shops/${vendorShop._id}/toggle`);
+      setVendorShop(data.shop);
+      toast.success(`Shop is now ${data.isActive ? 'ACTIVE' : 'INACTIVE'}`);
+      return { success: true, isActive: data.isActive };
+    } catch (err) {
+      toast.error(err.message);
+      return { success: false, error: err.message };
+    }
+  }, [vendorShop?._id]);
+
+  // -- Update Shop (Create or Update) --
+  const updateShop = useCallback(async (shopData) => {
+    const userId = user?._id || user?.id;
+    if (!userId) {
+      console.warn('updateShop: Authentication check failed. User:', user);
+      return { success: false, error: `Authentication failed (ID missing). Please try again in a moment.` };
+    }
+    try {
+      let data;
+      if (vendorShop?._id) {
+        const res = await api.put(`/shops/${vendorShop._id}`, shopData);
+        data = res.data;
+      } else {
+        const res = await api.post('/shops', shopData);
+        data = res.data;
+      }
+      if (data.shop) setVendorShop(data.shop);
+      return { success: true, data: data.shop };
+    } catch (err) {
+      console.error('updateShop error:', err.message);
+      return { success: false, error: err.message };
+    }
+  }, [vendorShop?._id, user?._id, user?.id]);
+
+  // -- Fetch Nearby Shops --
+  const fetchNearbyShops = useCallback(async (lat, lng, radius = 10) => {
+    try {
+      const { data } = await api.get(`/shops/nearby?lat=${lat}&lng=${lng}&radius=${radius}`);
+      return data.shops || [];
+    } catch (err) {
+      return [];
+    }
+  }, []);
+
+  // -- Place Order --
+  const placeOrder = useCallback(async (orderPayload) => {
+    try {
+      const cartItems = (cart[currentShopId] || []).map(i => ({
+        product: i.product,
+        name: i.product.name,
+        price: i.product.price,
+        quantity: i.quantity,
+        image: i.product.image || i.product.imageUrl || '',
+      }));
+
+      const { data } = await api.post('/orders', {
+        ...orderPayload,
+        shopId: currentShopId,
+        items: cartItems,
+      });
+
+      clearCart();
+      toast.success('Order placed successfully!');
+      return data.orderId;
+    } catch (err) {
+      toast.error('Failed to place order: ' + err.message);
+      return null;
+    }
+  }, [user?.id, currentShopId, cart]);
+
+  // -- Create Product --
+  const createProduct = async (productData, imageFiles) => {
+    try {
+      let imageUrls = [];
+      const filesToUpload = Array.isArray(imageFiles) ? imageFiles : (imageFiles ? [imageFiles] : []);
+      
+      for (const file of filesToUpload) {
+        if (!file) continue;
+        const formData = new FormData();
+        formData.append('image', file);
+        const { data: uploadData } = await api.post('/upload/image', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        imageUrls.push(uploadData.url);
+      }
+
+      const { data } = await api.post('/products', {
+        ...productData,
+        image: imageUrls[0] || productData.image || '',
+        images: imageUrls.length > 0 ? imageUrls : (productData.images || []),
+        price: parseFloat(productData.price) || 0,
+        mrp: parseFloat(productData.mrp) || 0,
+        stock: parseFloat(productData.stockQuantity) || 0,
+        wholesalePrice: parseFloat(productData.wholesalePrice) || 0,
+        taxRate: parseFloat(productData.taxRate) || 0,
+        lowStockThreshold: parseInt(productData.lowStockThreshold) || 5,
+        minimumOrderQuantity: parseInt(productData.minimumOrderQuantity) || 1,
+      });
+      if (data.product) setProducts(prev => [data.product, ...prev]);
+      toast.success('Product created!');
+      return { success: true, product: data.product };
+    } catch (err) {
+      toast.error(err.message);
+      return { success: false, error: err.message };
+    }
+  };
+
+  // -- Update Product --
+  const updateProduct = async (productId, productData, imageFiles) => {
+    try {
+      let existingImages = productData.images || (productData.image ? [productData.image] : []);
+      let newImageUrls = [];
+      const filesToUpload = Array.isArray(imageFiles) ? imageFiles : (imageFiles ? [imageFiles] : []);
+
+      for (const file of filesToUpload) {
+        if (!file) continue;
+        const formData = new FormData();
+        formData.append('image', file);
+        const { data: uploadData } = await api.post('/upload/image', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        newImageUrls.push(uploadData.url);
+      }
+
+      const finalImages = [...existingImages, ...newImageUrls];
+
+      const { data } = await api.put(`/products/${productId}`, {
+        ...productData,
+        image: finalImages[0] || '',
+        images: finalImages,
+        price: parseFloat(productData.price) || 0,
+        mrp: parseFloat(productData.mrp) || 0,
+        stock: parseFloat(productData.stockQuantity ?? productData.stock) || 0,
+      });
+      if (data.product) {
+        setProducts(prev => prev.map(p => p._id === productId ? data.product : p));
+      }
+      toast.success('Product updated!');
+      return { success: true, product: data.product };
+    } catch (err) {
+      toast.error(err.message);
+      return { success: false, error: err.message };
+    }
+  };
+
+  // -- Delete Product --
+  const deleteProduct = async (productId) => {
+    try {
+      await api.delete(`/products/${productId}`);
+      setProducts(prev => prev.filter(p => p._id !== productId));
+      toast.success('Product deleted');
+      return { success: true };
+    } catch (err) {
+      toast.error(err.message);
+      return { success: false, error: err.message };
+    }
+  };
+
+  // -- Bulk Update Stock --
+  const bulkUpdateStock = async (updates) => {
+    try {
+      await api.patch('/products/bulk-stock', { updates });
+      fetchData();
+      return { success: true };
+    } catch (err) {
+      toast.error(err.message);
+      return { success: false, error: err.message };
+    }
+  };
+
+  // -- Delete Category (set all products in category to "General") --
+  const deleteCategory = async (categoryName) => {
+    const categoryProducts = products.filter(p => p.category === categoryName && p.shopId === vendorShop?._id);
+    try {
+      await Promise.all(categoryProducts.map(p =>
+        api.put(`/products/${p._id}`, { category: 'General' })
+      ));
+      fetchData();
+      return { success: true };
+    } catch (err) {
+      toast.error(err.message);
+      return { success: false };
+    }
+  };
+
+  // -- Fetch Orders (vendor) --
+  const fetchOrders = useCallback(async () => {
+    if (!vendorShop?._id) return { success: false };
+    try {
+      const { data } = await api.get(`/orders?shopId=${vendorShop._id}`);
+      if (data.orders) setOrders(data.orders);
+      return { success: true, data: data.orders };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }, [vendorShop?._id]);
+
+  // -- Update Order Status --
+  const updateOrderStatus = useCallback(async (orderId, status) => {
+    try {
+      const { data } = await api.patch(`/orders/${orderId}/status`, { status });
+      setOrders(prev => prev.map(o => (o._id || o.id) === orderId ? data.order : o));
+      return { success: true, data: data.order };
+    } catch (err) {
+      toast.error(err.message);
+      return { success: false, error: err.message };
+    }
+  }, []);
+
+  // -- Cancel Order --
+  const cancelOrder = useCallback(async (orderId, reason) => {
+    try {
+      const { data } = await api.patch(`/orders/${orderId}/cancel`, { reason });
+      setOrders(prev => prev.map(o => (o._id || o.id) === orderId ? data.order : o));
+      return { success: true };
+    } catch (err) {
+      toast.error(err.message);
+      return { success: false, error: err.message };
+    }
+  }, []);
+
+  // -- Delete Order --
+  const deleteOrder = useCallback(async (orderId) => {
+    try {
+      await api.delete(`/orders/${orderId}`);
+      setOrders(prev => prev.filter(o => (o._id || o.id) !== orderId));
+      return { success: true };
+    } catch (err) {
+      toast.error(err.message);
+      return { success: false, error: err.message };
+    }
+  }, []);
+
+  // -- Create Bill (In-store) --
+  const createBill = async (billData) => {
+    try {
+      const { data } = await api.post('/orders', {
+        shopId: billData.shopId,
+        items: billData.items,
+        totalPrice: billData.totalPrice || billData.total,
+        status: 'COMPLETED',
+        paymentMethod: billData.paymentMethod,
+        cashAmount: billData.cashAmount || 0,
+        onlineAmount: billData.onlineAmount || 0,
+        customerName: billData.customerName,
+        phone: billData.phone,
+        orderType: 'IN_STORE_BILL',
+        paymentStatus: billData.paymentStatus || 'PAID',
+        balanceDue: billData.balanceDue || 0,
+        walletExcess: billData.walletExcess || 0,
+        customerBusinessName: billData.customerBusinessName,
+        customerBusinessAddress: billData.customerBusinessAddress,
+      });
+      fetchData();
+      return { success: true, bill: data.order };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  // -- Get Customers (derived from orders) --
+  const getCustomers = useCallback(async () => {
+    if (!vendorShop?._id) return { customers: [], onlineCount: 0, offlineCount: 0 };
+    try {
+      const { data } = await api.get(`/orders?shopId=${vendorShop._id}`);
+      const ordersData = data.orders || [];
+      const customerMap = {};
+      let onlineCount = 0, offlineCount = 0;
+      ordersData.forEach(o => {
+        const key = o.phone || o.userId;
+        if (!key) return;
+        if (!customerMap[key]) {
+          customerMap[key] = { name: o.customerName, phone: o.phone, userId: o.userId, totalSpent: 0, orderCount: 0 };
+          if (o.orderType === 'IN_STORE_BILL') offlineCount++;
+          else onlineCount++;
+        }
+        customerMap[key].totalSpent += (o.totalPrice || 0);
+        customerMap[key].orderCount += 1;
+      });
+      return { customers: Object.values(customerMap), onlineCount, offlineCount };
+    } catch (err) {
+      return { customers: [], onlineCount: 0, offlineCount: 0 };
+    }
+  }, [vendorShop?._id]);
+
+  // -- Get Order Tracking --
+  const getOrderTracking = useCallback(async (orderId) => {
+    try {
+      const { data } = await api.get(`/orders/${orderId}`);
+      return data.order;
+    } catch { return null; }
+  }, []);
+
+  // -- Staff --
+  const getStaff = useCallback(async () => {
+    if (!vendorShop?._id) return [];
+    try {
+      const { data } = await api.get(`/shops/my/staff`);
+      return data.users || [];
+    } catch { return []; }
+  }, [vendorShop?._id]);
+
+  const createStaff = async (staffData) => {
+    try {
+      const { data } = await api.post('/auth/register', { ...staffData, role: 'staff', shopId: vendorShop?._id });
+      return { success: true, staff: data.user };
+    } catch (err) {
+      toast.error(err.message);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const updateStaff = async (id, staffData) => {
+    try {
+      const { data } = await api.patch(`/shops/my/users/${id}/status`, staffData);
+      return { success: true, staff: data.user };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const deleteStaff = async (id) => {
+    try {
+      await api.delete(`/shops/my/users/${id}`);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  // -- Delivery Partners --
+  const getDeliveryPartners = useCallback(async () => {
+    if (!vendorShop?._id) return [];
+    try {
+      const { data } = await api.get(`/shops/my/delivery`);
+      return data.users || [];
+    } catch { return []; }
+  }, [vendorShop?._id]);
+
+  const createDeliveryPartner = async (partnerData) => {
+    try {
+      const { data } = await api.post('/auth/register', { ...partnerData, role: 'delivery', shopId: vendorShop?._id });
+      return { success: true, partner: data.user };
+    } catch (err) {
+      toast.error(err.message);
+      return { success: false, error: err.message };
+    }
+  };
+
+  const updateDeliveryPartner = async (id, partnerData) => {
+    try {
+      const { data } = await api.patch(`/shops/my/users/${id}/status`, partnerData);
+      return { success: true, partner: data.user };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const deleteDeliveryPartner = async (id) => {
+    try {
+      await api.delete(`/shops/my/users/${id}`);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  // -- Cart Operations --
+  const addToCart = useCallback((arg1, arg2, quantity = 1) => {
+    let shopId, product;
+    if (typeof arg1 === 'string') {
+      shopId = arg1;
+      product = arg2;
+    } else {
+      product = arg1;
+      shopId = product.shopId || product.shop || arg2;
+    }
+
+    if (!shopId || !product) {
+      console.warn("addToCart: Missing shopId or product", { shopId, product });
+      return;
+    }
+
+    const shopCart = cart[shopId] || [];
+    const productId = product._id || product.id;
+    const existing = shopCart.find(i => (i.product._id || i.product.id) === productId);
+    const maxStock = Number(product.stockQuantity || product.stock || 0);
+    const currentQty = existing ? existing.quantity : 0;
+
+    if (currentQty + quantity > maxStock) {
+      toast.error(`Only ${maxStock} ${product.unit_type || 'PKT'} available in stock`);
+      return;
+    }
+
+    setCart(prev => {
+      const sCart = prev[shopId] || [];
+      const isExisting = sCart.find(i => (i.product._id || i.product.id) === productId);
+
+      if (isExisting) {
+        return { 
+          ...prev, 
+          [shopId]: sCart.map(i => (i.product._id || i.product.id) === productId 
+            ? { ...i, quantity: i.quantity + quantity } 
+            : i) 
+        };
+      }
+      return { ...prev, [shopId]: [...sCart, { product, quantity }] };
+    });
+    
+    toast.success(`${product.name} added to cart`);
+  }, [cart]);
+
+  const updateQuantity = useCallback((productId, delta, shopId) => {
+    const sId = shopId || currentShopId;
+    if (!sId) return;
+
+    // Find the item first to check stock
+    const shopCart = cart[sId] || [];
+    const item = shopCart.find(i => (i.product._id || i.product.id) === productId);
+    if (!item) return;
+
+    const maxStock = Number(item.product.stockQuantity || item.product.stock || 0);
+    const newQty = item.quantity + delta;
+
+    if (newQty > maxStock) {
+      toast.error(`Maximum ${maxStock} available`);
+      return;
+    }
+
+    setCart(prev => {
+      const shopCart = prev[sId] || [];
+      const newItems = shopCart.map(i => {
+        if ((i.product._id || i.product.id) === productId) {
+          return { ...i, quantity: Math.max(0, newQty) };
+        }
+        return i;
+      }).filter(i => i.quantity > 0);
+
+      return { ...prev, [sId]: newItems };
+    });
+  }, [currentShopId, cart]);
+
+  const setItemQuantity = useCallback((product, quantity, shopId) => {
+    const sId = shopId || product.shopId || product.shop || currentShopId;
+    if (!sId) return;
+
+    setCart(prev => {
+      const shopCart = prev[sId] || [];
+      const productId = product._id || product.id;
+      const existing = shopCart.find(i => (i.product._id || i.product.id) === productId);
+
+      if (existing) {
+        if (quantity <= 0) {
+          return { ...prev, [sId]: shopCart.filter(i => (i.product._id || i.product.id) !== productId) };
+        }
+        return { ...prev, [sId]: shopCart.map(i => (i.product._id || i.product.id) === productId ? { ...i, quantity } : i) };
+      }
+
+      if (quantity <= 0) return prev;
+      return { ...prev, [sId]: [...shopCart, { product, quantity }] };
+    });
+  }, [currentShopId]);
+
+  const removeFromCart = useCallback((productId, shopId) => {
+    const sId = shopId || currentShopId;
+    if (!sId) return;
+    setCart(prev => {
+      const shopCart = (prev[sId] || []).filter(i => (i.product._id || i.product.id) !== productId);
+      return { ...prev, [sId]: shopCart };
+    });
+  }, [currentShopId]);
+
+  const clearCart = useCallback((shopId) => {
+    const sId = shopId || currentShopId;
+    if (!sId) return;
+    setCart(prev => {
+      const next = { ...prev };
+      delete next[sId];
+      return next;
+    });
+  }, [currentShopId]);
+
+  const cartTotal = useMemo(() => {
+    return (cart[currentShopId] || []).reduce((sum, i) => sum + i.product.price * i.quantity, 0);
+  }, [cart, currentShopId]);
+
+  const totalCartItemCount = useMemo(() => {
+    // 🛍️ Count unique product entries across all shops, not total pieces/KG
+    return Object.values(cart).flat().length;
+  }, [cart]);
+
+  // -- Submit Review --
+  const submitReview = useCallback(async (reviewData) => {
+    try {
+      const { data } = await api.post('/reviews', reviewData);
+      toast.success('Thank you for your feedback!');
+      return { success: true, data: data.review };
+    } catch (err) {
+      toast.error(err.message);
+      return { success: false, error: err.message };
+    }
+  }, []);
+
+  // -- Update Order Payment --
+  const updateOrderPayment = useCallback(async (orderId, paymentData) => {
+    try {
+      const { data } = await api.patch(`/orders/${orderId}/payment`, paymentData);
+      setOrders(prev => prev.map(o => (o._id || o.id) === orderId ? data.order : o));
+      return { success: true, data: data.order };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }, []);
+
+  // -- Delivery Context Functions --
+  const getAvailableOrders = useCallback(async () => {
+    try {
+      const { data } = await api.get('/orders/available');
+      return data.orders;
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  }, []);
+
+  const getMyActiveOrder = useCallback(async () => {
+    try {
+      const { data } = await api.get('/orders/my-active');
+      return data.orders;
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  }, []);
+
+  const acceptOrder = useCallback(async (orderId) => {
+    try {
+      const { data } = await api.patch(`/orders/${orderId}/accept`);
+      toast.success('Order assigned to you!');
+      return { success: true, order: data.order };
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message);
+      return { success: false };
+    }
+  }, []);
+
+  const assignOrder = useCallback(async (orderId, partnerId, deliveryFee, extraAmount) => {
+    try {
+      const { data } = await api.patch(`/orders/${orderId}/assign`, { partnerId, deliveryFee, extraAmount });
+      toast.success('Order assigned to partner');
+      return { success: true, order: data.order };
+    } catch (err) {
+      toast.error(err.message);
+      return { success: false };
+    }
+  }, []);
+
+  const rejectOrder = useCallback(async (orderId) => {
+    try {
+      const { data } = await api.patch(`/orders/${orderId}/reject`);
+      toast.success('Order assignment rejected');
+      return { success: true, order: data.order };
+    } catch (err) {
+      toast.error(err.message);
+      return { success: false };
+    }
+  }, []);
+
+  const updateDeliveryStatus = useCallback(async (orderId, status) => {
+    try {
+      const { data } = await api.patch(`/orders/${orderId}/status`, { status });
+      toast.success(`Order marked as ${status.replace(/_/g, ' ')}`);
+      return { success: true, order: data.order };
+    } catch (err) {
+      toast.error(err.message);
+      return { success: false };
+    }
+  }, []);
+
+  const getDeliveryHistory = useCallback(async () => {
+    try {
+      const { data } = await api.get('/orders/delivery-history');
+      return data.orders;
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  }, []);
+
+  const updateDriverLocation = useCallback(async (lat, lng) => {
+    try {
+      await api.patch('/orders/location', { lat, lng });
+    } catch (err) {
+      console.error('Location sync failed:', err.message);
+    }
+  }, []);
+
+  const toggleOnlineStatus = useCallback(async () => {
+    try {
+      const { data } = await api.patch('/orders/toggle-online');
+      toast.success(data.isOnline ? "You are now ONLINE" : "You are now OFFLINE");
+      return { success: true, isOnline: data.isOnline };
+    } catch (err) {
+      toast.error(err.message);
+      return { success: false };
+    }
+  }, []);
+
+  const handleGlobalScan = useCallback((barcode) => {
+    // Broadcaster for HID scanners
+    console.log('Global Barcode Scan:', barcode);
+    window.dispatchEvent(new CustomEvent('global-barcode-scan', { detail: barcode }));
+  }, []);
+
+  const value = useMemo(() => ({
+    products, shops, orders, setOrders, cart, currentShopId, setCurrentShopId,
+    loading, vendorShop, customerGstin, setCustomerGstin,
+    cartTotal, totalCartItemCount,
+    fetchData, fetchVendorShop, fetchNearbyShops,
+    toggleShopStatus, updateShop,
+    addToCart, removeFromCart, clearCart, updateQuantity, setItemQuantity,
+    placeOrder, cancelOrder,
+    createProduct, updateProduct, deleteProduct, bulkUpdateStock, deleteCategory,
+    fetchOrders, updateOrderStatus, updateOrderPayment, deleteOrder, createBill,
+    getCustomers, getOrderTracking, submitReview,
+    getStaff, createStaff, updateStaff, deleteStaff,
+    getDeliveryPartners, createDeliveryPartner, updateDeliveryPartner, deleteDeliveryPartner,
+    getAvailableOrders, getMyActiveOrder, acceptOrder, assignOrder, rejectOrder, updateDeliveryStatus, getDeliveryHistory, updateDriverLocation, toggleOnlineStatus, handleGlobalScan
+  }), [
+    products, shops, orders, cart, currentShopId, loading, vendorShop,
+    customerGstin, cartTotal, totalCartItemCount,
+    fetchData, fetchVendorShop, fetchNearbyShops,
+    toggleShopStatus, updateShop,
+    addToCart, removeFromCart, clearCart, updateQuantity, setItemQuantity,
+    placeOrder, cancelOrder,
+    fetchOrders, updateOrderStatus, updateOrderPayment, deleteOrder,
+    getCustomers, getOrderTracking, submitReview, 
+    getStaff, createStaff, updateStaff, deleteStaff,
+    getDeliveryPartners, createDeliveryPartner, updateDeliveryPartner, deleteDeliveryPartner,
+    getAvailableOrders, getMyActiveOrder, acceptOrder, assignOrder, rejectOrder, updateDeliveryStatus, getDeliveryHistory, updateDriverLocation, toggleOnlineStatus, handleGlobalScan
+  ]);
+
+  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+};
+
+export const useStore = () => useContext(StoreContext);

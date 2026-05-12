@@ -1,0 +1,1469 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../auth/context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { useStore } from '../../shop/context/StoreContext';
+import { useQueryParam } from '../../../hooks/useQueryParam';
+import { Store, MapPin, Camera, Save, Loader2, Mail, Phone, Info, Navigation, Power, CheckCircle, XCircle, Smartphone, QrCode, Printer, Truck, Shield, Key, Award, Download, Eye, EyeOff, Clock, Users, Plus, Trash2, Sparkles, Share2, MessageSquare, ExternalLink, Gift, X, Wallet, CreditCard, Zap, Globe, Search } from 'lucide-react';
+import api from '../../../config/api.js';
+import { toast } from 'sonner';
+import { GoogleMap, Marker, useJsApiLoader, Autocomplete } from '@react-google-maps/api';
+import { jsPDF } from 'jspdf';
+
+const mapContainerStyle = {
+  width: '100%',
+  height: '100%'
+};
+
+const LIBRARIES = ['places', 'geometry'];
+
+const VendorProfile = () => {
+  const {
+    user, token, orders, fetchOrders, getCustomers,
+    toggleShopStatus, vendorShop, fetchVendorShop, updateShop,
+    loading: globalLoading
+  } = useStore();
+  const navigate = useNavigate();
+  const [customers, setCustomers] = useState([]);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+  const [showSecret, setShowSecret] = useState(false);
+  const [showPoster, setShowPoster] = useState(false);
+  const [showQR, setShowQR] = useState(false);
+  const [activeTab, setActiveTab] = useQueryParam('tab', 'details');
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [showCouponForm, setShowCouponForm] = useState(false);
+  const [isGeneratingBanner, setIsGeneratingBanner] = useState(false);
+  const [isSendingCoupon, setIsSendingCoupon] = useState(false);
+  const [isPaymentsUnlocked, setIsPaymentsUnlocked] = useState(false);
+  const [unlockPassword, setUnlockPassword] = useState('');
+  const [isUnlocking, setIsUnlocking] = useState(false);
+  const [newCoupon, setNewCoupon] = useState({ code: '', discountValue: '', discountType: 'percentage', minOrderAmount: 0, expiryDate: '' });
+
+  const shopUrl = `${window.location.protocol}//${window.location.host}/shop/${vendorShop?.id || vendorShop?._id || ''}`;
+
+  const [formData, setFormData] = useState({
+    name: '',
+    imageUrl: '',
+    bannerUrl: '',
+    phone: '',
+    location: {
+      address: '',
+      coordinates: {
+        lat: 15.3647,
+        lng: 75.1240
+      }
+    },
+    paymentQR: '',
+    razorpayKeyId: '',
+    razorpayKeySecret: '',
+    gstin: '',
+    fssai: '',
+    footerMessage: '',
+    hasHomeDelivery: true,
+    deliveryFee: 0,
+    deliveryPricePerKm: 0,
+    freeDeliveryThreshold: 500,
+    platformFee: 0,
+    vipRewardsEnabled: false,
+    vipPointThreshold: 1000,
+    vipPointValue: 10,
+    staffAccessCode: '',
+    staffPermissions: {
+      canManageInventory: true,
+      canViewCustomers: true
+    },
+    operatingHours: {
+      enabled: false,
+      start: '09:00',
+      end: '21:00'
+    },
+    promoBanner: '',
+    coupons: [],
+    isWholesale: false,
+    isPayLater: false,
+    pinCode: '',
+    areaName: '',
+    storeCode: '',
+    approvedB2BPhones: [],
+    bankDetails: {
+      upiId: '',
+      bankName: '',
+      accountNo: '',
+      ifscCode: '',
+      branch: ''
+    }
+  });
+
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
+    libraries: LIBRARIES
+  });
+
+  const onMapClick = React.useCallback(async (e) => {
+    const lat = e.latLng.lat();
+    const lng = e.latLng.lng();
+    
+    setFormData(prev => ({
+      ...prev,
+      location: { ...prev.location, coordinates: { lat, lng } }
+    }));
+
+    const toastId = toast.loading('Detecting location details...');
+
+    // Detect address and PIN code
+    try {
+      const geocoder = new window.google.maps.Geocoder();
+      const response = await geocoder.geocode({ location: { lat, lng } });
+      
+      if (response.results && response.results[0]) {
+        const address = response.results[0].formatted_address;
+        let pin = '';
+        
+        // Extract PIN code from address components
+        for (const component of response.results[0].address_components) {
+          if (component.types.includes('postal_code')) {
+            pin = component.long_name;
+            break;
+          }
+        }
+
+        setFormData(prev => ({
+          ...prev,
+          pinCode: pin || prev.pinCode,
+          location: {
+            ...prev.location,
+            address: address
+          }
+        }));
+        
+        if (pin) {
+          // Fetch official Area Name from India Post
+          try {
+            const pinRes = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
+            const pinData = await pinRes.json();
+            if (pinData?.[0]?.PostOffice?.[0]) {
+              const detectedArea = pinData[0].PostOffice[0].District;
+              const specificArea = pinData[0].PostOffice.find(po => address.toUpperCase().includes(po.Name.toUpperCase()))?.Name;
+              
+              setFormData(prev => ({
+                ...prev,
+                areaName: (specificArea || detectedArea).toUpperCase()
+              }));
+              toast.success(`Location Synced: ${specificArea || detectedArea} (${pin})`, { id: toastId });
+            } else {
+              toast.success(`Location Synced: ${pin}`, { id: toastId });
+            }
+          } catch (pinErr) {
+            toast.success(`Address Synced: ${pin}`, { id: toastId });
+          }
+        } else {
+          toast.success('Address Updated!', { id: toastId });
+        }
+      } else {
+        toast.error('Could not find address for this spot', { id: toastId });
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      toast.error('Location service busy. Please try again.', { id: toastId });
+    }
+  }, []);
+
+  // -- Data Fetching --
+  useEffect(() => {
+    const loadInitialData = async () => {
+      if (!token) return;
+
+      if (!vendorShop) {
+        await fetchVendorShop();
+      }
+
+      const customerRes = await getCustomers();
+      if (customerRes.success) setCustomers(customerRes.customers);
+    };
+
+    loadInitialData();
+  }, [token]); // Run on mount/auth change
+
+  // -- Form Syncing -- MongoDB uses camelCase already
+  useEffect(() => {
+    if (vendorShop) {
+      setFormData(prev => ({
+        ...prev,
+        ...vendorShop,
+        // Ensure coupons is always an array and favor existing coupons if backend returns none during sync
+        coupons: vendorShop.coupons || prev.coupons || [],
+        location: {
+          address: vendorShop.address || vendorShop.location?.address || prev.location.address,
+          coordinates: {
+            lat: vendorShop.location?.coordinates?.lat ?? 15.3647,
+            lng: vendorShop.location?.coordinates?.lng ?? 75.1240,
+          }
+        }
+      }));
+    }
+  }, [vendorShop]);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      return toast.error('Photo is too large! Please use an image smaller than 5MB.');
+    }
+
+    setIsUploadingImage(true);
+    const toastId = toast.loading('Uploading your shop photo...');
+
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append('image', file);
+      
+      const { data: uploadData } = await api.post('/upload/image', formDataUpload, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 30000
+      });
+      
+      if (!uploadData.url) throw new Error('Server did not return an image URL');
+
+      const publicUrl = uploadData.url;
+      const newFormData = { ...formData, imageUrl: publicUrl };
+      setFormData(newFormData);
+      
+      const res = await updateShop(newFormData);
+      if (res.success) {
+        toast.success('Shop photo updated successfully!', { id: toastId });
+      } else {
+        toast.error(`Database sync failed: ${res.error}`, { id: toastId });
+      }
+    } catch (err) {
+      const errorMessage = err.response?.data?.error || err.message || 'Unknown upload error';
+      toast.error(`Upload failed: ${errorMessage}`, { id: toastId });
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleUnlockPayments = async (e) => {
+    e?.preventDefault();
+    if (!unlockPassword) return;
+
+    setIsUnlocking(true);
+    try {
+      const { data } = await api.post('/auth/verify-password', { password: unlockPassword });
+      if (data.success) {
+        setIsPaymentsUnlocked(true);
+        toast.success('Payments Section Unlocked');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Verification failed');
+    } finally {
+      setIsUnlocking(false);
+    }
+  };
+
+  const handleToggleStatus = async () => {
+    setIsTogglingStatus(true);
+    await toggleShopStatus();
+    setIsTogglingStatus(false);
+  };
+
+  const handleUpdate = async (e, label = 'Profile') => {
+    e?.preventDefault();
+    if (!formData.name.trim()) {
+      toast.error('Please enter a Shop Name first');
+      return;
+    }
+    if (formData.bankDetails?.upiId && !formData.bankDetails.upiId.includes('@')) {
+      toast.error('Invalid UPI ID. It must contain "@" (e.g., name@okbank)');
+      return;
+    }
+    try {
+      setIsUpdating(true);
+      const res = await updateShop(formData);
+      if (res.success) {
+        toast.success(`${label} updated successfully!`);
+      } else {
+        toast.error(res.error || "Update failed");
+      }
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const shopName = formData.name || 'Your Shop';
+    const shopId = vendorShop?.id || vendorShop?._id;
+    const shopUrl = `${window.location.origin}/shop/${shopId || ''}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(shopUrl)}`;
+
+    try {
+      doc.setFillColor(16, 185, 129);
+      doc.rect(0, 0, 210, 40, 'F');
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(28);
+      doc.setFont("helvetica", "bold");
+      doc.text(shopName.toUpperCase(), 105, 25, { align: 'center' });
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("OFFICIAL DIGITAL MENU & ORDERING", 105, 33, { align: 'center' });
+
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("SCAN TO START SHOPPING", 105, 60, { align: 'center' });
+
+      const qrImage = await new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = () => resolve(img);
+        img.src = qrUrl;
+      });
+
+      doc.setDrawColor(241, 245, 249);
+      doc.setLineWidth(2);
+      doc.roundedRect(55, 75, 100, 100, 10, 10, 'S');
+      doc.addImage(qrImage, 'PNG', 60, 80, 90, 90);
+
+      doc.setFontSize(10);
+      doc.setTextColor(148, 163, 184);
+      doc.text(`STORE ID: ${shopId}`, 105, 185, { align: 'center' });
+
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(30, 205, 150, 45, 8, 8, 'F');
+
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("HOW TO ORDER:", 40, 218);
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("1. Open the Store App or Website", 45, 226);
+      doc.text("2. Tap the \"Scan & Shop\" tool on the home page", 45, 232);
+      doc.text("3. Point your camera at this QR code", 45, 238);
+      doc.text("4. Browse items, add to cart, and checkout instantly!", 45, 244);
+
+      doc.setFillColor(16, 185, 129);
+      doc.rect(0, 277, 210, 20, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("POWERED BY SECURE PLATFORM", 105, 290, { align: 'center' });
+
+      const safeName = shopName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      doc.save(`${safeName}_Official_QR.pdf`);
+      toast.success("Professional Flyer Downloaded!");
+    } catch (err) {
+      toast.error("Failed to generate PDF");
+    }
+  };
+
+  const SectionSaveButton = ({ label }) => (
+    <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
+      <button
+        type="submit" disabled={isUpdating}
+        className={`h-14 px-10 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl transition-all flex items-center justify-center gap-3 disabled:opacity-50 
+          ${label === 'Coupons & Offers' ? 'bg-sky-500 hover:bg-sky-600 text-white shadow-sky-200 ring-4 ring-sky-50' : 'bg-gray-900 hover:bg-black text-white'}
+        `}
+      >
+        {isUpdating ? <Loader2 className="animate-spin" size={20} /> : <><Save size={20} /> Finalize & Save {label}</>}
+      </button>
+    </div>
+  );
+
+  const handlePlanUpdate = async (plan) => {
+    setIsUpdating(true);
+    try {
+      await api.post('/monetization/select-plan', { plan });
+      toast.success(`Plan updated to ${plan.toUpperCase()}! Please wait for admin verification.`);
+      fetchVendorShop();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  if (globalLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="animate-spin text-sky-600" size={40} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col flex-1 min-h-screen relative">
+      <div className="mb-6 flex-shrink-0 bg-white/60 backdrop-blur-sm sticky top-0 z-10 py-4 px-2 border-b border-sky-100 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {/* Compact Branding Upside */}
+          <div className="relative group shrink-0">
+            <div className="w-14 h-14 rounded-2xl overflow-hidden bg-white border-2 border-white shadow-xl">
+              {formData.imageUrl ? <img src={formData.imageUrl} alt="Shop" className="w-full h-full object-cover" /> : <Store size={24} className="m-auto mt-4 text-gray-300" />}
+            </div>
+            <label className="absolute -bottom-1 -right-1 w-6 h-6 bg-sky-600 text-white rounded-lg flex items-center justify-center cursor-pointer shadow-lg hover:bg-sky-700 transition-all z-20 scale-90">
+              <Camera size={10} />
+              <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+            </label>
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase leading-none">{formData.name || 'Shop Profile'}</h1>
+            <div className="mt-1.5 flex items-center gap-3">
+              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-sky-600/10 text-sky-600 rounded-full border border-sky-600/20">
+                <CheckCircle size={10} className="fill-sky-600 text-white" />
+                <span className="text-[8px] font-black uppercase tracking-widest">Verified Vendor</span>
+              </div>
+              
+              {vendorShop?.isSponsored && (
+                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-500/10 text-amber-600 rounded-full border border-amber-500/20 animate-pulse">
+                  <Sparkles size={10} className="fill-amber-500 text-white" />
+                  <span className="text-[8px] font-black uppercase tracking-widest">Sponsored Partner</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all ${vendorShop?.isActive ? 'bg-sky-50 text-sky-600' : 'bg-red-50 text-red-600'}`}>
+          {vendorShop?.isActive ? <CheckCircle size={12} /> : <XCircle size={12} />}
+          <span className="text-[9px] font-black uppercase tracking-widest">{vendorShop?.isActive ? 'ACTIVE NODE' : 'INACTIVE NODE'}</span>
+        </div>
+      </div>
+      <div className="flex-1 min-h-0">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 min-h-0">
+          {/* LEFT SIDEBAR: Console & Status */}
+          <div className="lg:col-span-1 flex flex-col pb-10">
+            <div className="bg-white/40 backdrop-blur-md rounded-[40px] p-2 border border-white shadow-xl flex flex-col space-y-1">
+              <p className="px-4 py-0.5 text-[8px] font-black text-gray-600 uppercase tracking-widest border-b border-white/30 mb-0.5">Store Console</p>
+
+              {/* Quick Actions at the Top */}
+              <div className="px-1 py-0.5 space-y-0.5 flex-shrink-0">
+                <div className="w-full flex items-center justify-between gap-2 p-2 rounded-xl bg-sky-600/10 border border-sky-600/20 group transition-all">
+                  <div className="flex items-center gap-2">
+                    <div className={`p-1 rounded-lg border ${vendorShop?.is_active ? 'bg-sky-100 text-sky-600 border-sky-200' : 'bg-red-50 text-red-500 border-red-100'}`}>
+                      <Power size={14} strokeWidth={2.5} />
+                    </div>
+                    <span className="font-black text-[9px] uppercase tracking-wider text-gray-700">Live Status</span>
+                  </div>
+                  <button
+                    onClick={(e) => { e.preventDefault(); handleToggleStatus(); }}
+                    disabled={isTogglingStatus}
+                    className={`relative w-10 min-w-[40px] h-5 rounded-full transition-all flex items-center px-1 ${vendorShop?.isActive ? 'bg-sky-500 justify-end shadow-lg shadow-sky-100' : 'bg-gray-300 justify-start'}`}
+                  >
+                    <div className={`w-3.5 h-3.5 bg-white rounded-full transition-all shadow-sm ${isTogglingStatus ? 'animate-pulse scale-75' : ''}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Navigation Menu - Compacted Further */}
+              <div className="space-y-1 flex-1 pr-1 overflow-y-auto custom-scrollbar-visible py-1">
+                {[
+                  { id: 'details', label: 'Store Details', icon: Info, color: '#0ea5e9' },
+                  { id: 'scheduling', label: 'Scheduling', icon: Clock, color: '#0ea5e9' },
+                  { id: 'services', label: 'Delivery & Services', icon: Truck, color: '#0ea5e9' },
+                  { id: 'location', label: 'Store Location', icon: MapPin, color: '#0ea5e9' },
+                  { id: 'payments', label: 'Payments & QR', icon: QrCode, color: '#0ea5e9' },
+                  { id: 'marketing', label: 'Ads & Offers', icon: Award, color: '#0ea5e9' },
+                  { id: 'credit', label: 'Credit System', icon: Wallet, color: '#059669' },
+                  { id: 'wholesale', label: 'B2B Wholesale', icon: Shield, color: '#0ea5e9' },
+                  vendorShop?.isSponsored && { id: 'sponsorship', label: 'Sponsorship', icon: Sparkles, color: '#f59e0b' },
+                ].filter(Boolean).map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`w-full flex items-center gap-3 p-1.5 rounded-xl transition-all duration-300 group ${isActive
+                        ? `text-white scale-[1.02] shadow-lg`
+                        : 'text-gray-500 hover:bg-white/60 hover:text-gray-900 border border-transparent'
+                        }`}
+                      style={isActive ? { backgroundColor: tab.color, boxShadow: `0 10px 15px -3px ${tab.color}33` } : {}}
+                    >
+                      <div className={`p-1.5 rounded-xl transition-all ${isActive ? 'bg-white/20' : 'bg-gray-100/50 group-hover:bg-white'}`}>
+                        <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+                      </div>
+                      <span className="font-black text-[10px] uppercase tracking-wider">{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT PANEL: Dynamic Content Forms */}
+          <div className="lg:col-span-2 flex flex-col min-h-screen lg:h-[75vh] pb-10">
+            <form onSubmit={handleUpdate} className="flex flex-col h-full">
+              <div className={`flex-1 ${(activeTab === 'wholesale' || activeTab === 'credit') ? 'overflow-hidden' : 'overflow-y-auto custom-scrollbar-visible'} bg-white/60 backdrop-blur-md rounded-[40px] shadow-2xl border border-white/50 p-6`}>
+
+                {activeTab === 'details' && (
+                  <div className="space-y-3 animate-in fade-in slide-in-from-bottom-3 duration-500">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">Shop Name</label>
+                        <input
+                          type="text" required
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 focus:bg-white rounded-2xl p-4 text-xs font-bold text-gray-800 transition-all outline-none"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">Phone Number</label>
+                        <input
+                          type="tel" maxLength="10"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                          className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 focus:bg-white rounded-xl p-3 text-[11px] font-bold text-gray-800 transition-all outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">GSTIN (Optional)</label>
+                        <input
+                          type="text" placeholder="29AAAAA0000A1Z5"
+                          value={formData.gstin}
+                          onChange={(e) => setFormData({ ...formData, gstin: e.target.value })}
+                          className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 focus:bg-white rounded-xl p-3 text-[11px] font-bold text-gray-800 transition-all outline-none"
+                        />
+                      </div>
+                    </div>
+                    <SectionSaveButton label="Store Details" />
+                  </div>
+                )}
+
+                {activeTab === 'scheduling' && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
+                    <div className="flex items-center justify-between p-4 bg-emerald-50/40 rounded-[28px] border-2 border-emerald-100/50 transition-all hover:bg-emerald-50">
+                      <div className="flex items-center gap-4">
+                        <div className={`p-2.5 rounded-2xl transition-all ${formData.operatingHours.enabled ? 'bg-emerald-600 text-white shadow-lg' : 'bg-gray-200 text-gray-400'}`}>
+                          <Clock size={24} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-gray-900 uppercase tracking-tight text-sm">Auto-Scheduling</h4>
+                          <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">{formData.operatingHours.enabled ? 'Automatic Online/Offline Active' : 'Manual Status Only'}</p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer scale-110">
+                        <input
+                          type="checkbox" className="sr-only peer"
+                          checked={formData.operatingHours.enabled}
+                          onChange={(e) => setFormData({ ...formData, operatingHours: { ...formData.operatingHours, enabled: e.target.checked } })}
+                        />
+                        <div className="w-12 h-7 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                      </label>
+                    </div>
+
+                    <div className="bg-white/80 border-2 border-sky-50 rounded-3xl p-6 space-y-6">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] italic">Set your trading window (24h Format)</p>
+                      <div className="grid grid-cols-2 gap-8">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">Opening Time</label>
+                          <input
+                            type="time"
+                            value={formData.operatingHours.start}
+                            onChange={(e) => setFormData({ ...formData, operatingHours: { ...formData.operatingHours, start: e.target.value } })}
+                            className="w-full bg-sky-50/50 border-2 border-transparent focus:border-emerald-400 focus:bg-white rounded-2xl p-4 text-sm font-black text-gray-800 transition-all outline-none"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">Closing Time</label>
+                          <input
+                            type="time"
+                            value={formData.operatingHours.end}
+                            onChange={(e) => setFormData({ ...formData, operatingHours: { ...formData.operatingHours, end: e.target.value } })}
+                            className="w-full bg-sky-50/50 border-2 border-transparent focus:border-emerald-400 focus:bg-white rounded-2xl p-4 text-sm font-black text-gray-800 transition-all outline-none"
+                          />
+                        </div>
+                      </div>
+                      <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-2xl flex gap-3 items-start">
+                        <Info size={16} className="text-blue-500 shrink-0 mt-0.5" />
+                        <p className="text-[9px] font-bold text-blue-700 leading-relaxed uppercase tracking-tight">
+                          The system detects time in Indian Standard Time (IST). If enabled, your shop will go "Offline" automatically exactly at closing time. You can still manually switch offline any time from the sidebar.
+                        </p>
+                      </div>
+                    </div>
+                    <SectionSaveButton label="Schedule" />
+                  </div>
+                )}
+
+
+                {activeTab === 'services' && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
+                    <div className="flex items-center justify-between p-4 bg-sky-50/40 rounded-[28px] border-2 border-sky-100/50 transition-all hover:bg-sky-50">
+                      <div className="flex items-center gap-4">
+                        <div className={`p-2.5 rounded-2xl transition-all ${formData.hasHomeDelivery ? 'bg-sky-600 text-white shadow-lg shadow-sky-100' : 'bg-gray-200 text-gray-400'}`}>
+                          <Truck size={24} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-gray-900 uppercase tracking-tight text-sm">Delivery Service</h4>
+                          <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">{formData.hasHomeDelivery ? 'Enabled' : 'Disabled'}</p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer scale-110">
+                        <input
+                          type="checkbox" className="sr-only peer"
+                          checked={formData.hasHomeDelivery}
+                          onChange={(e) => setFormData({ ...formData, hasHomeDelivery: e.target.checked })}
+                        />
+                        <div className="w-12 h-7 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">Base Fee (₹)</label>
+                        <input
+                          type="number" min="0" value={formData.deliveryFee}
+                          disabled={!formData.hasHomeDelivery}
+                          onChange={(e) => setFormData({ ...formData, deliveryFee: e.target.value })}
+                          className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 rounded-2xl p-4 text-xs font-bold outline-none disabled:opacity-50"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">Price per KM (₹)</label>
+                        <input
+                          type="number" min="0" value={formData.deliveryPricePerKm}
+                          disabled={!formData.hasHomeDelivery}
+                          onChange={(e) => setFormData({ ...formData, deliveryPricePerKm: e.target.value })}
+                          className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 rounded-2xl p-4 text-xs font-bold outline-none disabled:opacity-50"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">Free Above (₹)</label>
+                        <input
+                          type="number" min="0" value={formData.freeDeliveryThreshold}
+                          disabled={!formData.hasHomeDelivery}
+                          onChange={(e) => setFormData({ ...formData, freeDeliveryThreshold: e.target.value })}
+                          className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 rounded-2xl p-4 text-xs font-bold outline-none disabled:opacity-50"
+                        />
+                        <p className="text-[8px] font-bold text-gray-400 mt-1 ml-4 italic">Set to 0 to always charge delivery fee</p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">Platform Fee (₹)</label>
+                        <input
+                          type="number" min="0" value={formData.platformFee}
+                          disabled={!formData.hasHomeDelivery}
+                          onChange={(e) => setFormData({ ...formData, platformFee: e.target.value })}
+                          className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 rounded-2xl p-4 text-xs font-bold outline-none disabled:opacity-50"
+                        />
+                        <p className="text-[8px] font-bold text-gray-400 mt-1 ml-4 italic">Mandatory fee for home delivery</p>
+                      </div>
+                    </div>
+                    <SectionSaveButton label="Delivery Details" />
+                  </div>
+                )}
+
+                {activeTab === 'location' && (
+                  <div className="space-y-2 animate-in fade-in slide-in-from-bottom-3 duration-500 h-full flex flex-col">
+                    <div className="relative group h-64 rounded-[32px] overflow-hidden border-2 border-blue-50 shadow-xl bg-gray-50 flex items-center justify-center">
+                      {isLoaded ? (
+                        <div className="w-full h-full relative cursor-pointer" onClick={() => setIsMapModalOpen(true)}>
+                          <GoogleMap
+                            mapContainerStyle={mapContainerStyle}
+                            center={{
+                              lat: Number(formData.location?.coordinates?.lat) || 15.3647,
+                              lng: Number(formData.location?.coordinates?.lng) || 75.1240
+                            }}
+                            zoom={15}
+                            options={{ disableDefaultUI: true, gestureHandling: 'none' }}
+                          >
+                            <Marker position={{
+                              lat: Number(formData.location?.coordinates?.lat) || 15.3647,
+                              lng: Number(formData.location?.coordinates?.lng) || 75.1240
+                            }} />
+                          </GoogleMap>
+
+                          {/* Hover Overlay */}
+                          <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-[2px] pointer-events-none">
+                            <div className="bg-white/90 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 transform translate-y-4 group-hover:translate-y-0 transition-all">
+                              <Navigation className="text-blue-500 animate-bounce" size={18} />
+                              <span className="font-black text-[10px] uppercase tracking-widest text-gray-800">Tap to Adjust Point</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <Loader2 className="animate-spin text-blue-500" size={32} />
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">Address Information</label>
+                      <textarea
+                        rows="2" value={formData.location.address}
+                        onChange={(e) => setFormData({ ...formData, location: { ...formData.location, address: e.target.value } })}
+                        className="w-full bg-white/80 border-2 border-blue-50 focus:border-blue-400 rounded-xl p-3 text-[11px] font-bold text-gray-800 transition-all outline-none resize-none"
+                      />
+                    </div>
+                    <SectionSaveButton label="Location" />
+                  </div>
+                )}
+
+                {activeTab === 'wholesale' && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
+                    <div className="flex items-center justify-between p-6 bg-sky-50/40 rounded-[32px] border-2 border-sky-100/50 transition-all hover:bg-sky-50">
+                      <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-2xl transition-all ${formData.isWholesale ? 'bg-sky-600 text-white shadow-lg shadow-sky-100' : 'bg-gray-200 text-gray-400'}`}>
+                          <Store size={28} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-gray-900 uppercase tracking-tight text-lg">Wholesale Mode</h4>
+                          <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-none mt-1">
+                            {formData.isWholesale ? 'B2B Pricing Engine: Active' : 'B2B Pricing Engine: Standby'}
+                          </p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer scale-125">
+                        <input
+                          type="checkbox" className="sr-only peer"
+                          checked={formData.isWholesale}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            setFormData({ ...formData, isWholesale: val });
+                            toast.info(`Wholesale mode ${val ? 'enabled' : 'disabled'}. Click "Update Profile" to save.`);
+                          }}
+                        />
+                        <div className="w-12 h-7 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="bg-white/80 border-2 border-sky-50 rounded-[40px] p-8 text-center space-y-4">
+                      <div className="w-16 h-16 bg-sky-100 text-sky-600 rounded-2xl flex items-center justify-center mx-auto mb-2">
+                        <Users size={32} />
+                      </div>
+                      <h4 className="font-black text-gray-900 uppercase tracking-tight text-base">Partner Whitelist Management</h4>
+                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-tight leading-relaxed max-w-xs mx-auto">
+                        Management of whitelisted B2B phone numbers, emails, and GSTINs has been moved to the <span className="text-sky-600">sidebar menu</span> for better accessibility.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/vendor/dashboard/b2b')}
+                        className="px-6 py-3 bg-sky-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-sky-700 transition-all active:scale-95 shadow-lg shadow-sky-100"
+                      >
+                        Manage B2B Partners
+                      </button>
+                    </div>
+                    <SectionSaveButton label="Wholesale Settings" />
+                  </div>
+                )}
+
+                {activeTab === 'credit' && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
+                    <div className="flex items-center justify-between p-6 bg-emerald-50/40 rounded-[32px] border-2 border-emerald-100/50 transition-all hover:bg-emerald-50">
+                      <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-2xl transition-all ${formData.isPayLater ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-gray-200 text-gray-400'}`}>
+                          <Wallet size={28} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-gray-900 uppercase tracking-tight text-lg">Credit System</h4>
+                          <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-none mt-1">
+                            {formData.isPayLater ? 'Customer Credit: Enabled' : 'Customer Credit: Standby'}
+                          </p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer scale-125">
+                        <input
+                          type="checkbox" className="sr-only peer"
+                          checked={formData.isPayLater}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            setFormData({ ...formData, isPayLater: val });
+                            toast.info(`Credit System ${val ? 'enabled' : 'disabled'}. Click "Update Profile" to save.`);
+                          }}
+                        />
+                        <div className="w-12 h-7 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="bg-white/80 border-2 border-emerald-50 rounded-[40px] p-8 text-center space-y-4">
+                      <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-2">
+                        <CreditCard size={32} />
+                      </div>
+                      <h4 className="font-black text-gray-900 uppercase tracking-tight text-base">Credit Ledger Access</h4>
+                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-tight leading-relaxed max-w-xs mx-auto">
+                        Track and settle customer dues via the dedicated <span className="text-emerald-600">Credit Ledger</span> section in your dashboard.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/vendor/dashboard/credit-customers')}
+                        className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all active:scale-95 shadow-lg shadow-emerald-100"
+                      >
+                        Open Credit Ledger
+                      </button>
+                    </div>
+                    <SectionSaveButton label="Credit System" />
+                  </div>
+                )}
+
+                {activeTab === 'payments' && (
+                  !isPaymentsUnlocked ? (
+                    <div className="flex flex-col items-center justify-center py-20 px-6 space-y-8 animate-in fade-in zoom-in duration-500">
+                      <div className="w-24 h-24 bg-sky-50 text-sky-600 rounded-[40px] flex items-center justify-center shadow-xl shadow-sky-100/50">
+                        <Shield size={48} strokeWidth={2.5} />
+                      </div>
+                      <div className="text-center space-y-2">
+                        <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Security Lock</h3>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-relaxed max-w-xs text-center mx-auto">Enter your account password to access <span className="text-sky-600">Payment Gateway</span> settings.</p>
+                      </div>
+                      <div className="w-full max-w-sm space-y-4">
+                        <div className="relative group">
+                          <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-sky-500 transition-colors" size={18} />
+                          <input
+                            type="password"
+                            placeholder="Enter Password"
+                            value={unlockPassword}
+                            onChange={(e) => setUnlockPassword(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleUnlockPayments(e)}
+                            className="w-full bg-white border-2 border-gray-100 focus:border-sky-400 rounded-2xl py-4 pl-12 pr-4 text-sm font-bold text-gray-800 transition-all outline-none shadow-sm"
+                            autoFocus
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleUnlockPayments}
+                          disabled={isUnlocking}
+                          className="w-full py-4 bg-sky-600 hover:bg-sky-700 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-sky-200 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
+                        >
+                          {isUnlocking ? <Loader2 className="animate-spin" size={18} /> : <><Power size={18} /> Unlock Section</>}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-500">
+                      <div className="flex items-center justify-between bg-emerald-50 p-4 rounded-2xl border border-emerald-100 mb-2">
+                         <div className="flex items-center gap-3 text-emerald-700">
+                            <Shield size={18} />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Section Unlocked</span>
+                         </div>
+                         <button 
+                           type="button"
+                           onClick={() => {
+                             setIsPaymentsUnlocked(false);
+                             setUnlockPassword('');
+                           }}
+                           className="text-[10px] font-black text-rose-600 uppercase tracking-widest hover:underline"
+                         >
+                           Lock Again
+                         </button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Razorpay Key Id</label>
+                          <input
+                            type="text" placeholder="rzp_test_..."
+                            value={formData.razorpayKeyId}
+                            onChange={(e) => setFormData({ ...formData, razorpayKeyId: e.target.value })}
+                            className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 focus:bg-white rounded-xl p-3 text-[11px] font-bold text-gray-800 transition-all outline-none"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Razorpay Secret</label>
+                          <div className="relative">
+                            <input
+                              type={showSecret ? "text" : "password"}
+                              placeholder={formData.hasRazorpaySecret ? "••••••••••••••••" : "Enter Razorpay Secret Key"}
+                              value={formData.razorpayKeySecret}
+                              onChange={(e) => setFormData({ ...formData, razorpayKeySecret: e.target.value })}
+                              className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 focus:bg-white rounded-xl p-3 pr-12 text-[11px] font-bold text-gray-800 transition-all outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowSecret(!showSecret)}
+                              className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-sky-600 transition-colors"
+                            >
+                              {showSecret ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                          </div>
+                          {formData.hasRazorpaySecret && !formData.razorpayKeySecret && (
+                            <p className="text-[9px] font-bold text-emerald-600 ml-4 italic">✓ Your Secret Key is safely stored and secured.</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="bg-white/80 border-2 border-sky-50 rounded-3xl p-6 space-y-4">
+                         <div className="flex items-center gap-3 mb-2">
+                            <div className="w-10 h-10 bg-sky-50 text-sky-600 rounded-xl flex items-center justify-center">
+                               <Smartphone size={20} />
+                            </div>
+                            <div>
+                               <h4 className="font-black text-gray-900 uppercase tracking-tight text-sm">UPI Payment Configuration</h4>
+                               <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">For live QR code generation</p>
+                            </div>
+                         </div>
+                         <div className="space-y-2">
+                           <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">UPI ID (e.g. name@upi)</label>
+                           <input
+                             type="text" placeholder="example@okhdfcbank"
+                             value={formData.bankDetails?.upiId || ''}
+                             onChange={(e) => setFormData({ 
+                               ...formData, 
+                               bankDetails: { ...formData.bankDetails, upiId: e.target.value } 
+                             })}
+                             className="w-full bg-white border-2 border-sky-50 focus:border-sky-400 rounded-xl p-4 text-[11px] font-bold text-gray-800 transition-all outline-none"
+                           />
+                           <p className="text-[8px] font-bold text-sky-500 ml-4 uppercase tracking-tighter">This ID will be encoded into dynamic QR codes for your B2B customers.</p>
+                         </div>
+                      </div>
+
+                      <div className="relative group overflow-hidden rounded-[32px] bg-gradient-to-br from-sky-500 to-sky-600 p-4 text-center text-white shadow-2xl">
+                        <div className="inline-block p-2 bg-white rounded-[24px] shadow-2xl mb-3">
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}/shop/${vendorShop?.id || vendorShop?._id || ''}`)}`}
+                            alt="Shop QR" className="w-20 h-20"
+                          />
+                        </div>
+                        <h3 className="text-lg font-black uppercase tracking-tighter leading-tight">Instant Checkout Terminal</h3>
+                        <p className="text-white/80 font-bold text-[8px] uppercase tracking-widest mt-1 px-10 italic leading-none">Scan this code to place orders directly at {formData.name}</p>
+
+                        <button
+                          type="button" onClick={handleDownloadPDF}
+                          className="mt-4 flex items-center justify-center mx-auto gap-2 px-6 py-2.5 bg-white text-sky-600 rounded-xl font-black text-[8px] uppercase tracking-widest hover:bg-sky-50 transition-all active:scale-95 shadow-xl disabled:opacity-50"
+                        >
+                          <Download size={12} /> Download Flyer
+                        </button>
+                      </div>
+                      <SectionSaveButton label="Payment Settings" />
+                    </div>
+                  )
+                )}
+
+
+                {activeTab === 'marketing' && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
+
+
+                    <div className="bg-white border border-gray-100 rounded-[32px] p-6 shadow-sm space-y-6">
+                      <div className="flex items-center justify-between border-b border-gray-50 pb-4">
+                        <div>
+                          <h3 className="text-lg font-black uppercase tracking-tight text-gray-900">Active Coupons</h3>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Manage your discount codes</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowCouponForm(!showCouponForm)}
+                          className="flex items-center gap-2 px-5 py-2.5 bg-sky-500 text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-sky-600 transition-all shadow-lg shadow-sky-100"
+                        >
+                          {showCouponForm ? <XCircle size={14} /> : <Plus size={14} />} {showCouponForm ? 'Cancel' : 'Add Coupon'}
+                        </button>
+                      </div>
+
+                      {showCouponForm && (
+                        <div className="bg-sky-50/50 border-2 border-sky-100 rounded-2xl p-4 mb-4 space-y-4 animate-in fade-in slide-in-from-top-2">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                              <label className="text-[8px] font-black text-gray-500 uppercase tracking-widest ml-2">Coupon Code</label>
+                              <div className="relative">
+                                <input
+                                  type="text" placeholder="Coupon Code"
+                                  value={newCoupon.code}
+                                  onChange={(e) => setNewCoupon({ ...newCoupon, code: e.target.value.toUpperCase() })}
+                                  className="w-full bg-white border border-sky-100 rounded-xl p-3 pr-10 text-[10px] font-bold outline-none focus:border-sky-400 transition-all"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const prefixes = ['SAVE', 'GET', 'OFFER', 'PROMO', 'SHOP'];
+                                    const randomPrefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+                                    const randomNumber = Math.floor(10 + Math.random() * 90); // 10-99
+                                    const randomSuffix = Math.random().toString(36).substring(2, 4).toUpperCase();
+                                    setNewCoupon({ ...newCoupon, code: `${randomPrefix}${randomNumber}${randomSuffix}` });
+                                  }}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-sky-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-all"
+                                  title="Auto-generate code"
+                                >
+                                  <Sparkles size={14} />
+                                </button>
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[8px] font-black text-gray-500 uppercase tracking-widest ml-2">Discount Value</label>
+                              <input
+                                type="number" placeholder="20" min="0"
+                                value={newCoupon.discountValue}
+                                onChange={(e) => setNewCoupon({ ...newCoupon, discountValue: e.target.value })}
+                                className="w-full bg-white border border-sky-100 rounded-xl p-3 text-[10px] font-bold outline-none focus:border-sky-400 transition-all"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[8px] font-black text-gray-500 uppercase tracking-widest ml-2">Expiry Date (Optional)</label>
+                              <input
+                                type="date"
+                                value={newCoupon.expiryDate}
+                                onChange={(e) => setNewCoupon({ ...newCoupon, expiryDate: e.target.value })}
+                                min={new Date().toISOString().split('T')[0]}
+                                className="w-full bg-white border border-sky-100 rounded-xl p-3 text-[10px] font-bold outline-none focus:border-sky-400 transition-all"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[8px] font-black text-gray-500 uppercase tracking-widest ml-2">Min. Order Amount (₹)</label>
+                              <input
+                                type="number" placeholder="499" min="0"
+                                value={newCoupon.minOrderAmount}
+                                onChange={(e) => setNewCoupon({ ...newCoupon, minOrderAmount: Math.max(0, Number(e.target.value)) })}
+                                className="w-full bg-white border border-sky-100 rounded-xl p-3 text-[10px] font-bold outline-none focus:border-sky-400 transition-all"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex bg-white p-1 rounded-xl border border-sky-100">
+                              {['percentage', 'flat'].map((type) => (
+                                <button
+                                  key={type} type="button"
+                                  onClick={() => setNewCoupon({ ...newCoupon, discountType: type })}
+                                  className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${newCoupon.discountType === type ? 'bg-sky-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                >
+                                  {type === 'percentage' ? '%' : '₹'}
+                                </button>
+                              ))}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!newCoupon.code || !newCoupon.discountValue) return toast.error("Please fill all fields");
+                                const val = Number(newCoupon.discountValue);
+                                if (isNaN(val) || val <= 0) return toast.error("Please enter a valid discount value");
+
+                                setFormData({
+                                  ...formData,
+                                  coupons: [...formData.coupons, { 
+                                    ...newCoupon, 
+                                    discountValue: val, 
+                                    minOrderAmount: Number(newCoupon.minOrderAmount) || 0,
+                                    expiryDate: newCoupon.expiryDate || undefined,
+                                    isActive: true 
+                                  }]
+                                });
+                                
+                                setNewCoupon({ code: '', discountValue: '', discountType: 'percentage', minOrderAmount: 0, expiryDate: '' });
+                                setShowCouponForm(false);
+                                toast.success("Coupon added to list! Click 'Finalize & Save' below to lock it in.", {
+                                  duration: 5000,
+                                  icon: <Save className="text-sky-500" size={16} />
+                                });
+                              }}
+                              className="px-6 py-2 bg-gray-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg"
+                            >
+                              Confirm Addition
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="pr-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {(formData.coupons || []).map((coupon, idx) => (
+                            <div key={idx} className="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex items-center justify-between group">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-sky-500 shadow-sm">
+                                  <Award size={20} />
+                                </div>
+                                <div>
+                                  <p className="text-[11px] font-black text-gray-900 uppercase tracking-tight">{coupon.code}</p>
+                                  <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest">
+                                    {coupon.discountType === 'percentage' ? `${coupon.discountValue}% OFF` : `₹${coupon.discountValue} OFF`}
+                                    {coupon.minOrderAmount > 0 && <span className="text-gray-400 ml-2"> • Above ₹{coupon.minOrderAmount}</span>}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  disabled={isSendingCoupon}
+                                  onClick={async () => {
+                                    try {
+                                      setIsSendingCoupon(true);
+                                      const shopId = vendorShop?._id || vendorShop?.id;
+                                      if (!shopId) return toast.error("Shop ID not found. Please refresh.");
+
+                                      const { data } = await api.post(`/shops/${shopId}/send-coupon`, { coupon });
+
+                                      if (data.success) {
+                                        toast.success(data.message || `Coupon broadcasted to ${data.count} customers!`);
+                                      } else {
+                                        toast.error(data.error || "Failed to send coupons.");
+                                      }
+                                    } catch (err) {
+                                      console.error("Broadcast error:", err);
+                                      toast.error(err.response?.data?.error || "Connection error. Could not broadcast coupons.");
+                                    } finally {
+                                      setIsSendingCoupon(false);
+                                    }
+                                  }}
+                                  className="px-3 h-8 bg-blue-600 text-white rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50"
+                                >
+                                  {isSendingCoupon ? <Loader2 size={12} className="animate-spin" /> : <Mail size={12} />}
+                                  {isSendingCoupon ? 'Sending...' : 'Send All'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData({
+                                      ...formData,
+                                      coupons: formData.coupons.filter((_, i) => i !== idx)
+                                    });
+                                  }}
+                                  className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-rose-50 hover:text-rose-500 transition-all border border-gray-100"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                          {formData.coupons.length === 0 && (
+                            <div className="col-span-full py-8 text-center bg-gray-50/50 border border-dashed border-gray-200 rounded-2xl">
+                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">No active coupons yet</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-6 bg-blue-50/50 border border-blue-100 rounded-[32px] flex gap-4 items-start">
+                      <div className="w-10 h-10 bg-blue-500 text-white rounded-xl flex items-center justify-center shrink-0">
+                        <Info size={20} />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-blue-900 uppercase tracking-tight mb-1">Coupon Management Tip</p>
+                        <p className="text-[11px] font-bold text-blue-700/70 leading-relaxed uppercase tracking-tight">
+                          Adding specific coupon codes allows you to track marketing performance. Customers can find these in your shop banner or during checkout.
+                        </p>
+                      </div>
+                    </div>
+                    <SectionSaveButton label="Coupons & Offers" />
+                  </div>
+                )}
+
+                {activeTab === 'sponsorship' && vendorShop?.isSponsored && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
+                    {/* BOOST YOUR SALES SECTION */}
+                    <div className="bg-gradient-to-br from-rose-500 to-pink-600 rounded-[32px] p-6 text-white shadow-xl relative overflow-hidden">
+                      <div className="absolute right-0 top-0 opacity-10 transform translate-x-4 -translate-y-4">
+                        <Gift size={120} />
+                      </div>
+                      <h3 className="text-xl font-black uppercase tracking-tight mb-1">Boost Your Sales</h3>
+                      <p className="text-white/80 text-xs font-bold uppercase tracking-widest">Create a shop-wide offer banner to attract customers.</p>
+
+                      <div className="mt-6 space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-white/70 uppercase tracking-widest ml-1">Offer Message (Max 40 Chars)</label>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              maxLength="40"
+                              placeholder="Reward Description"
+                              value={formData.promoBanner}
+                              onChange={(e) => setFormData({ ...formData, promoBanner: e.target.value })}
+                              className="w-full bg-white text-gray-900 rounded-2xl p-4 pr-12 text-xs font-bold outline-none focus:ring-4 focus:ring-white/20 transition-all"
+                            />
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-rose-500">
+                              <Sparkles size={18} />
+                            </div>
+                          </div>
+                        </div>
+
+                        {formData.promoBanner && (
+                          <div className="mt-6 pt-6 border-t border-white/10">
+                            <p className="text-[9px] font-black text-white/50 uppercase tracking-widest mb-3">Live Preview on Store Page</p>
+                            <div className="bg-rose-600/30 backdrop-blur-md rounded-2xl p-4 border border-white/10 flex items-center justify-between">
+                               <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 bg-white text-rose-500 rounded-xl flex items-center justify-center shrink-0">
+                                    <Award size={20} />
+                                  </div>
+                                  <div>
+                                    <p className="text-[11px] font-black text-white uppercase tracking-tight">{formData.promoBanner}</p>
+                                    <p className="text-[8px] font-bold text-white/60 uppercase tracking-widest">Active Coupon: Apply at Checkout</p>
+                                  </div>
+                               </div>
+                               <button type="button" className="px-4 py-2 bg-white text-rose-500 rounded-lg font-black text-[8px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">
+                                 Copy Code
+                               </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* AI BANNER GENERATOR SECTION */}
+                    <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[32px] p-6 text-white shadow-xl relative overflow-hidden">
+                      <div className="absolute right-0 top-0 opacity-10 transform translate-x-4 -translate-y-4">
+                        <Zap size={120} />
+                      </div>
+                      <h3 className="text-xl font-black uppercase tracking-tight mb-1">AI Sponsored Banner</h3>
+                      <p className="text-white/80 text-xs font-bold uppercase tracking-widest">Premium visibility for sponsored vendors only.</p>
+
+                      <div className="mt-6 space-y-2">
+                        <label className="text-[10px] font-black text-white/70 uppercase tracking-widest ml-1">Describe your banner theme</label>
+                        <div className="flex flex-col md:flex-row gap-4 items-center">
+                          <div className="relative flex-1">
+                            <textarea
+                              rows="2"
+                              placeholder="Describe the mood and items..."
+                              id="banner-prompt-input"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault();
+                                  document.getElementById('generate-banner-btn').click();
+                                }
+                              }}
+                              className="w-full bg-white/10 backdrop-blur-md text-white placeholder:text-white/40 border border-white/20 rounded-2xl p-4 pr-12 text-xs font-bold outline-none focus:ring-4 focus:ring-white/10 transition-all resize-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const themes = [
+                                  "Fresh Organic Vegetables from Local Farms",
+                                  "Exotic Tropical Fruits and Juicy Mangoes",
+                                  "Premium Dairy Products and Fresh Milk",
+                                  "Artisanal Bakery with Warm Sourdough Bread",
+                                  "High Quality Meat and Poultry Selection",
+                                  "Traditional Spices and Organic Pulses",
+                                  "Healthy Snacks and Nutritious Dry Fruits",
+                                  "Luxury Gourmet Chocolates and Desserts",
+                                  "Modern Minimalist Grocery Store Aesthetics",
+                                  "Vibrant Street Market with Fresh Produce"
+                                ];
+                                const randomTheme = themes[Math.floor(Math.random() * themes.length)];
+                                document.getElementById('banner-prompt-input').value = randomTheme;
+                                toast.success("AI Theme Idea Ready!");
+                                document.getElementById('generate-banner-btn').click();
+                              }}
+                              className="absolute right-3 top-4 p-2 bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all border border-white/10"
+                              title="Generate theme idea"
+                            >
+                              <Sparkles size={16} />
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            id="generate-banner-btn"
+                            onClick={() => {
+                              const promptInput = document.getElementById('banner-prompt-input');
+                              const prompt = promptInput.value;
+                              if (!prompt) return toast.error("Please describe your banner first!");
+                              
+                              const btn = document.getElementById('generate-banner-btn');
+                              const btnIcon = btn.querySelector('svg');
+                              
+                              btn.disabled = true;
+                              if (btnIcon) btnIcon.style.animation = 'spin 1s linear infinite';
+                              setIsGeneratingBanner(true);
+                              const toastId = toast.loading("AI is designing your banner...");
+
+                              setTimeout(() => {
+                                  const p = prompt.toLowerCase();
+                                  let url = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200';
+                                  
+                                  const pick = (arr) => {
+                                    const last = localStorage.getItem('lastBannerUrl');
+                                    const available = arr.filter(u => u !== last);
+                                    const chosen = available[Math.floor(Math.random() * available.length)] || arr[0];
+                                    localStorage.setItem('lastBannerUrl', chosen);
+                                    return chosen;
+                                  };
+
+                                  if (p.includes('shop') || p.includes('store') || p.includes('supermarket')) {
+                                    url = pick([
+                                      'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200',
+                                      'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=1200',
+                                      'https://images.unsplash.com/photo-1604719312563-8912e9223c6a?auto=format&fit=crop&q=80&w=1200',
+                                      'https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&q=80&w=1200'
+                                    ]);
+                                  } else if (p.includes('fruit') || p.includes('mango')) {
+                                    url = pick([
+                                      'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&q=80&w=1200',
+                                      'https://images.unsplash.com/photo-1519996529931-28324d5a630e?auto=format&fit=crop&q=80&w=1200'
+                                    ]);
+                                  } else if (p.includes('veg') || p.includes('organic')) {
+                                    url = pick([
+                                      'https://images.unsplash.com/photo-1566385101042-1a0aa0c12e8c?auto=format&fit=crop&q=80&w=1200',
+                                      'https://images.unsplash.com/photo-1597362868123-a509f8d7c1c5?auto=format&fit=crop&q=80&w=1200'
+                                    ]);
+                                  } else if (p.includes('milk') || p.includes('dairy')) {
+                                    url = pick([
+                                      'https://images.unsplash.com/photo-1550583724-125581fe2f8a?auto=format&fit=crop&q=80&w=1200',
+                                      'https://images.unsplash.com/photo-1628088062854-d1870b4553da?auto=format&fit=crop&q=80&w=1200'
+                                    ]);
+                                  } else if (p.includes('meat') || p.includes('chicken')) {
+                                    url = pick([
+                                      'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&q=80&w=1200',
+                                      'https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&q=80&w=1200'
+                                    ]);
+                                  } else if (p.includes('bakery') || p.includes('bread')) {
+                                    url = pick([
+                                      'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=1200',
+                                      'https://images.unsplash.com/photo-1486427944299-d1955d23e34d?auto=format&fit=crop&q=80&w=1200'
+                                    ]);
+                                  } else if (p.includes('snack') || p.includes('chips')) {
+                                    url = pick([
+                                      'https://images.unsplash.com/photo-1599490659223-eb33e974bb9d?auto=format&fit=crop&q=80&w=1200',
+                                      'https://images.unsplash.com/photo-1621447509374-f4412a324017?auto=format&fit=crop&q=80&w=1200'
+                                    ]);
+                                  } else {
+                                    url = pick([
+                                      'https://images.unsplash.com/photo-1534723452862-4c874018d66d?auto=format&fit=crop&q=80&w=1200',
+                                      'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=1200'
+                                    ]);
+                                  }
+
+                                  setFormData({ ...formData, bannerUrl: url });
+                                  setIsGeneratingBanner(false);
+                                  toast.success("AI Banner Generated!", { id: toastId });
+                                  btn.disabled = false;
+                                  if (btnIcon) btnIcon.style.animation = 'none';
+                              }, 2000);
+                            }}
+                            className="h-14 px-8 bg-white text-indigo-600 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-indigo-50 transition-all flex items-center justify-center gap-2 shrink-0 self-center"
+                          >
+                            {isGeneratingBanner ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />} {isGeneratingBanner ? 'Designing...' : 'Generate with AI'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {formData.bannerUrl && (
+                        <div className="mt-6 pt-6 border-t border-white/10">
+                           <p className="text-[9px] font-black text-white/50 uppercase tracking-widest mb-3">Live Sponsored Banner Preview</p>
+                           <div className="relative aspect-[21/9] w-full rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 group bg-gray-900">
+                              <img 
+                                src={formData.bannerUrl} 
+                                alt="Banner" 
+                                className="w-full h-full object-cover transition-all group-hover:scale-105" 
+                                onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200'; }}
+                              />
+                              <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all" />
+                              <div className="absolute top-4 left-4 px-3 py-1 bg-indigo-500 text-white rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2">
+                                <CheckCircle size={10} fill="currentColor" className="text-white" />
+                                Sponsored Banner Active
+                              </div>
+                           </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* SPONSORSHIP INFO BOX */}
+                    <div className="p-6 bg-amber-50/50 border border-amber-100 rounded-[32px] flex gap-4 items-start">
+                      <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shrink-0">
+                        <Sparkles size={20} />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-amber-900 uppercase tracking-tight mb-1">Sponsorship Visibility</p>
+                        <p className="text-[11px] font-bold text-amber-700/70 leading-relaxed uppercase tracking-tight">
+                          Your sponsored banner will appear at the top of the marketplace search and on your shop profile. High-quality banners significantly increase customer click-through rates.
+                        </p>
+                      </div>
+                    </div>
+                    <SectionSaveButton label="Sponsorship Data" />
+                  </div>
+                )}
+              </div>
+
+              {/* Action Bar */}
+              <div className="mt-3 flex-shrink-0 flex items-center justify-between bg-white/60 backdrop-blur-md rounded-[24px] p-2 border border-gray-100 shadow-xl">
+                <div className="ml-6 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-sky-600 animate-pulse" />
+                  <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest italic">Live Changes</p>
+                </div>
+                <button
+                  type="submit" disabled={isUpdating}
+                  className="h-14 px-10 bg-gray-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl hover:bg-black transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                >
+                  {isUpdating ? <Loader2 className="animate-spin" size={20} /> : <><Save size={20} /> Update Profile</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      {/* MAP MODAL OVERLAY */}
+      {isMapModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-10 animate-fade-in">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-2xl" onClick={() => setIsMapModalOpen(false)} />
+
+          <div className="relative w-full max-w-5xl h-[80vh] bg-white rounded-[40px] shadow-2xl overflow-hidden border border-white/20 flex flex-col animate-scale-in">
+            <div className="p-6 bg-white border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+              <div className="flex-1 flex items-center gap-4">
+                <div className="p-3 bg-blue-50 text-blue-500 rounded-2xl">
+                  <MapPin size={24} />
+                </div>
+                <div className="flex-1">
+                  <div className="relative group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={18} />
+                    <Autocomplete
+                      onLoad={(autocomplete) => { window.autocomplete = autocomplete; }}
+                      onPlaceChanged={() => {
+                        const place = window.autocomplete.getPlace();
+                        if (place.geometry) {
+                          const lat = place.geometry.location.lat();
+                          const lng = place.geometry.location.lng();
+                          onMapClick({ latLng: { lat: () => lat, lng: () => lng } });
+                        }
+                      }}
+                    >
+                      <input
+                        type="text"
+                        placeholder="Search for your shop location or neighborhood..."
+                        className="w-full bg-gray-50 border-2 border-transparent focus:border-blue-400 focus:bg-white rounded-2xl py-3 pl-12 pr-4 text-sm font-bold text-gray-800 transition-all outline-none"
+                      />
+                    </Autocomplete>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsMapModalOpen(false)}
+                className="p-4 hover:bg-gray-100 rounded-full transition-all text-gray-400 hover:text-gray-900 ml-4"
+              >
+                <XCircle size={32} />
+              </button>
+            </div>
+
+            <div className="flex-1 min-h-0 relative">
+              {isLoaded ? (
+                  <GoogleMap
+                    mapContainerStyle={mapContainerStyle}
+                    center={{ lat: Number(formData.location?.coordinates?.lat) || 15.3647, lng: Number(formData.location?.coordinates?.lng) || 75.1240 }}
+                    zoom={15} onClick={onMapClick}
+                    options={{ disableDefaultUI: false }}
+                  >
+                    <Marker 
+                      position={{ lat: Number(formData.location?.coordinates?.lat) || 15.3647, lng: Number(formData.location?.coordinates?.lng) || 75.1240 }}
+                      onClick={onMapClick}
+                    />
+                  </GoogleMap>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Loader2 className="animate-spin text-blue-500" size={40} />
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 bg-gray-50/50 flex items-center justify-between gap-6 flex-shrink-0">
+              <div className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <p className="text-[8px] font-black text-gray-600 uppercase tracking-widest">Selected Point</p>
+                <p className="text-[11px] font-black text-blue-600 mt-1 truncate">
+                  {(formData.location?.coordinates?.lat || 15.3647).toFixed(6)}, {(formData.location?.coordinates?.lng || 75.1240).toFixed(6)}
+                </p>
+              </div>
+              <button
+                onClick={() => setIsMapModalOpen(false)}
+                className="h-14 px-10 bg-blue-600 text-white rounded-2xl font-black text-[12px] uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+              >
+                Save & Close Location
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Share Coupon Modal */}
+    </div>
+  );
+};
+
+export default VendorProfile;
