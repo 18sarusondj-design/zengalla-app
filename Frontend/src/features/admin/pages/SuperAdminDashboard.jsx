@@ -101,7 +101,7 @@ const SuperAdminDashboard = () => {
          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 overflow-hidden">
             <div>
                <div className="flex items-center gap-4 mb-2">
-                  <h1 className="text-7xl font-black text-gray-900 tracking-tighter uppercase leading-none">Platform Growth</h1>
+                   <h1 className="text-4xl md:text-7xl font-black text-gray-900 tracking-tighter uppercase leading-none">Platform Growth</h1>
                   <span className="px-4 py-1.5 bg-sky-500 text-white text-xs font-black uppercase tracking-[0.3em] rounded-2xl shadow-xl shadow-sky-200 animate-pulse mt-4">Network Owner</span>
                </div>
                <p className="text-sm font-black text-sky-600 uppercase tracking-[0.4em] flex items-center gap-3">
@@ -111,14 +111,14 @@ const SuperAdminDashboard = () => {
          </div>
 
          {/* Modern Stats Grid */}
-         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
             <GlobalStat label="Global Vendors" value={stats.totalShops} color="sky" />
             <GlobalStat label="Total Customers" value={stats.totalCustomers} color="emerald" />
             <GlobalStat label="Pending Approval" value={stats.pending} color="sky" alert={stats.pending > 0} />
-         </div>
+          </div>
 
          {/* Dual Stream Growth Chart - The New Primary Focus */}
-         <div className="w-full bg-gray-900 rounded-[48px] p-10 shadow-2xl shadow-gray-200/50 border border-white/5 relative overflow-hidden group">
+          <div className="w-full bg-gray-900 rounded-[32px] md:rounded-[48px] p-6 md:p-10 shadow-2xl shadow-gray-200/50 border border-white/5 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-96 h-96 bg-sky-500/5 rounded-full blur-[120px] -mr-48 -mt-48 transition-all group-hover:scale-110"></div>
 
             <div className="relative z-10 flex flex-col gap-10">
