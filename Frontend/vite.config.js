@@ -47,7 +47,7 @@ export default defineConfig({
         enabled: true,
         type: 'module'
       },
-      workbox: {
+      injectManifest: {
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
       }
     })
