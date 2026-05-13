@@ -1,6 +1,8 @@
 import React from 'react';
 import { HelpCircle } from 'lucide-react';
 import Logo from '../../common/components/Logo';
+import PWAInstallButton from './PWAInstallButton';
+
 
 const Footer = ({ onReportClick, navigate }) => {
   return (
@@ -36,7 +38,11 @@ const Footer = ({ onReportClick, navigate }) => {
                   </button>
                 </li>
               ))}
+              <li className="mt-4 pt-2 border-t border-white/10">
+                <PWAInstallButton variant="sidebar" className="!bg-white/10 !text-white !border-white/20 !h-10" />
+              </li>
             </ul>
+
           </div>
 
           {/* Vendor Links */}
