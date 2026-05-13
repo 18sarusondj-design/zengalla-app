@@ -5,6 +5,8 @@ import { useAuth } from '../../auth/context/AuthContext';
 import ShopMapModal from '../components/ShopMapModal';
 import Logo from '../../common/components/Logo';
 import PWAInstallButton from '../../common/components/PWAInstallButton';
+import SEO from '../../common/components/SEO';
+
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -31,6 +33,21 @@ const Landing = () => {
 
   return (
     <div className="min-h-screen font-sans overflow-x-hidden bg-white">
+      <SEO 
+        title="Welcome" 
+        description="ZenGalla is your premium local marketplace. Shop fresh groceries and household essentials from your favorite nearby stores."
+        canonical="/"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          "name": "ZenGalla",
+          "url": "https://zengalla-app-vrkx.vercel.app",
+          "logo": "https://zengalla-app-vrkx.vercel.app/pwa-512.png",
+          "description": "Premium Grocery & Marketplace"
+        }}
+      />
+
+
 
       {/* === HERO === */}
       <section className="relative overflow-hidden" style={{ background: 'linear-gradient(160deg, #075985 0%, #0369a1 40%, #1e40af 100%)' }}>
@@ -55,10 +72,12 @@ const Landing = () => {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-lg mx-auto">
             <button
               onClick={() => navigate('/shops')}
+              aria-label="Explore nearby shops"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-3 h-14 px-10 bg-sky-500 hover:bg-sky-600 text-white rounded-2xl shadow-2xl shadow-sky-900/40 font-black uppercase tracking-widest text-[11px] active:scale-95 transition-all group"
             >
               Explore Nearby Shops <ArrowRight size={16} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" />
             </button>
+
 
             <PWAInstallButton variant="hero" />
           </div>
