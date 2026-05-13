@@ -182,8 +182,10 @@ const CustomerLayout = () => {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setIsSidebarOpen(true)}
+                  aria-label="Open menu"
                   className="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors text-white active:scale-90"
                 >
+
                   <Menu size={24} strokeWidth={2.5} />
                 </button>
                 {isShopListPage && (
@@ -285,8 +287,10 @@ const NavItem = ({ to, icon, label, badge }) => {
     <NavLink
       to={to}
       end={to === '/'}
+      aria-label={label}
       className={({ isActive }) => `flex flex-col items-center justify-center w-full h-full gap-0.5 ${isActive ? 'text-sky-500 font-black' : 'text-gray-400 font-bold opacity-60'} transition-all relative`}
     >
+
       <div className="relative">
         {icon}
         {badge && (
