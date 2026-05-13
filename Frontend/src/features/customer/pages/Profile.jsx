@@ -100,9 +100,10 @@ const Profile = () => {
       <h2 className="text-xl font-black text-white mb-2">Not Logged In</h2>
       <p className="text-white/50 mb-6 text-sm">Please login to view your profile.</p>
       <button onClick={() => navigate('/login')}
-        className="px-8 py-3 bg-gradient-to-r from-sky-500 to-rose-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg">
+        className="px-8 py-3 bg-sky-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-sky-500/20">
         Go to Login
       </button>
+
     </div>
   );
 
@@ -259,9 +260,10 @@ const Profile = () => {
                 </button>
               </div>
               <button type="submit" disabled={loading || !isPassValid}
-                className="w-full flex justify-center items-center gap-2 bg-gradient-to-r from-sky-500 to-rose-500 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-sky-500/25 hover:scale-[1.01] disabled:opacity-50 disabled:scale-100 transition-all">
+                className="w-full flex justify-center items-center gap-2 bg-sky-500 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-sky-500/25 hover:scale-[1.01] disabled:opacity-50 disabled:scale-100 transition-all hover:bg-sky-600">
                 <Save size={15} /> {loading ? 'Saving...' : 'Save Changes'}
               </button>
+
             </div>
           </form>
         ) : (
