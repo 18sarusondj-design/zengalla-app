@@ -23,8 +23,13 @@ const Footer = ({ onReportClick, navigate }) => {
                 <HelpCircle size={12} className="text-sky-400" />
                 Report Issue
               </button>
+              
+              <div className="mt-6 w-full max-w-[200px]">
+                <PWAInstallButton variant="sidebar" className="!bg-white !text-sky-600 !h-12 !rounded-xl shadow-xl" />
+              </div>
             </div>
           </div>
+
 
           {/* Quick Links */}
           <div>
@@ -38,9 +43,6 @@ const Footer = ({ onReportClick, navigate }) => {
                   </button>
                 </li>
               ))}
-              <li className="mt-4">
-                <PWAInstallButton variant="sidebar" className="!bg-sky-500 !text-white !border-sky-400 shadow-sky-100" />
-              </li>
             </ul>
 
           </div>
