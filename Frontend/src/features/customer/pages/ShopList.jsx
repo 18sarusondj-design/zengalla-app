@@ -85,7 +85,7 @@ const ShopList = () => {
 
       let data;
       if (userCoords) {
-        data = await fetchNearbyShops(userCoords.lat, userCoords.lng, 10000); // 10km radius
+        data = await fetchNearbyShops(userCoords.lat, userCoords.lng, 10); // 10km radius
       } else {
         data = contextShops;
       }
