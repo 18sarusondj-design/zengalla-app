@@ -497,10 +497,12 @@ const VendorProfile = () => {
                 })}
               </div>
 
-              {/* PWA Install for Vendors */}
-              <div className="mt-4 pt-4 border-t border-white/20">
-                <PWAInstallButton variant="sidebar" className="!bg-gray-900 !text-white !h-12 !rounded-2xl shadow-xl" />
+              {/* PWA Install Trigger */}
+              <div className="mt-4 pt-4 border-t border-sky-100/50">
+                <PWAInstallButton variant="sidebar" className="!bg-sky-500 !text-white !h-12 !rounded-2xl shadow-xl shadow-sky-100" />
               </div>
+
+
             </div>
           </div>
 
