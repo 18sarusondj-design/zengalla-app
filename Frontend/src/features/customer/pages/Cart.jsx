@@ -6,6 +6,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import CustomerWeightModal from '../components/CustomerWeightModal';
 import Logo from '../../common/components/Logo';
+import SEO from '../../common/components/SEO';
+
 
 const Cart = () => {
   const {
@@ -173,6 +175,12 @@ const Cart = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 font-sans w-full pb-24">
+      <SEO 
+        title="My Shopping Cart" 
+        description="Review your items and proceed to checkout for fast delivery."
+        canonical="/cart"
+      />
+
       {/* Premium Header */}
       <div className="sticky top-0 z-[100] shadow-2xl" style={{ background: 'linear-gradient(160deg, #075985 0%, #0369a1 40%, #1e40af 100%)' }}>
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -181,9 +189,14 @@ const Cart = () => {
         </div>
         <div className="relative px-5 pt-6 pb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => navigate(-1)} className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-2xl flex items-center justify-center text-white border border-white/10 transition-all active:scale-90">
+            <button
+              onClick={() => navigate(-1)}
+              aria-label="Go back"
+              className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-2xl flex items-center justify-center text-white border border-white/10 transition-all active:scale-90"
+            >
               <X size={18} />
             </button>
+
             <div>
               <h1 className="text-xl font-black text-white uppercase tracking-tight leading-none">Shopping Hub</h1>
               <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em] mt-0.5">{nonEmptyCarts.length} Active Cart{nonEmptyCarts.length !== 1 ? 's' : ''}</p>
@@ -268,10 +281,12 @@ const Cart = () => {
                           }
                         });
                       }}
+                      aria-label={`Clear ${shop.name} cart`}
                       className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-rose-500/30 text-white/50 hover:text-rose-400 rounded-xl border border-white/10 transition-all"
                     >
                       <Trash2 size={14} />
                     </button>
+
                   </div>
                 </div>
               </div>
