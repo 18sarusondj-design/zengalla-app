@@ -12,7 +12,8 @@ import { useStore } from '../../shop/context/StoreContext';
 import { getPasswordStrength } from '../../../utils/passwordStrength';
 import api from '../../../config/api.js';
 import SEO from '../../common/components/SEO';
-import PWAInstallButton from '../../common/components/PWAInstallButton';
+import PWAInstallButton from '../../../common/components/PWAInstallButton';
+
 
 
 
