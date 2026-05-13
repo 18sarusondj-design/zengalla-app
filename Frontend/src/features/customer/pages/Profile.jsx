@@ -11,6 +11,8 @@ import { toast } from 'sonner';
 import { useStore } from '../../shop/context/StoreContext';
 import { getPasswordStrength } from '../../../utils/passwordStrength';
 import api from '../../../config/api.js';
+import SEO from '../../common/components/SEO';
+
 
 const Profile = () => {
   const { user: authUser, token, logout, refreshUser, updateProfile } = useAuth();
@@ -102,6 +104,12 @@ const Profile = () => {
 
   return (
     <div className="min-h-screen w-full bg-slate-50">
+      <SEO 
+        title="My Profile" 
+        description="Manage your ZenGalla account, view wallet balance, and track orders."
+        canonical="/profile"
+      />
+
 
       {/* ── FULL-WIDTH HEADER ── */}
       <div className="w-full sticky top-0 z-50 overflow-hidden"
@@ -115,9 +123,11 @@ const Profile = () => {
         {/* Nav row */}
         <div className="relative flex items-center justify-between px-4 sm:px-8 pt-4 pb-2">
           <button onClick={() => navigate(-1)}
+            aria-label="Go back"
             className="w-9 h-9 bg-white/10 hover:bg-white/20 border border-white/10 text-white rounded-full flex items-center justify-center transition-all">
             <ArrowLeft size={16} strokeWidth={2.5} />
           </button>
+
           <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.35em]">My Profile</p>
           <div className="flex items-center gap-2">
             <button onClick={() => navigate('/cart')}
