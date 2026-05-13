@@ -115,7 +115,8 @@ export const getOrders = async (req, res) => {
   try {
     const { 
       shopId, userId, deliveryPartnerId, paymentStatus, status, hasBalanceDue, 
-      startDate, endDate, buyerPhone, minAmount, maxAmount 
+      startDate, endDate, buyerPhone, minAmount, maxAmount,
+      page = 1, limit = 20
     } = req.query;
     
     const filter = {};
@@ -139,32 +140,68 @@ export const getOrders = async (req, res) => {
       if (maxAmount) filter.totalPrice.$lte = Number(maxAmount);
     }
 
-    const orders = await Order.find(filter)
-      .populate('shopId')
-      .populate('items.product')
-      .sort({ createdAt: -1 });
-    res.json({ success: true, orders });
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [orders, total] = await Promise.all([
+      Order.find(filter)
+        .populate('shopId')
+        .populate('items.product')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
+      Order.countDocuments(filter)
+    ]);
+
+    res.json({ 
+      success: true, 
+      orders,
+      pagination: {
+        total,
+        page: parseInt(page),
+        pages: Math.ceil(total / parseInt(limit)),
+        limit: parseInt(limit)
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // GET /api/orders/my — current user's orders
 export const getMyOrders = async (req, res) => {
   try {
-    const { paymentStatus, hasBalanceDue } = req.query;
+    const { paymentStatus, hasBalanceDue, page = 1, limit = 20 } = req.query;
     const filter = { userId: req.user._id };
     if (paymentStatus) filter.paymentStatus = { $in: paymentStatus.split(',') };
     if (hasBalanceDue === 'true') filter.balanceDue = { $gt: 0 };
 
-    const orders = await Order.find(filter)
-      .populate('shopId')
-      .sort({ createdAt: -1 });
-    res.json({ success: true, orders });
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [orders, total] = await Promise.all([
+      Order.find(filter)
+        .populate('shopId')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
+      Order.countDocuments(filter)
+    ]);
+
+    res.json({ 
+      success: true, 
+      orders,
+      pagination: {
+        total,
+        page: parseInt(page),
+        pages: Math.ceil(total / parseInt(limit)),
+        limit: parseInt(limit)
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // GET /api/orders/:id
 export const getOrderById = async (req, res) => {
