@@ -372,8 +372,9 @@ const VendorProfile = () => {
       <button
         type="submit" disabled={isUpdating}
         className={`h-14 px-10 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl transition-all flex items-center justify-center gap-3 disabled:opacity-50 
-          ${label === 'Coupons & Offers' ? 'bg-sky-500 hover:bg-sky-600 text-white shadow-sky-200 ring-4 ring-sky-50' : 'bg-gray-900 hover:bg-black text-white'}
+          bg-sky-500 hover:bg-sky-600 text-white shadow-sky-200 ring-4 ring-sky-50
         `}
+
       >
         {isUpdating ? <Loader2 className="animate-spin" size={20} /> : <><Save size={20} /> Finalize & Save {label}</>}
       </button>
@@ -444,6 +445,12 @@ const VendorProfile = () => {
             <div className="bg-white/40 backdrop-blur-md rounded-[40px] p-2 border border-white shadow-xl flex flex-col space-y-1">
               <p className="px-4 py-0.5 text-[8px] font-black text-gray-600 uppercase tracking-widest border-b border-white/30 mb-0.5">Store Console</p>
 
+              {/* PWA Install Trigger - TOP OF SIDEBAR */}
+              <div className="px-1 py-1">
+                <PWAInstallButton variant="sidebar" className="!bg-sky-500 !text-white !h-11 !rounded-2xl shadow-lg shadow-sky-100" />
+              </div>
+
+
               {/* Quick Actions at the Top */}
               <div className="px-1 py-0.5 space-y-0.5 flex-shrink-0">
                 <div className="w-full flex items-center justify-between gap-2 p-2 rounded-xl bg-sky-600/10 border border-sky-600/20 group transition-all">
@@ -497,10 +504,7 @@ const VendorProfile = () => {
                 })}
               </div>
 
-              {/* PWA Install Trigger */}
-              <div className="mt-4 pt-4 border-t border-sky-100/50">
-                <PWAInstallButton variant="sidebar" className="!bg-sky-500 !text-white !h-12 !rounded-2xl shadow-xl shadow-sky-100" />
-              </div>
+
 
 
             </div>
@@ -759,6 +763,7 @@ const VendorProfile = () => {
                       >
                         Manage B2B Partners
                       </button>
+
                     </div>
                     <SectionSaveButton label="Wholesale Settings" />
                   </div>
@@ -796,10 +801,14 @@ const VendorProfile = () => {
                       <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-2">
                         <CreditCard size={32} />
                       </div>
-                      <h4 className="font-black text-gray-900 uppercase tracking-tight text-base">Credit Ledger Access</h4>
-                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-tight leading-relaxed max-w-xs mx-auto">
-                        Track and settle customer dues via the dedicated <span className="text-emerald-600">Credit Ledger</span> section in your dashboard.
-                      </p>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/vendor/dashboard/ledger')}
+                        className="px-6 py-3 bg-sky-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-sky-700 transition-all active:scale-95 shadow-lg shadow-sky-100"
+                      >
+                        Open Credit Ledger
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => navigate('/vendor/dashboard/credit-customers')}
