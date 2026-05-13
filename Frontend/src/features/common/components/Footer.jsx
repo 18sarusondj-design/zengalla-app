@@ -38,8 +38,8 @@ const Footer = ({ onReportClick, navigate }) => {
                   </button>
                 </li>
               ))}
-              <li className="mt-4 pt-2 border-t border-white/10">
-                <PWAInstallButton variant="sidebar" className="!bg-white/10 !text-white !border-white/20 !h-10" />
+              <li className="mt-4">
+                <PWAInstallButton variant="sidebar" className="!bg-sky-500 !text-white !border-sky-400 shadow-sky-100" />
               </li>
             </ul>
 
