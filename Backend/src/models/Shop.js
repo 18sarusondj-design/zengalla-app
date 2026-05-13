@@ -8,11 +8,10 @@ const shopSchema = new mongoose.Schema({
   bannerUrl: { type: String, default: '' },
   address: { type: String, default: '' },
   location: {
-    coordinates: {
-      lat: { type: Number, default: 15.3647 },
-      lng: { type: Number, default: 75.1240 },
-    }
+    type: { type: String, enum: ['Point'], default: 'Point' },
+    coordinates: { type: [Number], default: [75.1240, 15.3647] } // [lng, lat]
   },
+
   category: { type: String, default: 'Grocery' },
   gstin: { type: String, default: '' },
   fssai: { type: String, default: '' },
@@ -91,4 +90,14 @@ const shopSchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
+shopSchema.index({ owner: 1 });
+shopSchema.index({ name: 'text', address: 'text' });
+shopSchema.index({ category: 1 });
+shopSchema.index({ isActive: 1 });
+shopSchema.index({ isSponsored: 1 });
+shopSchema.index({ location: '2dsphere' });
+
 export default mongoose.model('Shop', shopSchema);
+
+
+
