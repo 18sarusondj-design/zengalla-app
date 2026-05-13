@@ -55,24 +55,35 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-ui': ['lucide-react', 'sonner'],
-          'vendor-maps': ['leaflet', 'react-leaflet'],
-          'vendor-charts': ['recharts'],
-          'vendor-utils': ['axios', 'papaparse', 'xlsx']
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('lucide-react') || id.includes('sonner')) {
+              return 'vendor-ui';
+            }
+            if (id.includes('leaflet') || id.includes('react-leaflet')) {
+              return 'vendor-maps';
+            }
+            if (id.includes('recharts')) {
+              return 'vendor-charts';
+            }
+            if (id.includes('axios') || id.includes('papaparse') || id.includes('xlsx')) {
+              return 'vendor-utils';
+            }
+            return 'vendor-core';
+          }
         }
+
       }
     },
     chunkSizeWarningLimit: 1000,
     cssCodeSplit: true,
-    minify: 'esbuild',
     sourcemap: false
   },
-  esbuild: {
-    drop: ['console', 'debugger']
-  },
   server: {
+
     host: true,
     allowedHosts: true,
     proxy: {
