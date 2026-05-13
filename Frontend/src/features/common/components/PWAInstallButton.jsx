@@ -4,9 +4,11 @@ import usePWAInstall from '../hooks/usePWAInstall';
 import PWAInstallGuideModal from './PWAInstallGuideModal';
 
 const PWAInstallButton = ({ variant = 'default', className = "" }) => {
-  const { isInstalled, installPWA, showGuide, setShowGuide } = usePWAInstall();
+  const { isInstallable, installPWA, isInstalled, showGuide, setShowGuide } = usePWAInstall();
 
-  if (isInstalled) return null;
+  // ONLY hide if we are currently INSIDE the standalone app
+  const isInStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  if (isInStandalone) return null;
 
   const baseStyles = "flex flex-col items-center justify-center gap-1 transition-all font-black uppercase tracking-widest active:scale-95 text-center";
   
@@ -17,18 +19,28 @@ const PWAInstallButton = ({ variant = 'default', className = "" }) => {
     sidebar: `px-4 py-3.5 rounded-2xl w-full text-sky-600 bg-sky-50 hover:bg-sky-100 text-xs tracking-tight border border-sky-100 shadow-sm ${baseStyles}`
   };
 
+  const handleAction = () => {
+    if (isInstalled) {
+       // If installed, we can't "install" again, but we can't easily "launch" from JS in all browsers.
+       // However, showing a guide on how to launch or just saying "App Installed" is better than nothing.
+       setShowGuide(true);
+    } else {
+       installPWA();
+    }
+  };
 
   return (
     <div className="flex flex-col items-center gap-2 w-full">
       <button 
-        onClick={installPWA}
+        onClick={handleAction}
         className={`${variants[variant] || variants.default} ${className}`}
       >
         <div className="flex items-center gap-2">
           <Download size={variant === 'hero' ? 18 : (variant === 'banner' ? 24 : 18)} strokeWidth={3} />
-          <span>Install ZenGalla App</span>
+          <span>{isInstalled ? 'Open ZenGalla App' : 'Install ZenGalla App'}</span>
         </div>
       </button>
+
       
       {variant !== 'hero' && (
         <p className="text-[9px] font-bold text-sky-400 uppercase tracking-widest">
