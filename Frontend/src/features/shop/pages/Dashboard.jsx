@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
+
 import { useStore } from '../../shop/context/StoreContext';
 import { useAuth } from '../../auth/context/AuthContext';
 import { Package, TrendingUp, TrendingDown, Clock, AlertCircle, X, CheckCircle2, Loader2, Receipt, Eye, Volume2, Download, Play } from 'lucide-react';
