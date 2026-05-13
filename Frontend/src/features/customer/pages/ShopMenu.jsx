@@ -12,6 +12,9 @@ import CustomerWeightModal from '../components/CustomerWeightModal';
 import Logo from '../../common/components/Logo';
 import ReviewStars from '../components/ReviewStars';
 import PromoModal from '../components/PromoModal';
+import SEO from '../../common/components/SEO';
+import { ProductSkeleton } from '../components/Skeleton';
+
 
 // Product Ratings & Reviews Integration
 
@@ -281,8 +284,25 @@ const ShopMenu = () => {
   };
 
   if (loading) {
-    return <FullScreenLoader message="Syncing store inventory..." />;
+    return (
+      <div className="min-h-screen bg-gray-50 pb-20">
+        <div className="h-48 bg-sky-900 animate-pulse" />
+        <div className="px-5 -mt-10">
+          <div className="bg-white rounded-[32px] p-6 shadow-xl flex items-center gap-4">
+            <div className="w-16 h-16 bg-gray-100 rounded-2xl animate-pulse" />
+            <div className="flex-1 space-y-2">
+              <div className="h-6 bg-gray-100 rounded w-1/2 animate-pulse" />
+              <div className="h-4 bg-gray-100 rounded w-1/4 animate-pulse" />
+            </div>
+          </div>
+        </div>
+        <div className="mt-8 px-5 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {[...Array(8)].map((_, i) => <ProductSkeleton key={i} />)}
+        </div>
+      </div>
+    );
   }
+
 
   if (!shop) {
     return (
@@ -310,6 +330,13 @@ const ShopMenu = () => {
 
   return (
     <div className="min-h-full bg-gray-50 pb-16 font-sans relative">
+      <SEO 
+        title={shop.name} 
+        description={`Shop fresh products from ${shop.name} on ZenGalla. Quality groceries and fast delivery.`}
+        canonical={`/shop/${shopId}`}
+        ogImage={shop.bannerUrl || shop.imageUrl}
+      />
+
       {/* Success Notification */}
       {showSuccess && (
         <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4 duration-500">
@@ -643,8 +670,10 @@ const ShopMenu = () => {
                       src={product.image || product.imageUrl || null}
                       alt={product.name || ''}
                       referrerPolicy="no-referrer"
+                      loading="lazy"
                       className={`w-full h-full object-cover transition-transform duration-500 ${!outOfStock && 'group-hover:scale-105'}`}
                     />
+
                     {/* Shadow overlay for price visibility */}
                     <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
 
