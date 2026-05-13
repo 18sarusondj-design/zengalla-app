@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Sparkles, MapPin, Clock, ArrowRight, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import React, { useState, useEffect, memo, useCallback } from 'react';
+import { Sparkles, MapPin, Clock, ArrowRight, ChevronLeft, ChevronRight, Star, Play } from 'lucide-react';
 
-const FeaturedCarousel = ({ featuredShops, navigate }) => {
+const FeaturedCarousel = memo(({ featuredShops, navigate }) => {
   const [activeSlide, setActiveSlide] = useState(0);
 
   useEffect(() => {
@@ -14,21 +14,22 @@ const FeaturedCarousel = ({ featuredShops, navigate }) => {
     return () => clearTimeout(timer);
   }, [activeSlide, featuredShops.length]);
 
-  const goToSlide = (idx) => {
+  const goToSlide = useCallback((idx) => {
     setActiveSlide(idx);
-  };
+  }, []);
 
-  const fmtTime = (t) => {
+  const fmtTime = useCallback((t) => {
     if (!t) return '';
     const [h, m] = t.split(':').map(Number);
     const ampm = h >= 12 ? 'PM' : 'AM';
     const h12 = h % 12 || 12;
     return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
-  };
+  }, []);
 
-  const isShopOpen = (s) => {
+  const isShopOpen = useCallback((s) => {
     if (!s) return false;
-    if (s.isActive === false) return false;
+    const active = s.isActive ?? s.is_active ?? true;
+    if (active === false) return false;
     if (!s.operatingHours?.enabled) return true;
     
     const now = new Date();
@@ -36,23 +37,23 @@ const FeaturedCarousel = ({ featuredShops, navigate }) => {
     const [sH, sM] = (s.operatingHours.start || '00:00').split(':').map(Number);
     const [eH, eM] = (s.operatingHours.end || '23:59').split(':').map(Number);
     return current >= (sH * 60 + sM) && current <= (eH * 60 + eM);
-  };
+  }, []);
 
   if (featuredShops.length === 0) return null;
 
   return (
-    <div className="px-5 pt-6 pb-2">
+    <div className="px-5 pt-6 pb-2 animate-in fade-in duration-700">
       {/* Section header */}
       <div className="flex items-center gap-2 mb-4">
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-sky-50 border border-sky-200 rounded-full">
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800 rounded-full">
           <Sparkles size={11} className="text-sky-500" fill="currentColor" />
-          <span className="text-[9px] font-black text-sky-600 uppercase tracking-widest">Featured Shops</span>
+          <span className="text-[9px] font-black text-sky-600 dark:text-sky-400 uppercase tracking-widest">Featured Shops</span>
         </div>
-        <div className="h-px flex-1 bg-gradient-to-r from-sky-200 to-transparent" />
+        <div className="h-px flex-1 bg-gradient-to-r from-sky-200 dark:from-sky-800 to-transparent" />
       </div>
 
       {/* Cinematic Banner */}
-      <div className="relative rounded-[28px] overflow-hidden shadow-2xl shadow-sky-900/20 border border-sky-200/30 h-56 md:h-72 bg-gray-900">
+      <div className="relative rounded-[28px] overflow-hidden shadow-2xl shadow-sky-900/20 border border-sky-200/30 dark:border-slate-800 h-56 md:h-72 bg-gray-900">
         {featuredShops.map((shop, idx) => (
           <div
             key={shop._id}
@@ -69,6 +70,7 @@ const FeaturedCarousel = ({ featuredShops, navigate }) => {
                 src={shop.bannerUrl || shop.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200'}
                 alt={shop.name}
                 referrerPolicy="no-referrer"
+                loading="lazy"
                 className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
                 onError={(e) => {
                   e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200';
@@ -90,7 +92,7 @@ const FeaturedCarousel = ({ featuredShops, navigate }) => {
               {/* Open/Close badge */}
               <div className="absolute top-3 md:top-4 right-3 md:right-4 z-10">
                 <div
-                  className={`px-2 md:px-2.5 py-0.5 md:py-1 rounded-full text-[7px] md:text-[8px] font-black uppercase tracking-widest ${
+                  className={`px-2 md:px-2.5 py-0.5 md:py-1 rounded-full text-[7px] md:text-[8px] font-black uppercase tracking-widest shadow-sm ${
                     isShopOpen(shop) ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
                   }`}
                 >
@@ -98,8 +100,8 @@ const FeaturedCarousel = ({ featuredShops, navigate }) => {
                 </div>
               </div>
 
-              {/* ⭐ Floating Rating Badge (Only show if real ratings exist) */}
-              {Number(shop.ratingCount) > 0 && (
+              {/* ⭐ Floating Rating Badge */}
+              {Number(shop.ratingCount || 0) > 0 && (
                 <div className="absolute top-3 md:top-4 right-14 md:right-20 z-10">
                   <div className="flex items-center gap-1.5 bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-full shadow-lg border border-white/20">
                     <Star size={10} className="text-amber-500 fill-amber-500" />
@@ -162,11 +164,11 @@ const FeaturedCarousel = ({ featuredShops, navigate }) => {
             ))}
           </div>
         )}
-
-        {/* Nav arrows removed due to overlap */}
       </div>
     </div>
   );
-};
+});
+
+FeaturedCarousel.displayName = 'FeaturedCarousel';
 
 export default FeaturedCarousel;
