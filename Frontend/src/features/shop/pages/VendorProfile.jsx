@@ -8,6 +8,8 @@ import api from '../../../config/api.js';
 import { toast } from 'sonner';
 import { GoogleMap, Marker, useJsApiLoader, Autocomplete } from '@react-google-maps/api';
 import { jsPDF } from 'jspdf';
+import PWAInstallButton from '../../common/components/PWAInstallButton';
+
 
 const mapContainerStyle = {
   width: '100%',
@@ -493,6 +495,11 @@ const VendorProfile = () => {
                     </button>
                   );
                 })}
+              </div>
+
+              {/* PWA Install for Vendors */}
+              <div className="mt-4 pt-4 border-t border-white/20">
+                <PWAInstallButton variant="sidebar" className="!bg-gray-900 !text-white !h-12 !rounded-2xl shadow-xl" />
               </div>
             </div>
           </div>
