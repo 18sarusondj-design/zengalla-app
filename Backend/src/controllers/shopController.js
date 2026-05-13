@@ -27,43 +27,76 @@ export const lookupShopByCode = async (req, res) => {
 
 export const getShops = async (req, res) => {
   try {
-    // Only shops with 'premium' plan are visible on the customer website
-    const shops = await Shop.find({ 
+    const { page = 1, limit = 50, isSponsored } = req.query;
+    const filter = { 
       isActive: true,
       subscriptionPlan: 'premium' 
-    }).select('-razorpayKeySecret');
+    };
+    if (isSponsored === 'true') filter.isSponsored = true;
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [shops, total] = await Promise.all([
+      Shop.find(filter)
+        .select('-razorpayKeySecret')
+        .sort({ isSponsored: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
+      Shop.countDocuments(filter)
+    ]);
+
+    res.json({ 
+      success: true, 
+      shops,
+      pagination: {
+        total,
+        page: parseInt(page),
+        pages: Math.ceil(total / parseInt(limit)),
+        limit: parseInt(limit)
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+// GET /api/shops/nearby?lat=&lng=&radius=
+export const getNearbyShops = async (req, res) => {
+  try {
+    const { lat, lng, radius = 10, page = 1, limit = 50 } = req.query;
+    
+    const filter = { 
+      isActive: true,
+      subscriptionPlan: 'premium'
+    };
+
+    if (!lat || !lng) {
+      const shops = await Shop.find(filter).select('-razorpayKeySecret').limit(parseInt(limit));
+      return res.json({ success: true, shops });
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const shops = await Shop.find({
+      ...filter,
+      location: {
+        $near: {
+          $geometry: { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] },
+          $maxDistance: parseFloat(radius) * 1000 // Convert km to meters
+        }
+      }
+    })
+    .select('-razorpayKeySecret')
+    .skip(skip)
+    .limit(parseInt(limit));
+
     res.json({ success: true, shops });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// GET /api/shops/nearby?lat=&lng=&radius=
-export const getNearbyShops = async (req, res) => {
-  try {
-    const { lat, lng, radius = 10 } = req.query;
-    const shops = await Shop.find({ 
-      isActive: true,
-      subscriptionPlan: 'premium'
-    }).select('-razorpayKeySecret');
-    if (!lat || !lng) return res.json({ success: true, shops });
-
-    const R = 6371;
-    const filtered = shops.filter(shop => {
-      const sLat = shop.location?.coordinates?.lat;
-      const sLng = shop.location?.coordinates?.lng;
-      if (!sLat || !sLng) return false;
-      const dLat = (sLat - parseFloat(lat)) * Math.PI / 180;
-      const dLon = (sLng - parseFloat(lng)) * Math.PI / 180;
-      const a = Math.sin(dLat/2)**2 + Math.cos(parseFloat(lat)*Math.PI/180) * Math.cos(sLat*Math.PI/180) * Math.sin(dLon/2)**2;
-      const d = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return d <= parseFloat(radius);
-    });
-    res.json({ success: true, shops: filtered });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
 
 // GET /api/shops/my — vendor's own shop
 export const getMyShop = async (req, res) => {
@@ -205,26 +238,42 @@ export const sendCouponToCustomers = async (req, res) => {
 // GET /api/shops/my/staff
 export const getShopStaff = async (req, res) => {
   try {
+    const { page = 1, limit = 50 } = req.query;
     const shop = await Shop.findOne({ owner: req.user._id });
     if (!shop) return res.status(404).json({ error: 'Shop not found' });
-    const staff = await User.find({ shopId: shop._id, role: 'staff' }).select('-password');
+    
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const staff = await User.find({ shopId: shop._id, role: 'staff' })
+      .select('-password')
+      .skip(skip)
+      .limit(parseInt(limit));
+      
     res.json({ success: true, users: staff });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
+
 // GET /api/shops/my/delivery
 export const getShopDelivery = async (req, res) => {
   try {
+    const { page = 1, limit = 50 } = req.query;
     const shop = await Shop.findOne({ owner: req.user._id });
     if (!shop) return res.status(404).json({ error: 'Shop not found' });
-    const delivery = await User.find({ shopId: shop._id, role: 'delivery' }).select('-password');
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const delivery = await User.find({ shopId: shop._id, role: 'delivery' })
+      .select('-password')
+      .skip(skip)
+      .limit(parseInt(limit));
+
     res.json({ success: true, users: delivery });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // PATCH /api/shops/my/users/:id/status
 export const updateShopUserStatus = async (req, res) => {
