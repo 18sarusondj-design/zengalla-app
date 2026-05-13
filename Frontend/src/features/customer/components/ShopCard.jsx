@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { 
   MapPin, 
   Clock, 
@@ -10,36 +10,36 @@ import {
 import Logo from '../../common/components/Logo';
 import ReviewStars from './ReviewStars';
 
-export const ShopCard = ({ shop, index, searchTerm, navigate }) => {
-  const fmtTime = (t) => {
-    if (!t) return '';
-    const [h, m] = t.split(':').map(Number);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const h12 = h % 12 || 12;
-    return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
-  };
+const fmtTime = (t) => {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+};
 
-  const isShopOpen = (s) => {
-    if (!s) return false;
-    if (s.isActive === false) return false;
-    if (!s.operatingHours?.enabled) return true;
-    
-    const now = new Date();
-    const current = now.getHours() * 60 + now.getMinutes();
-    const [sH, sM] = (s.operatingHours.start || '00:00').split(':').map(Number);
-    const [eH, eM] = (s.operatingHours.end || '23:59').split(':').map(Number);
-    return current >= (sH * 60 + sM) && current <= (eH * 60 + eM);
-  };
+const isShopOpen = (s) => {
+  if (!s) return false;
+  if (s.isActive === false) return false;
+  if (!s.operatingHours?.enabled) return true;
+  
+  const now = new Date();
+  const current = now.getHours() * 60 + now.getMinutes();
+  const [sH, sM] = (s.operatingHours.start || '00:00').split(':').map(Number);
+  const [eH, eM] = (s.operatingHours.end || '23:59').split(':').map(Number);
+  return current >= (sH * 60 + sM) && current <= (eH * 60 + eM);
+};
 
+export const ShopCard = memo(({ shop, index, searchTerm, navigate }) => {
   const isOpen = isShopOpen(shop);
 
   return (
     <div
       key={shop?._id || index}
       onClick={() => navigate(`/shop/${shop?._id}${searchTerm ? `?search=${encodeURIComponent(searchTerm)}` : ''}`)}
-      className={`relative bg-white rounded-[32px] overflow-hidden border shadow-sm ${
-        shop.isSponsored ? 'border-sky-200/60 shadow-sky-100' : 'border-gray-50'
-      } group transition-all hover:shadow-2xl hover:shadow-sky-100/50 hover:border-sky-100 cursor-pointer active:scale-[0.98] ${
+      className={`relative bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden border shadow-sm ${
+        shop.isSponsored ? 'border-sky-200/60 shadow-sky-100 dark:border-sky-900/40 dark:shadow-none' : 'border-gray-50 dark:border-slate-800'
+      } group transition-all hover:shadow-2xl hover:shadow-sky-100/50 dark:hover:shadow-none hover:border-sky-100 dark:hover:border-sky-900 cursor-pointer active:scale-[0.98] ${
         !isOpen && 'opacity-80'
       }`}
     >
@@ -49,10 +49,11 @@ export const ShopCard = ({ shop, index, searchTerm, navigate }) => {
       )}
 
       {/* Shop Image */}
-      <div className={`h-48 bg-gray-100 relative overflow-hidden transition-transform duration-700 ease-out ${isOpen && 'group-hover:scale-105'}`}>
+      <div className={`h-48 bg-gray-100 dark:bg-slate-800 relative overflow-hidden transition-transform duration-700 ease-out ${isOpen && 'group-hover:scale-105'}`}>
         <img
           src={shop.bannerUrl || shop.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800'}
           alt={shop.name}
+          loading="lazy"
           referrerPolicy="no-referrer"
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800'; }}
@@ -97,11 +98,11 @@ export const ShopCard = ({ shop, index, searchTerm, navigate }) => {
           </div>
         )}
 
-        {/* ⭐ Floating Rating Badge (Only show if real ratings exist) */}
+        {/* ⭐ Floating Rating Badge */}
         {Number(shop.totalOrders) > 0 && (
-          <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-lg border border-white/20 animate-in fade-in zoom-in duration-500">
+          <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-lg border border-white/20 dark:border-slate-800 animate-in fade-in zoom-in duration-500">
             <Star size={12} className="text-amber-500 fill-amber-500" />
-            <span className="text-[11px] font-black text-slate-900 tracking-tight">
+            <span className="text-[11px] font-black text-slate-900 dark:text-white tracking-tight">
               {Number(shop.rating).toFixed(1)}
             </span>
           </div>
@@ -112,28 +113,28 @@ export const ShopCard = ({ shop, index, searchTerm, navigate }) => {
       <div className="p-6 flex items-center justify-between">
         <div className="space-y-1 flex-1 min-w-0">
           <div className="flex flex-col gap-1">
-            <h3 className="text-xl font-black text-gray-900 tracking-tight group-hover:text-sky-600 transition-colors uppercase">{shop.name}</h3>
+            <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight group-hover:text-sky-600 transition-colors uppercase">{shop.name}</h3>
             <div className="flex items-center gap-2 mb-1">
               <ReviewStars rating={shop.rating || 0} size={10} />
               {Number(shop.totalOrders) > 0 && (
-                <span className="text-[10px] font-black text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded tracking-tighter">
+                <span className="text-[10px] font-black text-gray-400 dark:text-slate-500 bg-gray-50 dark:bg-slate-800 px-1.5 py-0.5 rounded tracking-tighter">
                   {Number(shop.rating).toFixed(1)} ({shop.totalOrders})
                 </span>
               )}
             </div>
             {shop.matchedProducts?.length > 0 && (
               <div className="flex flex-wrap gap-1">
-                <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded uppercase tracking-widest border border-emerald-100 flex items-center gap-1">
+                <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded uppercase tracking-widest border border-emerald-100 dark:border-emerald-900/40 flex items-center gap-1">
                   <Search size={8} /> Matched: {shop.matchedProducts[0]}{shop.matchedProducts.length > 1 ? ` +${shop.matchedProducts.length - 1}` : ''}
                 </span>
               </div>
             )}
           </div>
           
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-bold text-gray-500 uppercase tracking-widest leading-tight">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-widest leading-tight">
             {shop.distance !== null && shop.distance !== undefined && (
               <>
-                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-sky-50 text-sky-700 rounded-full border border-sky-100/50 shadow-sm transition-transform group-hover:scale-105 shrink-0">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-400 rounded-full border border-sky-100/50 dark:border-sky-900/40 shadow-sm transition-transform group-hover:scale-105 shrink-0">
                   <MapPin size={10} strokeWidth={3} className="text-sky-500" />
                   <span className="text-[10px] font-black tracking-widest">{shop.distance} KM</span>
                 </div>
@@ -144,11 +145,12 @@ export const ShopCard = ({ shop, index, searchTerm, navigate }) => {
             )}
           </div>
         </div>
-        <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-200 group-hover:bg-sky-50 group-hover:text-sky-500 transition-all shrink-0 ml-3">
+        <div className="w-12 h-12 bg-gray-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-gray-200 dark:text-slate-600 group-hover:bg-sky-50 dark:group-hover:bg-sky-900/30 group-hover:text-sky-500 transition-all shrink-0 ml-3">
           <ChevronRight size={24} strokeWidth={3} />
         </div>
       </div>
-
     </div>
   );
-};
+});
+
+ShopCard.displayName = 'ShopCard';
