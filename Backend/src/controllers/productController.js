@@ -5,16 +5,34 @@ import InventoryLog from '../models/InventoryLog.js';
 // GET /api/products?shopId=
 export const getProducts = async (req, res) => {
   try {
-    const { shopId, category } = req.query;
+    const { shopId, category, page = 1, limit = 50 } = req.query;
     if (!shopId) return res.status(400).json({ error: 'shopId is required' });
+    
     const filter = { shopId };
     if (category) filter.category = category;
-    const products = await Product.find(filter).sort({ createdAt: -1 });
-    res.json({ success: true, products });
+    
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    const [products, total] = await Promise.all([
+      Product.find(filter).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)),
+      Product.countDocuments(filter)
+    ]);
+    
+    res.json({ 
+      success: true, 
+      products,
+      pagination: {
+        total,
+        page: parseInt(page),
+        pages: Math.ceil(total / parseInt(limit)),
+        limit: parseInt(limit)
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // GET /api/products/:id
 export const getProductById = async (req, res) => {
