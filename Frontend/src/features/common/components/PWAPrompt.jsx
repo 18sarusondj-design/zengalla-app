@@ -16,12 +16,16 @@ const PWAPrompt = () => {
     updateServiceWorker,
   } = useRegisterSW({
     onRegistered(r) {
+      if (!r) return;
       console.log('SW Registered');
-      // Check for updates every hour
-      r && setInterval(() => {
+      // Check for updates immediately on load
+      r.update();
+      // Then check every hour
+      setInterval(() => {
         r.update();
       }, 60 * 60 * 1000);
     },
+
     onRegisterError(error) {
       console.error('SW registration error', error);
     },
