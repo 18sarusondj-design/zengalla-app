@@ -24,9 +24,12 @@ const Footer = ({ onReportClick, navigate }) => {
                 Report Issue
               </button>
               
+              {/* PWA Install Trigger */}
               <div className="mt-6 w-full max-w-[200px]">
-                <PWAInstallButton variant="sidebar" className="!bg-white !text-sky-600 !h-12 !rounded-xl shadow-xl" />
+                <PWAInstallButton variant="sidebar" className="!bg-white !text-sky-500 !h-12 !rounded-xl shadow-2xl" />
               </div>
+
+
             </div>
           </div>
 
