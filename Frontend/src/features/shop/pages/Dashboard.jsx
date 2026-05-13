@@ -6,9 +6,9 @@ import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { useQueryParam } from '../../../hooks/useQueryParam';
 
 import { toast } from 'sonner';
-import { RevenueChart, CategoryPieChart } from '../components/AnalyticsComponents';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+const RevenueChart = lazy(() => import('../components/AnalyticsComponents').then(m => ({ default: m.RevenueChart })));
+const CategoryPieChart = lazy(() => import('../components/AnalyticsComponents').then(m => ({ default: m.CategoryPieChart })));
+
 import api from '../../../config/api.js';
 
 const StatCard = ({ label, value, color, alert, trend }) => {
@@ -217,9 +217,12 @@ const Dashboard = () => {
   const topCategory = categoryPieData.length > 0 ? categoryPieData[0].name : 'N/A';
   const topCategoryValue = categoryPieData.length > 0 ? categoryPieData[0].value : 0;
 
-  const download7DayReport = () => {
+  const download7DayReport = async () => {
     try {
+      const { jsPDF } = await import('jspdf');
+      await import('jspdf-autotable');
       const doc = new jsPDF();
+
       
       // Header
       doc.setFontSize(20);
@@ -414,8 +417,11 @@ const Dashboard = () => {
             </div>
             <div className="flex-1 mt-6 min-h-[260px] relative min-w-0">
               {revenueChartData.length > 0 ? (
-                <RevenueChart data={revenueChartData} />
+                <Suspense fallback={<div className="animate-pulse bg-gray-50 rounded-2xl w-full h-full" />}>
+                  <RevenueChart data={revenueChartData} />
+                </Suspense>
               ) : (
+
                 <div className="absolute inset-0 flex items-center justify-center text-gray-400 font-bold uppercase tracking-widest text-[10px]">
                   No revenue data available
                 </div>
@@ -434,8 +440,11 @@ const Dashboard = () => {
             <div className="flex-1 overflow-y-auto custom-scrollbar-visible pr-2 h-[350px]">
               <div className="h-[220px] shrink-0 flex items-center justify-center">
                 {categoryPieData.length > 0 ? (
-                  <CategoryPieChart data={categoryPieData} hideLegend={true} />
+                  <Suspense fallback={<div className="animate-pulse bg-gray-100 rounded-full w-32 h-32" />}>
+                    <CategoryPieChart data={categoryPieData} hideLegend={true} />
+                  </Suspense>
                 ) : (
+
                   <div className="text-center p-10 flex flex-col items-center gap-4">
                     <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-300">
                       <TrendingUp size={32} />
