@@ -6,14 +6,18 @@ import Report from '../models/Report.js';
 // GET /api/admin/users?role=
 export const getUsers = async (req, res) => {
   try {
-    const { role } = req.query;
+    const { role, page = 1, limit = 50 } = req.query;
     const filter = { role: { $ne: 'admin' } };
     if (role) filter.role = role;
     
-    const users = await User.find(filter).sort({ createdAt: -1 });
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const users = await User.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
 
     if (role === 'vendor') {
-      const shops = await Shop.find({}).select('-razorpayKeySecret');
+      const shops = await Shop.find({}).select('-razorpayKeySecret').lean();
       const shopMap = {};
       
       shops.forEach(s => { 
@@ -67,6 +71,7 @@ export const getUsers = async (req, res) => {
   }
 };
 
+
 // PATCH /api/admin/users/:id/status
 export const updateUserStatus = async (req, res) => {
   try {
@@ -114,12 +119,19 @@ export const deleteReport = async (req, res) => {
 // GET /api/admin/shops
 export const getAllShops = async (req, res) => {
   try {
-    const shops = await Shop.find({}).sort({ createdAt: -1 }).select('-razorpayKeySecret');
+    const { page = 1, limit = 50 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const shops = await Shop.find({})
+      .sort({ createdAt: -1 })
+      .select('-razorpayKeySecret')
+      .skip(skip)
+      .limit(parseInt(limit));
     res.json({ success: true, shops });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 
 // PATCH /api/admin/shops/:id/sponsor
@@ -189,15 +201,22 @@ export const getStats = async (req, res) => {
 // GET /api/admin/reports
 export const getReports = async (req, res) => {
   try {
-    const { role } = req.query;
+    const { role, page = 1, limit = 50 } = req.query;
     const filter = {};
     if (role) filter.userRole = role;
-    const reports = await Report.find(filter).sort({ createdAt: -1 });
+    
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const reports = await Report.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+      
     res.json({ success: true, reports });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // POST /api/reports
 export const createReport = async (req, res) => {
