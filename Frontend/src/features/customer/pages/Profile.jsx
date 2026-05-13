@@ -385,8 +385,8 @@ const Profile = () => {
                 {/* PWA Install for Mobile */}
                 <div className="p-4 sm:p-5 border-t border-gray-50 bg-sky-50/30">
                   <PWAInstallButton variant="sidebar" className="!bg-sky-500 !text-white !border-sky-400 shadow-sky-100" />
-                  <p className="text-[9px] font-bold text-sky-400 uppercase tracking-widest mt-3 text-center">Install for the best experience</p>
                 </div>
+
               </div>
 
 
