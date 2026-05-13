@@ -70,8 +70,10 @@ const FeaturedCarousel = memo(({ featuredShops, navigate }) => {
                 src={shop.bannerUrl || shop.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200'}
                 alt={shop.name}
                 referrerPolicy="no-referrer"
-                loading="lazy"
+                loading={idx === 0 ? "eager" : "lazy"}
+                fetchpriority={idx === 0 ? "high" : "low"}
                 className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+
                 onError={(e) => {
                   e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200';
                 }}
@@ -153,6 +155,7 @@ const FeaturedCarousel = memo(({ featuredShops, navigate }) => {
             {featuredShops.map((_, idx) => (
               <button
                 key={idx}
+                aria-label={`Go to slide ${idx + 1}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   goToSlide(idx);
@@ -161,6 +164,7 @@ const FeaturedCarousel = memo(({ featuredShops, navigate }) => {
                   idx === activeSlide ? 'w-5 h-2 bg-sky-500' : 'w-2 h-2 bg-white/40 hover:bg-white/70'
                 }`}
               />
+
             ))}
           </div>
         )}
