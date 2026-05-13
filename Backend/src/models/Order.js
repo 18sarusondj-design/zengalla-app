@@ -55,4 +55,11 @@ const orderSchema = new mongoose.Schema({
   notes: { type: String, default: '' },
 }, { timestamps: true });
 
+orderSchema.index({ shopId: 1 });
+orderSchema.index({ userId: 1 });
+orderSchema.index({ status: 1 });
+orderSchema.index({ createdAt: -1 });
+orderSchema.index({ phone: 1 });
+
 export default mongoose.model('Order', orderSchema);
+
