@@ -12,6 +12,8 @@ import { useStore } from '../../shop/context/StoreContext';
 import { getPasswordStrength } from '../../../utils/passwordStrength';
 import api from '../../../config/api.js';
 import SEO from '../../common/components/SEO';
+import PWAInstallButton from '../../common/components/PWAInstallButton';
+
 
 
 const Profile = () => {
@@ -377,7 +379,14 @@ const Profile = () => {
                     <ChevronRight size={15} className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all shrink-0" />
                   </button>
                 ))}
+                
+                {/* PWA Install for Mobile */}
+                <div className="p-4 sm:p-5 border-t border-gray-50 bg-sky-50/30">
+                  <PWAInstallButton variant="sidebar" className="!bg-sky-500 !text-white !border-sky-400 shadow-sky-100" />
+                  <p className="text-[9px] font-bold text-sky-400 uppercase tracking-widest mt-3 text-center">Install for the best experience</p>
+                </div>
               </div>
+
 
               <div className="h-4" />
             </div>
