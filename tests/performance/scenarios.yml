@@ -1,0 +1,66 @@
+config:
+  target: "https://zengalla-api.onrender.com/api"
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm up"
+    - duration: 120
+      arrivalRate: 10
+      rampTo: 50
+      name: "Ramp up load"
+    - duration: 300
+      arrivalRate: 50
+      name: "Sustained load (50 users/sec)"
+  payload:
+    # We can use a CSV for multiple users if needed, 
+    # but we'll use the provided credentials for now
+    path: "users.csv"
+    fields:
+      - "email"
+      - "password"
+      - "role"
+
+scenarios:
+  - name: "Customer Shopping Flow"
+    weight: 7
+    flow:
+      - post:
+          url: "/auth/login"
+          json:
+            email: "{{ email }}"
+            password: "{{ password }}"
+          capture:
+            - json: "$.token"
+              as: "token"
+      - get:
+          url: "/shops"
+          headers:
+            Authorization: "Bearer {{ token }}"
+      - get:
+          url: "/products?limit=20"
+          headers:
+            Authorization: "Bearer {{ token }}"
+      - get:
+          url: "/orders/my-orders"
+          headers:
+            Authorization: "Bearer {{ token }}"
+
+  - name: "Vendor Dashboard Flow"
+    weight: 3
+    flow:
+      - post:
+          url: "/auth/login"
+          json:
+            email: "{{ email }}"
+            password: "{{ password }}"
+          capture:
+            - json: "$.token"
+              as: "token"
+      - get:
+          url: "/shops/my"
+          headers:
+            Authorization: "Bearer {{ token }}"
+      - get:
+          url: "/orders?limit=10"
+          headers:
+            Authorization: "Bearer {{ token }}"
