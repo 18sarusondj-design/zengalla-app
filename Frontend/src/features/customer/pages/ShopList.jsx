@@ -9,7 +9,9 @@ import FeaturedCarousel from '../components/FeaturedCarousel';
 import FullScreenLoader from '../components/FullScreenLoader';
 import Logo from '../../common/components/Logo';
 import { ShopCard } from '../components/ShopCard';
+import SEO from '../../common/components/SEO';
 import api from '../../../config/api.js';
+
 
 const ShopList = () => {
   const [shops, setShops] = useState([]);
@@ -209,6 +211,12 @@ const ShopList = () => {
 
   return (
     <div className="min-h-full bg-gray-50 font-sans">
+      <SEO 
+        title="Discover Shops" 
+        description="Browse premium local grocery stores and marketplaces near you. Find fresh produce, household essentials, and more."
+        canonical="/shops"
+      />
+
 
       {/* ── Premium Hero Header (Sticky) ── */}
       <div className="sticky top-0 z-[100] overflow-hidden shrink-0 shadow-lg border-b border-white/10" style={{background: 'linear-gradient(160deg, #075985 0%, #0369a1 40%, #1e40af 100%)'}}>
@@ -225,8 +233,10 @@ const ShopList = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/cart')}
+              aria-label="View shopping cart"
               className="relative w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-all border border-white/10"
             >
+
               <ShoppingCart size={20} />
               {totalCartItemCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-sky-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-white animate-in zoom-in">
@@ -236,8 +246,10 @@ const ShopList = () => {
             </button>
             <button
               onClick={() => navigate('/')}
+              aria-label="Go back to home"
               className="w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-all border border-white/10"
             >
+
               <ChevronLeft size={20} />
             </button>
           </div>
@@ -257,13 +269,16 @@ const ShopList = () => {
                 <Search size={18} strokeWidth={3} />
               )}
             </button>
+            <label htmlFor="shop-search" className="sr-only">Search stores</label>
             <input
+              id="shop-search"
               type="text"
               placeholder="Search stores nearby..."
               className="block w-full pl-11 pr-4 py-4 bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl text-sm font-bold text-white placeholder:text-white/30 focus:outline-none focus:bg-white/20 focus:border-white/30 transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+
           </div>
           <button
             type="button"
