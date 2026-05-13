@@ -44,4 +44,11 @@ const productSchema = new mongoose.Schema({
   aiReviewSummary: { type: String, default: '' },
 }, { timestamps: true });
 
+productSchema.index({ shopId: 1 });
+productSchema.index({ category: 1 });
+productSchema.index({ name: 'text', description: 'text' });
+productSchema.index({ isActive: 1 });
+productSchema.index({ barcode: 1 });
+
 export default mongoose.model('Product', productSchema);
+
