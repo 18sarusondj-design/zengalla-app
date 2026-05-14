@@ -4,6 +4,7 @@ import { useQueryParam } from '../../../hooks/useQueryParam';
 import { Store, MapPin, Clock, ChevronRight, ChevronLeft, Search, Sparkles, ArrowRight, HelpCircle, ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore } from '../../shop/context/StoreContext';
+import { useAuth } from '../../auth/context/AuthContext';
 import ShopMapModal from '../components/ShopMapModal';
 import FeaturedCarousel from '../components/FeaturedCarousel';
 import FullScreenLoader from '../components/FullScreenLoader';
@@ -26,9 +27,20 @@ const ShopList = () => {
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const { shops: contextShops, products, totalCartItemCount, fetchNearbyShops } = useStore();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const detectLocation = () => {
+    // Priority 1: User's saved profile location
+    if (user?.location?.coordinates) {
+      setUserCoords({
+        lat: user.location.coordinates[1],
+        lng: user.location.coordinates[0]
+      });
+      return;
+    }
+
+    // Priority 2: Browser Geolocation
     if (!navigator.geolocation) return;
     setDetectingLocation(true);
     navigator.geolocation.getCurrentPosition(
