@@ -221,8 +221,8 @@ const Inventory = () => {
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-0">
-      <div className="mb-6 flex flex-col sm:flex-row justify-between items-end gap-4">
+    <div className="flex flex-col md:h-screen md:overflow-hidden min-h-screen p-2 md:p-4 bg-slate-50">
+      <div className="mb-4 flex flex-col sm:flex-row justify-between items-end gap-4 shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Stock Management</h1>
           <p className="text-gray-500 text-xs mt-1">Review and update your current product catalog.</p>
@@ -249,9 +249,9 @@ const Inventory = () => {
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-10 flex-1 min-h-0">
+      <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 flex-1 min-h-0 md:overflow-hidden">
         {/* Sidebar */}
-        <div className="w-full lg:w-72 flex flex-col gap-3 shrink-0">
+        <div className="w-full lg:w-72 flex flex-col gap-3 shrink-0 md:overflow-y-auto custom-scrollbar pb-4 lg:pb-0">
           <div className="grid grid-cols-1 gap-3">
             <div className="bg-gradient-to-br from-sky-500 to-sky-600 rounded-[28px] p-5 shadow-lg shadow-sky-100 flex items-center justify-between group hover:scale-[1.02] transition-all">
               <div>
@@ -377,7 +377,7 @@ const Inventory = () => {
         </div>
 
         {/* Main Section */}
-        <div className="flex-1 flex flex-col min-h-0 min-w-0">
+        <div className="flex-1 flex flex-col min-h-0 min-w-0 md:overflow-hidden">
           <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
             <div className="p-4 border-b flex justify-between items-center bg-gray-50/50">
               <div className="relative w-full max-w-sm">
