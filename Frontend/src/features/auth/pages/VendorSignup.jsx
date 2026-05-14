@@ -3,9 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { 
   Store, Mail, Lock, Phone, User, MapPin, 
   CheckCircle2, ArrowRight, Loader2, Camera,
-  ShieldCheck, Smartphone, Eye, EyeOff, X
+  ShieldCheck, Smartphone, Eye, EyeOff, X, Search, Navigation
 } from 'lucide-react';
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 import { toast } from 'sonner';
 import api from '../../../config/api.js';
 import { useAuth } from '../../auth/context/AuthContext';
@@ -13,6 +12,8 @@ import Logo from '../../common/components/Logo';
 
 const mapContainerStyle = { width: '100%', height: '100%' };
 const defaultCenter = { lat: 15.3647, lng: 75.1240 };
+
+import LeafletMap from '../../common/components/LeafletMap';
 
 const VendorSignup = () => {
   const [formData, setFormData] = useState({
@@ -22,30 +23,34 @@ const VendorSignup = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
-  const [mapType, setMapType] = useState('roadmap');
+  const [showSatellite, setShowSatellite] = useState(true);
   const navigate = useNavigate();
 
   const [step, setStep] = useState(1);
   const [otp, setOtp] = useState('');
   const { register, verifyOtp } = useAuth();
 
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-    libraries: ['places', 'geometry']
-  });
-
   const [isPassValid, setIsPassValid] = useState(false);
   const [isPhoneValid, setIsPhoneValid] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+
+  useEffect(() => {
+    let interval;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
 
   useEffect(() => {
     setIsPassValid(formData.password.length >= 6);
     setIsPhoneValid(/^\d{10}$/.test(formData.phone));
   }, [formData.password, formData.phone]);
 
-  const onMapClick = (e) => {
-    const lat = e.latLng.lat();
-    const lng = e.latLng.lng();
+  const onLocationChange = (coords) => {
+    const { lat, lng } = coords;
     
     setFormData(prev => ({
       ...prev,
@@ -56,7 +61,7 @@ const VendorSignup = () => {
     }));
 
     // Use FREE OpenStreetMap Nominatim API instead of paid Google Geocoder
-    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`)
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en`)
       .then(res => res.json())
       .then(data => {
         console.log("OSM Data:", data);
@@ -69,14 +74,24 @@ const VendorSignup = () => {
              setFormData(prev => ({ ...prev, pinCode: cleanPin }));
              toast.success(`Pin Code ${cleanPin} Detected!`, { id: 'geo-success' });
              if (!formData.location.address) {
+                const poiName = data.address?.shop || data.address?.amenity || data.address?.building || data.address?.office || data.address?.tourism;
+                const fullAddress = poiName && !data.display_name.startsWith(poiName) 
+                  ? `${poiName}, ${data.display_name}` 
+                  : data.display_name;
+                  
                 setFormData(prev => ({ 
                   ...prev, 
-                  location: { ...prev.location, address: data.display_name } 
+                  location: { ...prev.location, address: fullAddress } 
                 }));
              }
           }
         } else {
-          toast.info("Location pinned. Please enter the Pin Code manually.", { id: 'geo-info' });
+          // If no explicit postcode, try to extract from display_name
+          const match = data.display_name.match(/\b\d{6}\b/);
+          if (match) {
+            setFormData(prev => ({ ...prev, pinCode: match[0] }));
+          }
+          toast.info("Location pinned.", { id: 'geo-info' });
         }
       })
       .catch(err => {
@@ -109,6 +124,7 @@ const VendorSignup = () => {
 
       toast.success('Verification code sent to your email!', { id: toastId });
       setStep(2);
+      setResendTimer(60);
     } catch (err) {
       toast.error(err.message, { id: toastId });
     } finally {
@@ -139,13 +155,13 @@ const VendorSignup = () => {
 
 
   return (
-    <div className="min-h-screen bg-white flex font-sans relative">
+    <div className="h-screen bg-white flex font-sans relative overflow-hidden">
       {/* Map Modal */}
       {isMapModalOpen && (
         <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-xl flex items-center justify-center p-0 md:p-10 animate-in fade-in duration-300">
           <div className="bg-white w-full h-full md:rounded-[48px] overflow-hidden flex flex-col shadow-2xl relative">
-             <div className="absolute top-6 left-6 right-6 z-10 flex items-center justify-between pointer-events-none">
-                <div className="bg-white/90 backdrop-blur-md p-4 rounded-3xl shadow-xl border border-gray-100 flex items-center gap-4 pointer-events-auto">
+             <div className="absolute top-6 left-6 right-6 z-[1000] flex flex-col md:flex-row items-center justify-between gap-4 pointer-events-none">
+                <div className="bg-white/90 backdrop-blur-md p-4 rounded-3xl shadow-xl border border-gray-100 flex items-center gap-4 pointer-events-auto w-full md:w-auto">
                   <div className="w-10 h-10 bg-sky-600 text-white rounded-2xl flex items-center justify-center shadow-lg">
                     <MapPin size={20} strokeWidth={2.5} />
                   </div>
@@ -155,12 +171,44 @@ const VendorSignup = () => {
                   </div>
                 </div>
 
+                {/* Search Bar */}
+                <div className="bg-white/95 backdrop-blur-md p-2 rounded-[24px] shadow-xl border border-gray-100 pointer-events-auto w-full max-w-md flex items-center gap-2 group focus-within:ring-4 focus-within:ring-sky-500/10 transition-all">
+                  <div className="w-10 h-10 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 group-focus-within:text-sky-500 transition-colors">
+                      <Search size={18} />
+                  </div>
+                  <input 
+                    type="text" 
+                    placeholder="Search area, landmark or shop street..." 
+                    className="flex-1 bg-transparent border-none outline-none text-xs font-bold text-gray-800 placeholder:text-gray-300"
+                    onKeyDown={async (e) => {
+                      if (e.key === 'Enter') {
+                        const query = e.target.value;
+                        if (!query) return;
+                        const toastId = toast.loading('Searching location...');
+                        try {
+                          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&accept-language=en`);
+                          const results = await res.json();
+                          if (results && results.length > 0) {
+                            const { lat, lon } = results[0];
+                            onLocationChange({ lat: parseFloat(lat), lng: parseFloat(lon) });
+                            toast.success('Location found!', { id: toastId });
+                          } else {
+                            toast.error('Location not found', { id: toastId });
+                          }
+                        } catch (err) {
+                          toast.error('Search failed', { id: toastId });
+                        }
+                      }
+                    }}
+                  />
+                </div>
+
                 <div className="flex gap-4 pointer-events-auto">
                   <button 
-                    onClick={() => setMapType(prev => prev === 'roadmap' ? 'hybrid' : 'roadmap')}
+                    onClick={() => setShowSatellite(prev => !prev)}
                     className="px-6 h-12 bg-white text-gray-900 rounded-2xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-xl border border-gray-100 hover:bg-sky-50 transition-all"
                   >
-                    {mapType === 'roadmap' ? 'Satellite View' : 'Map View'}
+                    {showSatellite ? 'Map View' : 'Satellite View'}
                   </button>
                   <button 
                     onClick={() => setIsMapModalOpen(false)}
@@ -172,25 +220,40 @@ const VendorSignup = () => {
              </div>
 
              <div className="flex-1 relative">
-                {isLoaded ? (
-                    <GoogleMap
-                      mapContainerStyle={mapContainerStyle}
-                      center={{ lat: Number(formData.location.coordinates.lat), lng: Number(formData.location.coordinates.lng) }}
-                      zoom={mapType === 'hybrid' ? 20 : 18}
-                      onClick={onMapClick}
-                      mapTypeId={mapType}
-                      options={{ disableDefaultUI: true, zoomControl: false }}
-                    >
-                      <Marker 
-                        position={{ lat: Number(formData.location.coordinates.lat), lng: Number(formData.location.coordinates.lng) }}
-                        draggable={true}
-                        onDragEnd={onMapClick}
-                      />
-                    </GoogleMap>
-                  ) : <div className="h-full flex items-center justify-center font-black text-gray-400">Loading Map...</div>}
-               </div>
+                 <LeafletMap 
+                   height="100%"
+                   userCoords={formData.location.coordinates}
+                   onUserLocationChange={onLocationChange}
+                   onLocationSelect={onLocationChange}
+                   showSatellite={showSatellite}
+                   zoom={18}
+                 />
+                 
+                 {/* Small Detect Location Button */}
+                 <button 
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     if (!navigator.geolocation) return toast.error("Geolocation not supported");
+                     const tid = toast.loading("Detecting...");
+                     navigator.geolocation.getCurrentPosition(
+                       (pos) => {
+                         onLocationChange({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                         toast.success("Located!", { id: tid });
+                       },
+                       (err) => {
+                         toast.error("Enable GPS access", { id: tid });
+                       },
+                       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                     );
+                   }}
+                   className="absolute bottom-6 right-6 z-[1000] w-12 h-12 bg-white rounded-full shadow-2xl flex items-center justify-center text-sky-600 hover:scale-110 active:scale-95 transition-all border border-gray-100"
+                   title="Locate Me"
+                 >
+                   <Navigation size={20} fill="currentColor" />
+                 </button>
+             </div>
                
-               <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 w-full max-w-sm px-6">
+               <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-sm px-6">
                   {formData.pinCode && (
                     <div className="mb-4 bg-sky-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center justify-between animate-in slide-in-from-bottom duration-300">
                       <span className="text-[10px] font-black uppercase tracking-widest">Pin Code Detected:</span>
@@ -215,7 +278,7 @@ const VendorSignup = () => {
           className="absolute inset-0 w-full h-full object-cover"
           alt="Vendor Signup Branding"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/40 to-transparent flex flex-col justify-end p-12">
+        <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/20 to-transparent flex flex-col justify-end p-12">
           <div className="animate-fade-in-up">
             <div className="flex justify-center mb-8">
               <Logo className="h-12 px-6 shadow-2xl shadow-sky-500/20" variant="full" />
@@ -229,7 +292,7 @@ const VendorSignup = () => {
       </div>
 
       {/* Right Side: Signup Form */}
-      <div className="flex-1 flex flex-col items-center justify-center py-12 px-6 relative bg-slate-50">
+      <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 relative bg-slate-50 overflow-y-auto custom-scrollbar-visible">
         <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden lg:hidden">
           <img 
             src="/brand_login.png" 
@@ -239,8 +302,8 @@ const VendorSignup = () => {
           <div className="absolute inset-0 bg-gradient-to-b from-white/80 via-white/40 to-white/90" />
         </div>
 
-        <div className="w-full max-w-4xl flex flex-col min-h-0 justify-center py-4">
-          <div className="bg-white py-10 px-8 sm:px-10 shadow-[0_30px_100px_-20px_rgba(0,0,0,0.1)] rounded-[48px] border border-gray-100 flex flex-col gap-6 animate-fade-in-up relative">
+        <div className="w-full max-w-5xl flex flex-col justify-center">
+          <div className="bg-white py-8 px-8 sm:px-12 shadow-[0_40px_120px_-20px_rgba(0,0,0,0.15)] rounded-[48px] border border-gray-100 flex flex-col gap-6 animate-fade-in-up relative">
             
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-4">
@@ -331,7 +394,7 @@ const VendorSignup = () => {
                      <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4 mb-2 group-focus-within:text-sky-600">Physical Store Address</label>
                       <textarea
                         required
-                        className="block w-full px-5 py-4 border-2 border-gray-50 rounded-3xl bg-gray-50/50 text-xs font-bold text-gray-800 focus:outline-none focus:border-sky-500/30 focus:bg-white transition-all placeholder:text-gray-300 shadow-inner h-[88px] resize-none"
+                        className="block w-full px-5 py-3 border-2 border-gray-50 rounded-[24px] bg-gray-50/50 text-xs font-bold text-gray-800 focus:outline-none focus:border-sky-500/30 focus:bg-white transition-all placeholder:text-gray-300 shadow-inner h-20 resize-none"
                         placeholder=""
                         value={formData.location.address}
                         onChange={(e) => setFormData({...formData, location: { ...formData.location, address: e.target.value }})}
@@ -350,27 +413,22 @@ const VendorSignup = () => {
 
                   <div className="relative">
                     <div 
-                      className="h-32 rounded-3xl bg-slate-100 overflow-hidden border-2 border-gray-50 shadow-inner group cursor-pointer relative"
+                      className="h-28 rounded-[24px] bg-slate-100 overflow-hidden border-2 border-gray-50 shadow-inner group cursor-pointer relative"
                       onClick={() => setIsMapModalOpen(true)}
                     >
-                      {isLoaded ? (
-                        <>
-                          <GoogleMap
-                            mapContainerStyle={mapContainerStyle}
-                            center={{ lat: Number(formData.location.coordinates.lat), lng: Number(formData.location.coordinates.lng) }}
-                            zoom={13}
-                            options={{ disableDefaultUI: true, zoomControl: false, gestureHandling: 'none' }}
-                          >
-                            <Marker position={{ lat: Number(formData.location.coordinates.lat), lng: Number(formData.location.coordinates.lng) }} />
-                          </GoogleMap>
-                          <div className="absolute inset-0 bg-black/5 group-hover:bg-black/0 transition-all flex items-center justify-center">
-                             <div className="bg-white/90 px-4 py-2 rounded-2xl shadow-xl flex items-center gap-2 transform translate-y-0 transition-all border border-sky-100">
-                               <MapPin size={12} className="text-sky-600" />
-                               <span className="text-[10px] font-black uppercase tracking-widest text-sky-600">Fullscreen Map</span>
-                             </div>
-                          </div>
-                        </>
-                      ) : <div className="h-full flex items-center justify-center text-[10px] text-gray-400">Loading Map...</div>}
+                      <LeafletMap 
+                        height="100%"
+                        userCoords={formData.location.coordinates}
+                        zoom={13}
+                        autoDetect={false}
+                        interactive={false}
+                      />
+                      <div className="absolute inset-0 bg-black/5 group-hover:bg-black/0 transition-all flex items-center justify-center z-[1000]">
+                         <div className="bg-white/90 px-4 py-2 rounded-2xl shadow-xl flex items-center gap-2 transform translate-y-0 transition-all border border-sky-100">
+                           <MapPin size={12} className="text-sky-600" />
+                           <span className="text-[10px] font-black uppercase tracking-widest text-sky-600">Fullscreen Map</span>
+                         </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -419,7 +477,11 @@ const VendorSignup = () => {
                 </button>
 
                 <p className="text-center text-[8px] font-black text-gray-400 uppercase tracking-widest">
-                  Didn't receive the code? <button type="button" onClick={handleSignup} className="text-sky-600 hover:underline">Resend Code</button>
+                  Didn't receive the code? {resendTimer > 0 ? (
+                    <span className="text-sky-600 font-black">Resend in {resendTimer}s</span>
+                  ) : (
+                    <button type="button" onClick={handleSignup} className="text-sky-600 hover:underline">Resend Code</button>
+                  )}
                 </p>
               </form>
             )}
