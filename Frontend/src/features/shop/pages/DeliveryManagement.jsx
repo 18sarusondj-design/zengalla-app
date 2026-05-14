@@ -7,7 +7,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const DeliveryManagement = () => {
-  const { getDeliveryPartners, createDeliveryPartner, updateDeliveryPartner, deleteDeliveryPartner, vendorShop, updateShop } = useStore();
+  const { getDeliveryPartners, createDeliveryPartner, updateDeliveryPartner, deleteDeliveryPartner, vendorShop, updateShop, user } = useStore();
   const [partners, setPartners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -57,10 +57,8 @@ const DeliveryManagement = () => {
   }, [vendorShop]);
 
   useEffect(() => {
-    if (vendorShop?._id) {
-      fetchPartners();
-    }
-  }, [vendorShop?._id]);
+    fetchPartners();
+  }, [vendorShop?._id, user?.role]);
 
   const fetchPartners = async () => {
     setLoading(true);
@@ -299,7 +297,7 @@ const DeliveryManagement = () => {
   );
 
   return (
-    <div className="flex flex-col md:h-screen md:overflow-hidden min-h-screen bg-gray-50/50 p-2 lg:p-6 overflow-hidden font-sans">
+    <div className="flex flex-col min-h-screen bg-gray-50/50 p-2 lg:p-6 font-sans">
       {/* Header */}
       <div className="mb-6 md:mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 md:pb-10 border-b border-gray-100/50 flex-shrink-0">
         <div>
@@ -353,51 +351,53 @@ const DeliveryManagement = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 flex-1 min-h-0 md:overflow-hidden">
-        {/* Config Column */}
-        <div className="w-full lg:w-80 space-y-6 md:overflow-y-auto custom-scrollbar pb-4 lg:pb-0">
-           <div className="bg-gradient-to-br from-sky-50/80 to-white rounded-[32px] p-8 border border-sky-100/50 shadow-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-sky-100/20 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-150 duration-700" />
-              
-              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-sky-600 mb-6 shadow-md border border-sky-50 relative z-10">
-                 <Truck size={28} strokeWidth={2.5} />
-              </div>
-              
-              <h3 className="font-black text-gray-900 uppercase tracking-tighter text-lg mb-4 relative z-10">Fleet Security</h3>
-              
-               <div className="space-y-4 relative z-10">
-                 <div className="space-y-1.5 mb-2">
-                    <label className="text-[9px] font-black text-sky-600 uppercase tracking-widest ml-2">Public Store Code (For Login)</label>
-                    <div className="relative">
-                       <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-sky-400" size={14} />
-                       <input 
-                         type="text" 
-                         placeholder="Ex: MYSHOP123"
-                         className="w-full bg-white border border-sky-100 rounded-xl py-2.5 pl-10 pr-4 font-black text-xs tracking-widest outline-none focus:border-sky-300 transition-all uppercase"
-                         value={shopConfig.storeCode}
-                         onChange={e => setShopConfig({ ...shopConfig, storeCode: e.target.value.toUpperCase() })}
-                       />
-                    </div>
-                 </div>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 flex-1">
+        {/* Config Column - Only show for Vendors/Staff */}
+        {(user?.role === 'vendor' || user?.role === 'staff') && (
+          <div className="w-full lg:w-80 space-y-6 md:overflow-y-auto custom-scrollbar pb-4 lg:pb-0">
+             <div className="bg-gradient-to-br from-sky-50/80 to-white rounded-[32px] p-8 border border-sky-100/50 shadow-sm relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-sky-100/20 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-150 duration-700" />
+                
+                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-sky-600 mb-6 shadow-md border border-sky-50 relative z-10">
+                   <Truck size={28} strokeWidth={2.5} />
+                </div>
+                
+                <h3 className="font-black text-gray-900 uppercase tracking-tighter text-lg mb-4 relative z-10">Fleet Security</h3>
+                
+                 <div className="space-y-4 relative z-10">
+                   <div className="space-y-1.5 mb-2">
+                      <label className="text-[9px] font-black text-sky-600 uppercase tracking-widest ml-2">Public Store Code (For Login)</label>
+                      <div className="relative">
+                         <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-sky-400" size={14} />
+                         <input 
+                           type="text" 
+                           placeholder="Ex: MYSHOP123"
+                           className="w-full bg-white border border-sky-100 rounded-xl py-2.5 pl-10 pr-4 font-black text-xs tracking-widest outline-none focus:border-sky-300 transition-all uppercase"
+                           value={shopConfig.storeCode}
+                           onChange={e => setShopConfig({ ...shopConfig, storeCode: e.target.value.toUpperCase() })}
+                         />
+                      </div>
+                   </div>
 
-                 <div className="p-4 bg-white/60 rounded-2xl border border-white space-y-2">
-                    <p className="text-[10px] text-gray-900 font-black uppercase tracking-wide flex items-center gap-2">
-                        <Clock size={12} className="text-sky-500" /> Auto-Assignment
-                    </p>
-                    <p className="text-[9px] text-gray-400 font-bold leading-relaxed uppercase">Delivery boys can self-assign orders marked as 'READY' from their dashboard.</p>
-                 </div>
+                   <div className="p-4 bg-white/60 rounded-2xl border border-white space-y-2">
+                      <p className="text-[10px] text-gray-900 font-black uppercase tracking-wide flex items-center gap-2">
+                          <Clock size={12} className="text-sky-500" /> Auto-Assignment
+                      </p>
+                      <p className="text-[9px] text-gray-400 font-bold leading-relaxed uppercase">Delivery boys can self-assign orders marked as 'READY' from their dashboard.</p>
+                   </div>
 
-                 <button 
-                   onClick={handleShopConfigSave}
-                   disabled={isUpdatingShop}
-                   className="w-full mt-2 py-3 bg-sky-600 text-white rounded-2xl font-black uppercase text-[9px] tracking-widest shadow-lg shadow-sky-100 hover:bg-sky-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                 >
-                    {isUpdatingShop ? <Loader2 className="animate-spin" size={12} /> : <Save size={12} />}
-                    Update Security
-                 </button>
-              </div>
-           </div>
-        </div>
+                   <button 
+                     onClick={handleShopConfigSave}
+                     disabled={isUpdatingShop}
+                     className="w-full mt-2 py-3 bg-sky-600 text-white rounded-2xl font-black uppercase text-[9px] tracking-widest shadow-lg shadow-sky-100 hover:bg-sky-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                   >
+                      {isUpdatingShop ? <Loader2 className="animate-spin" size={12} /> : <Save size={12} />}
+                      Update Security
+                   </button>
+                </div>
+             </div>
+          </div>
+        )}
 
         {/* List Column */}
         <div className="flex-1 flex flex-col min-h-0 md:overflow-hidden">
@@ -503,7 +503,14 @@ const DeliveryManagement = () => {
                 </div>
                 
                 <button 
-                  onClick={() => handleDelete(partner._id)}
+                  onClick={() => {
+                    toast.warning("Remove this delivery partner?", {
+                      action: {
+                        label: "Confirm Delete",
+                        onClick: () => handleDelete(partner._id)
+                      }
+                    });
+                  }}
                   className="w-12 h-12 rounded-[20px] flex items-center justify-center text-gray-200 hover:text-rose-500 hover:bg-rose-50 transition-all"
                 >
                   <Trash2 size={20} />

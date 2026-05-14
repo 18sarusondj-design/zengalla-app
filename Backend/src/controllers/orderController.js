@@ -104,6 +104,30 @@ export const placeOrder = async (req, res) => {
       });
     }
 
+    // 11. Notify Super Admins (ADMIN Role) with complete details
+    const admins = await User.find({ role: 'admin' });
+    const orderDetails = {
+      title: '🚀 CRITICAL: New Order Placed!',
+      body: `Order #${order._id.toString().slice(-6)} from ${shop?.name || 'Shop'} for ₹${totalPrice}`,
+      url: '/super-admin/orders',
+      orderId: order._id,
+      priority: 'high',
+      tag: `admin-order-${order._id}`,
+      data: {
+        orderId: order._id,
+        customer: { name: order.customerName, phone: order.phone, address: order.deliveryAddress },
+        shop: { name: shop?.name, phone: shop?.ownerPhone || 'N/A', address: shop?.address },
+        items: order.items.map(i => `${i.name} (x${i.quantity})`).join(', '),
+        total: order.totalPrice,
+        payment: order.paymentMethod,
+        type: order.orderType
+      }
+    };
+
+    admins.forEach(admin => {
+      sendPushNotification(admin._id, orderDetails);
+    });
+
     res.status(201).json({ success: true, orderId: order._id, order });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -464,6 +488,15 @@ export const assignOrder = async (req, res) => {
     const { partnerId, deliveryFee, extraAmount } = req.body;
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    const isB2B = order.orderType === 'B2B_PROCUREMENT';
+    const isAdmin = req.user.role === 'admin';
+    const isVendor = req.user.role === 'vendor' || req.user.role === 'staff';
+
+    // RBAC Check for Delivery Assignment: ONLY Super Admin can manage delivery
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Permission Denied. Only Super Admin can manage delivery assignments.' });
+    }
 
     order.deliveryPartnerId = partnerId;
     order.status = 'ASSIGNED'; // Move to assigned status

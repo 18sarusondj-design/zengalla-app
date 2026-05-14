@@ -16,6 +16,7 @@ export const StoreProvider = ({ children }) => {
   const [vendorShop, setVendorShop] = useState(null);
   const [currentShopId, setCurrentShopId] = useState(() => localStorage.getItem('currentShopId'));
   const [customerGstin, setCustomerGstin] = useState('');
+  const [isDeliveryMode, setIsDeliveryMode] = useState(false);
 
   const [cart, setCart] = useState(() => {
     try {
@@ -30,6 +31,7 @@ export const StoreProvider = ({ children }) => {
 
   // -- Refs --
   const isFetchingRef = useRef(false);
+  const prevOrderCountRef = useRef(0);
 
   // -- Persistence --
   useEffect(() => { localStorage.setItem('cart', JSON.stringify(cart)); }, [cart]);
@@ -65,6 +67,10 @@ export const StoreProvider = ({ children }) => {
             if (prodRes.data?.products) setProducts(prodRes.data.products);
             if (ordRes.data?.orders) setOrders(ordRes.data.orders);
           }
+        } else if (user.role === 'admin') {
+          // Super Admin: fetch all platform orders
+          const ordRes = await api.get('/orders');
+          if (ordRes.data?.orders) setOrders(ordRes.data.orders);
         } else {
           // Customer: fetch their orders
           const ordRes = await api.get('/orders/my');
@@ -76,12 +82,43 @@ export const StoreProvider = ({ children }) => {
     } finally {
       setLoading(false);
       isFetchingRef.current = false;
+      // Initialize prevOrderCountRef on first fetch
+      if (prevOrderCountRef.current === 0 && orders.length > 0) {
+        prevOrderCountRef.current = orders.length;
+      }
     }
   }, [user?._id, user?.id, user?.role]);
 
   useEffect(() => {
     if (token !== undefined) fetchData();
   }, [token, fetchData]);
+
+  // -- Real-time Order Notification for Admin --
+  useEffect(() => {
+    if (user?.role !== 'admin' || !token) return;
+
+    const pollOrders = async () => {
+      try {
+        const { data } = await api.get('/orders');
+        if (data.orders) {
+          if (prevOrderCountRef.current > 0 && data.orders.length > prevOrderCountRef.current) {
+            toast.success("📦 New Order Received!", {
+              description: "A new customer order has been placed on the platform.",
+              duration: 5000
+            });
+            // Play a subtle sound if possible or just rely on toast
+          }
+          setOrders(data.orders);
+          prevOrderCountRef.current = data.orders.length;
+        }
+      } catch (err) {
+        console.error("Order polling failed:", err);
+      }
+    };
+
+    const interval = setInterval(pollOrders, 20000); // Poll every 20 seconds
+    return () => clearInterval(interval);
+  }, [user?.role, token]);
 
   // -- Vendor Shop Fetch --
   const fetchVendorShop = useCallback(async () => {
@@ -286,15 +323,16 @@ export const StoreProvider = ({ children }) => {
 
   // -- Fetch Orders (vendor) --
   const fetchOrders = useCallback(async () => {
-    if (!vendorShop?._id) return { success: false };
+    if (!user) return { success: false };
     try {
-      const { data } = await api.get(`/orders?shopId=${vendorShop._id}`);
+      const url = user.role === 'admin' ? '/orders' : `/orders?shopId=${vendorShop?._id}`;
+      const { data } = await api.get(url);
       if (data.orders) setOrders(data.orders);
       return { success: true, data: data.orders };
     } catch (err) {
       return { success: false, error: err.message };
     }
-  }, [vendorShop?._id]);
+  }, [vendorShop?._id, user?.role]);
 
   // -- Update Order Status --
   const updateOrderStatus = useCallback(async (orderId, status) => {
@@ -431,12 +469,12 @@ export const StoreProvider = ({ children }) => {
 
   // -- Delivery Partners --
   const getDeliveryPartners = useCallback(async () => {
-    if (!vendorShop?._id) return [];
     try {
-      const { data } = await api.get(`/shops/my/delivery`);
+      const url = user?.role === 'admin' ? '/admin/delivery-partners' : '/shops/my/delivery';
+      const { data } = await api.get(url);
       return data.users || [];
     } catch { return []; }
-  }, [vendorShop?._id]);
+  }, [user?.role]);
 
   const createDeliveryPartner = async (partnerData) => {
     try {
@@ -726,7 +764,8 @@ export const StoreProvider = ({ children }) => {
     getCustomers, getOrderTracking, submitReview,
     getStaff, createStaff, updateStaff, deleteStaff,
     getDeliveryPartners, createDeliveryPartner, updateDeliveryPartner, deleteDeliveryPartner,
-    getAvailableOrders, getMyActiveOrder, acceptOrder, assignOrder, rejectOrder, updateDeliveryStatus, getDeliveryHistory, updateDriverLocation, toggleOnlineStatus, handleGlobalScan
+    getAvailableOrders, getMyActiveOrder, acceptOrder, assignOrder, rejectOrder, updateDeliveryStatus, getDeliveryHistory, updateDriverLocation, toggleOnlineStatus, handleGlobalScan,
+    isDeliveryMode, setIsDeliveryMode
   }), [
     products, shops, orders, cart, currentShopId, loading, vendorShop,
     customerGstin, cartTotal, totalCartItemCount,
@@ -738,7 +777,8 @@ export const StoreProvider = ({ children }) => {
     getCustomers, getOrderTracking, submitReview, 
     getStaff, createStaff, updateStaff, deleteStaff,
     getDeliveryPartners, createDeliveryPartner, updateDeliveryPartner, deleteDeliveryPartner,
-    getAvailableOrders, getMyActiveOrder, acceptOrder, assignOrder, rejectOrder, updateDeliveryStatus, getDeliveryHistory, updateDriverLocation, toggleOnlineStatus, handleGlobalScan
+    getAvailableOrders, getMyActiveOrder, acceptOrder, assignOrder, rejectOrder, updateDeliveryStatus, getDeliveryHistory, updateDriverLocation, toggleOnlineStatus, handleGlobalScan,
+    isDeliveryMode, setIsDeliveryMode
   ]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

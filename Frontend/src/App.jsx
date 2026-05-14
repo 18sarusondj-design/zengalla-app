@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from './features/auth/context/AuthContext';
 import CustomerLayout from './features/customer/components/CustomerLayout';
 import AdminLayout from './features/shop/components/AdminLayout';
 import PWAPrompt from './features/common/components/PWAPrompt';
+import SystemUpdateBanner from './features/common/components/SystemUpdateBanner';
 import NotificationRegistrar from './features/common/components/NotificationRegistrar';
 import PageLoader from './features/common/components/PageLoader';
 
@@ -95,6 +96,7 @@ function App() {
           <ScrollToTop />
           <AppToaster />
           <PWAPrompt />
+          <SystemUpdateBanner />
           <NotificationRegistrar />
           <Suspense fallback={<PageLoader />}>
             <Routes>
@@ -137,7 +139,6 @@ function App() {
                 <Route path="profile" element={<VendorProfile />} />
                 <Route path="customers" element={<Customers />} />
                 <Route path="staff" element={<StaffManagement />} />
-                <Route path="delivery" element={<DeliveryManagement />} />
                 <Route path="b2b" element={<B2BPartners />} />
                 <Route path="ledger" element={<OrderBillingManagement />} />
                 <Route path="credit-customers" element={<CreditLedger />} />
@@ -147,6 +148,8 @@ function App() {
               {/* Super Admin */}
               <Route path="/super-admin" element={<ProtectedRoute requireRole="admin"><AdminLayout /></ProtectedRoute>}>
                 <Route index element={<SuperAdminDashboard />} />
+                <Route path="orders" element={<Orders />} />
+                <Route path="delivery" element={<DeliveryManagement />} />
                 <Route path="vendors" element={<Users roleFilter="vendor" />} />
                 <Route path="customers" element={<Users roleFilter="customer" />} />
                 <Route path="support/vendors" element={<SupportInbox roleFilter="vendor" />} />

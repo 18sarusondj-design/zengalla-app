@@ -42,11 +42,6 @@ const PWAInstallButton = ({ variant = 'default', className = "" }) => {
       </button>
 
       
-      {variant !== 'hero' && (
-        <p className="text-[9px] font-bold text-sky-400 uppercase tracking-widest">
-          Install for the best experience
-        </p>
-      )}
 
       <PWAInstallGuideModal 
         isOpen={showGuide} 

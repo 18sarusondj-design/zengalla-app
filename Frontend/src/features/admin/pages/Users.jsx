@@ -348,7 +348,7 @@ const Users = ({ roleFilter }) => {
   if (loading) return <div className="p-10 text-center font-black text-gray-300 uppercase tracking-widest animate-pulse">Syncing Database...</div>;
 
   return (
-    <div className="flex flex-col h-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="flex flex-col min-h-screen space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h1 className="text-5xl font-black text-gray-900 tracking-tighter uppercase leading-none mb-2">{pageTitle}</h1>
@@ -743,7 +743,14 @@ const Users = ({ roleFilter }) => {
                   <Phone size={14} /> Contact Vendor
                 </button>
                 <button 
-                  onClick={() => handleDelete(selectedVendor._id)}
+                  onClick={() => {
+                    toast.warning("Permanently delete this account?", {
+                      action: {
+                        label: "Confirm Delete",
+                        onClick: () => handleDelete(selectedVendor._id)
+                      }
+                    });
+                  }}
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontWeight: '900', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}
                 >
                   <Trash2 size={14} /> Delete Account

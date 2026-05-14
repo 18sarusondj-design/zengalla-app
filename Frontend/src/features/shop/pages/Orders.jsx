@@ -52,11 +52,17 @@ const Orders = () => {
   // 🔄 SYNC: Immediately fetch orders on mount
   React.useEffect(() => {
     handleSync();
-    if (!vendorShop) fetchVendorShop();
+    if (user?.role === 'vendor' || user?.role === 'staff') {
+      if (!vendorShop) fetchVendorShop();
+    }
     fetchPartners();
-    const interval = setInterval(fetchPartners, 10000); // Update partners status every 10s
-    return () => clearInterval(interval);
-  }, [vendorShop?._id]);
+    const partnersInterval = setInterval(fetchPartners, 10000); // Partners every 10s
+    const ordersInterval = setInterval(fetchOrders, 30000); // Orders every 30s
+    return () => {
+      clearInterval(partnersInterval);
+      clearInterval(ordersInterval);
+    };
+  }, [vendorShop?._id, user?.role]);
 
   const fetchPartners = async () => {
     try {
@@ -254,7 +260,7 @@ const Orders = () => {
   }, [activeStatus]);
 
   return (
-    <div className="flex flex-col md:h-screen md:overflow-hidden min-h-screen p-2 md:p-4 bg-slate-50 font-sans">
+    <div className="flex flex-col min-h-screen p-2 md:p-4 bg-slate-50 font-sans">
       {/* Top Header */}
       <div className="mb-6 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
         <div>
@@ -318,7 +324,7 @@ const Orders = () => {
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0 min-w-0 md:overflow-hidden">
+      <div className="flex flex-col lg:flex-row gap-6 flex-1 min-w-0">
         <div className="w-full lg:w-64 flex flex-col gap-2 shrink-0 md:overflow-y-auto custom-scrollbar pb-4 lg:pb-0">
           <div className="bg-white rounded-[24px] p-2 shadow-sm border border-gray-100">
             {statuses.map(status => {
@@ -632,12 +638,18 @@ const Orders = () => {
                     <section>
                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Logistics Management</h4>
                       {partners?.length > 0 ? (
-                        <button 
-                          onClick={() => setOrderToAssign(selectedOrder)}
-                          className="w-full py-4 bg-indigo-50 text-indigo-600 rounded-[20px] font-black text-[10px] uppercase tracking-widest border border-indigo-100 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center gap-3"
-                        >
-                          <Truck size={16} /> {selectedOrder.deliveryPartnerId ? 'Reassign Delivery Boy' : 'Assign Delivery Boy'}
-                        </button>
+                        (user?.role === 'admin') ? (
+                          <button 
+                            onClick={() => setOrderToAssign(selectedOrder)}
+                            className="w-full py-4 bg-indigo-50 text-indigo-600 rounded-[20px] font-black text-[10px] uppercase tracking-widest border border-indigo-100 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center gap-3"
+                          >
+                            <Truck size={16} /> {selectedOrder.deliveryPartnerId ? 'Reassign Delivery Boy' : 'Assign Delivery Boy'}
+                          </button>
+                        ) : (
+                          <div className="p-4 bg-sky-50 border border-sky-100 rounded-[20px] text-center">
+                            <p className="text-[9px] font-black text-sky-600 uppercase tracking-widest">Delivery Managed by Super Admin</p>
+                          </div>
+                        )
                       ) : (
                         <div className="p-4 bg-slate-50 border border-dashed border-slate-200 rounded-[20px] text-center">
                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">No Fleet Personnel Online</p>
@@ -1055,16 +1067,22 @@ function OrderCard({ order, updateOrderStatus, updateOrderPayment, currentStatus
 
         {(currentStatus === 'NEW' || currentStatus === 'PACKING') && (order.orderType?.toUpperCase() === 'DELIVERY' || order.order_type?.toUpperCase() === 'DELIVERY' || order.orderType === 'B2B_PROCUREMENT' || order.order_type === 'B2B_PROCUREMENT') && (
           partners?.length > 0 ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setOrderToAssign(order);
-              }}
-              className="flex-1 h-9 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border border-indigo-100 flex items-center justify-center gap-2 active:scale-95 group/assign"
-            >
-              <Truck size={14} className="group-hover/assign:animate-bounce" />
-              {order.deliveryPartnerId ? 'Reassign' : 'Assign'}
-            </button>
+            ((user?.role === 'admin') || (isB2B && (user?.role === 'vendor' || user?.role === 'staff'))) ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOrderToAssign(order);
+                }}
+                className="flex-1 h-9 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border border-indigo-100 flex items-center justify-center gap-2 active:scale-95 group/assign"
+              >
+                <Truck size={14} className="group-hover/assign:animate-bounce" />
+                {order.deliveryPartnerId ? 'Reassign' : 'Assign'}
+              </button>
+            ) : (
+              <div className="flex-1 h-9 bg-sky-50 border border-sky-100 rounded-xl flex items-center justify-center px-2" title="Managed by Super Admin">
+                <p className="text-[7px] font-black text-sky-600 uppercase tracking-widest">Super Admin Delivery</p>
+              </div>
+            )
           ) : (
             <div className="flex-1 h-9 bg-gray-50 border border-dashed border-gray-200 rounded-xl flex items-center justify-center px-2">
               <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest">No Boys Online</p>

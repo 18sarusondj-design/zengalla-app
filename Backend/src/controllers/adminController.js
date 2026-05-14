@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import Shop from '../models/Shop.js';
 import Order from '../models/Order.js';
 import Report from '../models/Report.js';
+import SystemSettings from '../models/SystemSettings.js';
 
 // GET /api/admin/users?role=
 export const getUsers = async (req, res) => {
@@ -170,12 +171,18 @@ export const toggleSponsorship = async (req, res) => {
 // GET /api/admin/stats
 export const getStats = async (req, res) => {
   try {
-    const [totalUsers, totalVendors, totalOrders, totalShops, reports] = await Promise.all([
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const [totalUsers, totalVendors, totalOrders, totalShops, reports, totalRiders, activeDeliveries, completedDeliveriesToday] = await Promise.all([
       User.countDocuments({ role: 'customer' }),
       User.countDocuments({ role: 'vendor' }),
       Order.countDocuments(),
       Shop.countDocuments(),
-      Report.find({ replyMessage: '' })
+      Report.find({ replyMessage: '' }),
+      User.countDocuments({ role: 'delivery' }),
+      Order.countDocuments({ status: { $in: ['ASSIGNED', 'PICKED_UP'] } }),
+      Order.countDocuments({ status: 'DELIVERED', updatedAt: { $gte: startOfDay } })
     ]);
 
     const shops = await Shop.find({});
@@ -188,6 +195,9 @@ export const getStats = async (req, res) => {
         totalVendors, 
         totalOrders, 
         totalShops,
+        totalRiders,
+        activeDeliveries,
+        completedDeliveriesToday,
         pendingVendors: pendingVendorsCount,
         vendorReports: reports.filter(r => r.userRole === 'vendor').length,
         customerReports: reports.filter(r => r.userRole === 'customer').length
@@ -270,3 +280,91 @@ export const updateShopPlan = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// GET /api/admin/system-settings
+export const getSystemSettings = async (req, res) => {
+  try {
+    const settings = await SystemSettings.findOne({ key: 'maintenance' });
+    res.json({ success: true, settings });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// PATCH /api/admin/system-settings
+export const updateSystemSettings = async (req, res) => {
+  try {
+    const { scheduledTime, message, isActive } = req.body;
+    const settings = await SystemSettings.findOneAndUpdate(
+      { key: 'maintenance' },
+      { scheduledTime, message, isActive },
+      { new: true, upsert: true }
+    );
+    res.json({ success: true, settings });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/admin/delivery-partners
+export const getAllDeliveryPartners = async (req, res) => {
+  try {
+    const partners = await User.find({ role: 'delivery' }).select('-password').populate('shopId', 'name');
+    res.json({ success: true, users: partners });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+// POST /api/admin/delivery-partners
+export const createGlobalDeliveryPartner = async (req, res) => {
+  try {
+    const { name, phone, password, photoUrl, documentUrl, email } = req.body;
+    
+    // Check if phone already exists
+    const existing = await User.findOne({ phone });
+    if (existing) return res.status(400).json({ error: 'A user with this phone number already exists' });
+
+    const user = await User.create({
+      name,
+      phone,
+      password,
+      email: email || `${phone}@zengalla.logistics`,
+      role: 'delivery',
+      status: 'active',
+      photoUrl,
+      documentUrl
+    });
+
+    res.status(201).json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// PUT /api/admin/delivery-partners/:id
+export const updateDeliveryPartner = async (req, res) => {
+  try {
+    const { name, phone, password, photoUrl, documentUrl, status } = req.body;
+    const updateData = { name, phone, photoUrl, documentUrl, status };
+    if (password) updateData.password = password;
+
+    const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    if (!user) return res.status(404).json({ error: 'Delivery partner not found' });
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// DELETE /api/admin/delivery-partners/:id
+export const deleteDeliveryPartner = async (req, res) => {
+  try {
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Delivery partner deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+

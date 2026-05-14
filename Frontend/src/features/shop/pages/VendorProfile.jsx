@@ -101,7 +101,7 @@ const VendorProfile = () => {
 
   const onLocationChange = async (coords, accuracy) => {
     const { lat, lng } = coords;
-    
+
     setFormData(prev => ({
       ...prev,
       location: { ...prev.location, coordinates: { lat, lng } },
@@ -114,13 +114,13 @@ const VendorProfile = () => {
     try {
       const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en`);
       const data = await response.json();
-      
+
       if (data) {
         const poiName = data.address?.shop || data.address?.amenity || data.address?.building || data.address?.office || data.address?.tourism;
-        const fullAddress = poiName && !data.display_name.startsWith(poiName) 
-          ? `${poiName}, ${data.display_name}` 
+        const fullAddress = poiName && !data.display_name.startsWith(poiName)
+          ? `${poiName}, ${data.display_name}`
           : data.display_name;
-          
+
         setFormData(prev => ({
           ...prev,
           pinCode: pin || prev.pinCode,
@@ -129,7 +129,7 @@ const VendorProfile = () => {
             address: fullAddress
           }
         }));
-        
+
         if (pin) {
           // Fetch official Area Name from India Post
           try {
@@ -138,7 +138,7 @@ const VendorProfile = () => {
             if (pinData?.[0]?.PostOffice?.[0]) {
               const detectedArea = pinData[0].PostOffice[0].District;
               const specificArea = pinData[0].PostOffice.find(po => address.toUpperCase().includes(po.Name.toUpperCase()))?.Name;
-              
+
               setFormData(prev => ({
                 ...prev,
                 areaName: (specificArea || detectedArea).toUpperCase()
@@ -218,18 +218,18 @@ const VendorProfile = () => {
     try {
       const formDataUpload = new FormData();
       formDataUpload.append('image', file);
-      
+
       const { data: uploadData } = await api.post('/upload/image', formDataUpload, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 30000
       });
-      
+
       if (!uploadData.url) throw new Error('Server did not return an image URL');
 
       const publicUrl = uploadData.url;
       const newFormData = { ...formData, imageUrl: publicUrl };
       setFormData(newFormData);
-      
+
       const res = await updateShop(newFormData);
       if (res.success) {
         toast.success('Shop photo updated successfully!', { id: toastId });
@@ -280,7 +280,7 @@ const VendorProfile = () => {
     }
     try {
       setIsUpdating(true);
-      
+
       // Transform coordinates for GeoJSON [lng, lat]
       const payload = {
         ...formData,
@@ -436,7 +436,7 @@ const VendorProfile = () => {
                 <CheckCircle size={10} className="fill-sky-600 text-white" />
                 <span className="text-[8px] font-black uppercase tracking-widest">Verified Vendor</span>
               </div>
-              
+
               {vendorShop?.isSponsored && (
                 <div className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-500/10 text-amber-600 rounded-full border border-amber-500/20 animate-pulse">
                   <Sparkles size={10} className="fill-amber-500 text-white" />
@@ -451,10 +451,10 @@ const VendorProfile = () => {
           <span className="text-[9px] font-black uppercase tracking-widest">{vendorShop?.isActive ? 'ACTIVE NODE' : 'INACTIVE NODE'}</span>
         </div>
       </div>
-      <div className="flex-1 min-h-0">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 min-h-0">
+      <div className="flex-1 min-h-0 md:h-[calc(100vh-180px)]">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full">
           {/* LEFT SIDEBAR: Console & Status */}
-          <div className="lg:col-span-1 flex flex-col md:h-full">
+          <div className="lg:col-span-1 flex flex-col md:h-full md:overflow-hidden">
             <div className="bg-white/40 backdrop-blur-md rounded-[40px] p-2 border border-white shadow-xl flex flex-col space-y-1">
               <p className="px-4 py-0.5 text-[8px] font-black text-gray-600 uppercase tracking-widest border-b border-white/30 mb-0.5">Store Console</p>
 
@@ -484,15 +484,14 @@ const VendorProfile = () => {
               </div>
 
               {/* Navigation Menu - Compacted Further */}
-              <div className="space-y-1 flex-1 pr-1 overflow-y-auto custom-scrollbar-visible py-1">
+              <div className="space-y-1 flex-1 pr-1 md:overflow-hidden overflow-y-auto custom-scrollbar-visible py-1">
                 {[
                   { id: 'details', label: 'Store Details', icon: Info, color: '#0ea5e9' },
                   { id: 'scheduling', label: 'Scheduling', icon: Clock, color: '#0ea5e9' },
-                  { id: 'services', label: 'Delivery & Services', icon: Truck, color: '#0ea5e9' },
                   { id: 'location', label: 'Store Location', icon: MapPin, color: '#0ea5e9' },
                   { id: 'payments', label: 'Payments & QR', icon: QrCode, color: '#0ea5e9' },
-                  { id: 'marketing', label: 'Ads & Offers', icon: Award, color: '#0ea5e9' },
-                  { id: 'credit', label: 'Credit System', icon: Wallet, color: '#059669' },
+                  { id: 'marketing', label: 'Coupons & Offers', icon: Award, color: '#0ea5e9' },
+                  { id: 'credit', label: 'Credit Ledger', icon: Wallet, color: '#0ea5e9' },
                   { id: 'wholesale', label: 'B2B Wholesale', icon: Shield, color: '#0ea5e9' },
                   vendorShop?.isSponsored && { id: 'sponsorship', label: 'Sponsorship', icon: Sparkles, color: '#f59e0b' },
                 ].filter(Boolean).map((tab) => {
@@ -524,9 +523,9 @@ const VendorProfile = () => {
           </div>
 
           {/* RIGHT PANEL: Dynamic Content Forms */}
-          <div className="lg:col-span-2 flex flex-col md:h-full">
+          <div className="lg:col-span-2 flex flex-col md:h-full md:overflow-hidden">
             <form onSubmit={handleUpdate} className="flex flex-col md:h-full">
-              <div className={`flex-1 ${['marketing', 'sponsorship'].includes(activeTab) ? 'md:overflow-y-auto custom-scrollbar-visible' : 'md:overflow-hidden'} bg-white/60 backdrop-blur-md rounded-[40px] shadow-2xl border border-white/50 p-5 overflow-y-auto`}>
+              <div className="flex-1 md:overflow-y-auto custom-scrollbar-visible bg-white/60 backdrop-blur-md rounded-[40px] shadow-2xl border border-white/50 p-5 overflow-y-auto">
 
                 {activeTab === 'details' && (
                   <div className="space-y-3 animate-in fade-in slide-in-from-bottom-3 duration-500">
@@ -641,77 +640,13 @@ const VendorProfile = () => {
                 )}
 
 
-                {activeTab === 'services' && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
-                    <div className="flex items-center justify-between p-4 bg-sky-50/40 rounded-[28px] border-2 border-sky-100/50 transition-all hover:bg-sky-50">
-                      <div className="flex items-center gap-4">
-                        <div className={`p-2.5 rounded-2xl transition-all ${formData.hasHomeDelivery ? 'bg-sky-600 text-white shadow-lg shadow-sky-100' : 'bg-gray-200 text-gray-400'}`}>
-                          <Truck size={24} strokeWidth={2.5} />
-                        </div>
-                        <div>
-                          <h4 className="font-black text-gray-900 uppercase tracking-tight text-sm">Delivery Service</h4>
-                          <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">{formData.hasHomeDelivery ? 'Enabled' : 'Disabled'}</p>
-                        </div>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer scale-110">
-                        <input
-                          type="checkbox" className="sr-only peer"
-                          checked={formData.hasHomeDelivery}
-                          onChange={(e) => setFormData({ ...formData, hasHomeDelivery: e.target.checked })}
-                        />
-                        <div className="w-12 h-7 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
-                      </label>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">Base Fee (₹)</label>
-                        <input
-                          type="number" min="0" value={formData.deliveryFee}
-                          disabled={!formData.hasHomeDelivery}
-                          onChange={(e) => setFormData({ ...formData, deliveryFee: e.target.value })}
-                          className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 rounded-2xl p-4 text-xs font-bold outline-none disabled:opacity-50"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">Price per KM (₹)</label>
-                        <input
-                          type="number" min="0" value={formData.deliveryPricePerKm}
-                          disabled={!formData.hasHomeDelivery}
-                          onChange={(e) => setFormData({ ...formData, deliveryPricePerKm: e.target.value })}
-                          className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 rounded-2xl p-4 text-xs font-bold outline-none disabled:opacity-50"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">Free Above (₹)</label>
-                        <input
-                          type="number" min="0" value={formData.freeDeliveryThreshold}
-                          disabled={!formData.hasHomeDelivery}
-                          onChange={(e) => setFormData({ ...formData, freeDeliveryThreshold: e.target.value })}
-                          className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 rounded-2xl p-4 text-xs font-bold outline-none disabled:opacity-50"
-                        />
-                        <p className="text-[8px] font-bold text-gray-400 mt-1 ml-4 italic">Set to 0 to always charge delivery fee</p>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">Platform Fee (₹)</label>
-                        <input
-                          type="number" min="0" value={formData.platformFee}
-                          disabled={!formData.hasHomeDelivery}
-                          onChange={(e) => setFormData({ ...formData, platformFee: e.target.value })}
-                          className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 rounded-2xl p-4 text-xs font-bold outline-none disabled:opacity-50"
-                        />
-                        <p className="text-[8px] font-bold text-gray-400 mt-1 ml-4 italic">Mandatory fee for home delivery</p>
-                      </div>
-                    </div>
-                    <SectionSaveButton label="Delivery Details" />
-                  </div>
-                )}
+                {/* Delivery & Services section removed - managed by Super Admin */}
 
                 {activeTab === 'location' && (
                   <div className="space-y-2 animate-in fade-in slide-in-from-bottom-3 duration-500 h-full flex flex-col">
                     <div className="relative group h-64 rounded-[32px] overflow-hidden border-2 border-blue-50 shadow-xl bg-gray-50 flex items-center justify-center">
                       <div className="w-full h-full relative cursor-pointer" onClick={() => setIsMapModalOpen(true)}>
-                        <LeafletMap 
+                        <LeafletMap
                           height="100%"
                           userCoords={formData.location?.coordinates}
                           zoom={15}
@@ -792,9 +727,9 @@ const VendorProfile = () => {
 
                 {activeTab === 'credit' && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
-                    <div className="flex items-center justify-between p-6 bg-emerald-50/40 rounded-[32px] border-2 border-emerald-100/50 transition-all hover:bg-emerald-50">
+                    <div className="flex items-center justify-between p-6 bg-sky-50/40 rounded-[32px] border-2 border-sky-100/50 transition-all hover:bg-sky-50">
                       <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-2xl transition-all ${formData.isPayLater ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-gray-200 text-gray-400'}`}>
+                        <div className={`p-3 rounded-2xl transition-all ${formData.isPayLater ? 'bg-sky-500 text-white shadow-lg shadow-sky-100' : 'bg-gray-200 text-gray-400'}`}>
                           <Wallet size={28} strokeWidth={2.5} />
                         </div>
                         <div>
@@ -814,26 +749,18 @@ const VendorProfile = () => {
                             toast.info(`Credit System ${val ? 'enabled' : 'disabled'}. Click "Update Profile" to save.`);
                           }}
                         />
-                        <div className="w-12 h-7 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        <div className="w-12 h-7 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500"></div>
                       </label>
                     </div>
 
-                    <div className="bg-white/80 border-2 border-emerald-50 rounded-[40px] p-8 text-center space-y-4">
-                      <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-2">
+                    <div className="bg-white/80 border-2 border-sky-50 rounded-[40px] p-8 text-center space-y-4">
+                      <div className="w-16 h-16 bg-sky-100 text-sky-600 rounded-2xl flex items-center justify-center mx-auto mb-2">
                         <CreditCard size={32} />
                       </div>
                       <button
                         type="button"
-                        onClick={() => navigate('/vendor/dashboard/ledger')}
-                        className="px-6 py-3 bg-sky-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-sky-700 transition-all active:scale-95 shadow-lg shadow-sky-100"
-                      >
-                        Open Credit Ledger
-                      </button>
-
-                      <button
-                        type="button"
                         onClick={() => navigate('/vendor/dashboard/credit-customers')}
-                        className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all active:scale-95 shadow-lg shadow-emerald-100"
+                        className="px-8 py-4 bg-sky-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-sky-700 transition-all active:scale-95 shadow-xl shadow-sky-100 flex items-center justify-center mx-auto gap-3"
                       >
                         Open Credit Ledger
                       </button>
@@ -878,20 +805,20 @@ const VendorProfile = () => {
                   ) : (
                     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-500">
                       <div className="flex items-center justify-between bg-emerald-50 p-4 rounded-2xl border border-emerald-100 mb-2">
-                         <div className="flex items-center gap-3 text-emerald-700">
-                            <Shield size={18} />
-                            <span className="text-[10px] font-black uppercase tracking-widest">Section Unlocked</span>
-                         </div>
-                         <button 
-                           type="button"
-                           onClick={() => {
-                             setIsPaymentsUnlocked(false);
-                             setUnlockPassword('');
-                           }}
-                           className="text-[10px] font-black text-rose-600 uppercase tracking-widest hover:underline"
-                         >
-                           Lock Again
-                         </button>
+                        <div className="flex items-center gap-3 text-emerald-700">
+                          <Shield size={18} />
+                          <span className="text-[10px] font-black uppercase tracking-widest">Section Unlocked</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsPaymentsUnlocked(false);
+                            setUnlockPassword('');
+                          }}
+                          className="text-[10px] font-black text-rose-600 uppercase tracking-widest hover:underline"
+                        >
+                          Lock Again
+                        </button>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
@@ -928,28 +855,28 @@ const VendorProfile = () => {
                       </div>
 
                       <div className="bg-white/80 border-2 border-sky-50 rounded-3xl p-6 space-y-4">
-                         <div className="flex items-center gap-3 mb-2">
-                            <div className="w-10 h-10 bg-sky-50 text-sky-600 rounded-xl flex items-center justify-center">
-                               <Smartphone size={20} />
-                            </div>
-                            <div>
-                               <h4 className="font-black text-gray-900 uppercase tracking-tight text-sm">UPI Payment Configuration</h4>
-                               <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">For live QR code generation</p>
-                            </div>
-                         </div>
-                         <div className="space-y-2">
-                           <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">UPI ID (e.g. name@upi)</label>
-                           <input
-                             type="text" placeholder="example@okhdfcbank"
-                             value={formData.bankDetails?.upiId || ''}
-                             onChange={(e) => setFormData({ 
-                               ...formData, 
-                               bankDetails: { ...formData.bankDetails, upiId: e.target.value } 
-                             })}
-                             className="w-full bg-white border-2 border-sky-50 focus:border-sky-400 rounded-xl p-4 text-[11px] font-bold text-gray-800 transition-all outline-none"
-                           />
-                           <p className="text-[8px] font-bold text-sky-500 ml-4 uppercase tracking-tighter">This ID will be encoded into dynamic QR codes for your B2B customers.</p>
-                         </div>
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="w-10 h-10 bg-sky-50 text-sky-600 rounded-xl flex items-center justify-center">
+                            <Smartphone size={20} />
+                          </div>
+                          <div>
+                            <h4 className="font-black text-gray-900 uppercase tracking-tight text-sm">UPI Payment Configuration</h4>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">For live QR code generation</p>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">UPI ID (e.g. name@upi)</label>
+                          <input
+                            type="text" placeholder="example@okhdfcbank"
+                            value={formData.bankDetails?.upiId || ''}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              bankDetails: { ...formData.bankDetails, upiId: e.target.value }
+                            })}
+                            className="w-full bg-white border-2 border-sky-50 focus:border-sky-400 rounded-xl p-4 text-[11px] font-bold text-gray-800 transition-all outline-none"
+                          />
+                          <p className="text-[8px] font-bold text-sky-500 ml-4 uppercase tracking-tighter">This ID will be encoded into dynamic QR codes for your B2B customers.</p>
+                        </div>
                       </div>
 
                       <div className="relative group overflow-hidden rounded-[32px] bg-gradient-to-br from-sky-500 to-sky-600 p-4 text-center text-white shadow-2xl">
@@ -1065,30 +992,57 @@ const VendorProfile = () => {
                             </div>
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={async () => {
                                 if (!newCoupon.code || !newCoupon.discountValue) return toast.error("Please fill all fields");
                                 const val = Number(newCoupon.discountValue);
                                 if (isNaN(val) || val <= 0) return toast.error("Please enter a valid discount value");
 
-                                setFormData({
-                                  ...formData,
-                                  coupons: [...formData.coupons, { 
-                                    ...newCoupon, 
-                                    discountValue: val, 
-                                    minOrderAmount: Number(newCoupon.minOrderAmount) || 0,
-                                    expiryDate: newCoupon.expiryDate || undefined,
-                                    isActive: true 
-                                  }]
-                                });
-                                
+                                const updatedCoupons = [...(formData.coupons || []), {
+                                  ...newCoupon,
+                                  discountValue: val,
+                                  minOrderAmount: Number(newCoupon.minOrderAmount) || 0,
+                                  expiryDate: newCoupon.expiryDate || undefined,
+                                  isActive: true
+                                }];
+
+                                // Update local state
+                                setFormData(prev => ({
+                                  ...prev,
+                                  coupons: updatedCoupons
+                                }));
+
+                                // Clear form
                                 setNewCoupon({ code: '', discountValue: '', discountType: 'percentage', minOrderAmount: 0, expiryDate: '' });
                                 setShowCouponForm(false);
-                                toast.success("Coupon added to list! Click 'Finalize & Save' below to lock it in.", {
-                                  duration: 5000,
-                                  icon: <Save className="text-sky-500" size={16} />
-                                });
+
+                                // Persist to database
+                                try {
+                                  const payload = {
+                                    ...formData,
+                                    coupons: updatedCoupons,
+                                    location: {
+                                      ...formData.location,
+                                      type: 'Point',
+                                      coordinates: [
+                                        Number(formData.location.coordinates.lng || 75.1240),
+                                        Number(formData.location.coordinates.lat || 15.3647)
+                                      ]
+                                    },
+                                    address: formData.location.address,
+                                    pinCode: formData.pinCode
+                                  };
+                                  
+                                  const res = await updateShop(payload);
+                                  if (res.success) {
+                                    toast.success("Coupon added and synced to your shop!");
+                                  } else {
+                                    toast.error("Failed to sync coupon to cloud.");
+                                  }
+                                } catch (err) {
+                                  toast.error("Connection error. Could not save coupon.");
+                                }
                               }}
-                              className="px-6 py-2 bg-gray-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg"
+                              className="px-6 py-2 bg-sky-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-sky-600 transition-all shadow-lg shadow-sky-100"
                             >
                               Confirm Addition
                             </button>
@@ -1116,43 +1070,52 @@ const VendorProfile = () => {
                               <div className="flex items-center gap-2">
                                 <button
                                   type="button"
-                                  disabled={isSendingCoupon}
-                                  onClick={async () => {
-                                    try {
-                                      setIsSendingCoupon(true);
-                                      const shopId = vendorShop?._id || vendorShop?.id;
-                                      if (!shopId) return toast.error("Shop ID not found. Please refresh.");
-
-                                      const { data } = await api.post(`/shops/${shopId}/send-coupon`, { coupon });
-
-                                      if (data.success) {
-                                        toast.success(data.message || `Coupon broadcasted to ${data.count} customers!`);
-                                      } else {
-                                        toast.error(data.error || "Failed to send coupons.");
-                                      }
-                                    } catch (err) {
-                                      console.error("Broadcast error:", err);
-                                      toast.error(err.response?.data?.error || "Connection error. Could not broadcast coupons.");
-                                    } finally {
-                                      setIsSendingCoupon(false);
-                                    }
-                                  }}
-                                  className="px-3 h-8 bg-blue-600 text-white rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50"
-                                >
-                                  {isSendingCoupon ? <Loader2 size={12} className="animate-spin" /> : <Mail size={12} />}
-                                  {isSendingCoupon ? 'Sending...' : 'Send All'}
-                                </button>
-                                <button
-                                  type="button"
                                   onClick={() => {
-                                    setFormData({
-                                      ...formData,
-                                      coupons: formData.coupons.filter((_, i) => i !== idx)
+                                    toast.warning("Remove this coupon?", {
+                                      action: {
+                                        label: "Confirm Delete",
+                                        onClick: async () => {
+                                          const updatedCoupons = formData.coupons.filter((_, i) => i !== idx);
+                                          
+                                          // Update local state for immediate UI feedback
+                                          setFormData(prev => ({
+                                            ...prev,
+                                            coupons: updatedCoupons
+                                          }));
+
+                                          // Immediately persist to database
+                                          try {
+                                            const payload = {
+                                              ...formData,
+                                              coupons: updatedCoupons,
+                                              location: {
+                                                ...formData.location,
+                                                type: 'Point',
+                                                coordinates: [
+                                                  Number(formData.location.coordinates.lng || 75.1240),
+                                                  Number(formData.location.coordinates.lat || 15.3647)
+                                                ]
+                                              },
+                                              address: formData.location.address,
+                                              pinCode: formData.pinCode
+                                            };
+                                            
+                                            const res = await updateShop(payload);
+                                            if (res.success) {
+                                              toast.success("Coupon removed and synced!");
+                                            } else {
+                                              toast.error("Cloud sync failed. Changes may not persist.");
+                                            }
+                                          } catch (err) {
+                                            toast.error("Connection error. Could not save deletion.");
+                                          }
+                                        }
+                                      }
                                     });
                                   }}
-                                  className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-rose-50 hover:text-rose-500 transition-all border border-gray-100"
+                                  className="w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:bg-rose-50 hover:text-rose-500 transition-all border border-gray-100 shadow-sm"
                                 >
-                                  <Trash2 size={14} />
+                                  <Trash2 size={16} />
                                 </button>
                               </div>
                             </div>
@@ -1213,18 +1176,18 @@ const VendorProfile = () => {
                           <div className="mt-6 pt-6 border-t border-white/10">
                             <p className="text-[9px] font-black text-white/50 uppercase tracking-widest mb-3">Live Preview on Store Page</p>
                             <div className="bg-rose-600/30 backdrop-blur-md rounded-2xl p-4 border border-white/10 flex items-center justify-between">
-                               <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 bg-white text-rose-500 rounded-xl flex items-center justify-center shrink-0">
-                                    <Award size={20} />
-                                  </div>
-                                  <div>
-                                    <p className="text-[11px] font-black text-white uppercase tracking-tight">{formData.promoBanner}</p>
-                                    <p className="text-[8px] font-bold text-white/60 uppercase tracking-widest">Active Coupon: Apply at Checkout</p>
-                                  </div>
-                               </div>
-                               <button type="button" className="px-4 py-2 bg-white text-rose-500 rounded-lg font-black text-[8px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">
-                                 Copy Code
-                               </button>
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-white text-rose-500 rounded-xl flex items-center justify-center shrink-0">
+                                  <Award size={20} />
+                                </div>
+                                <div>
+                                  <p className="text-[11px] font-black text-white uppercase tracking-tight">{formData.promoBanner}</p>
+                                  <p className="text-[8px] font-bold text-white/60 uppercase tracking-widest">Active Coupon: Apply at Checkout</p>
+                                </div>
+                              </div>
+                              <button type="button" className="px-4 py-2 bg-white text-rose-500 rounded-lg font-black text-[8px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">
+                                Copy Code
+                              </button>
                             </div>
                           </div>
                         )}
@@ -1288,77 +1251,77 @@ const VendorProfile = () => {
                               const promptInput = document.getElementById('banner-prompt-input');
                               const prompt = promptInput.value;
                               if (!prompt) return toast.error("Please describe your banner first!");
-                              
+
                               const btn = document.getElementById('generate-banner-btn');
                               const btnIcon = btn.querySelector('svg');
-                              
+
                               btn.disabled = true;
                               if (btnIcon) btnIcon.style.animation = 'spin 1s linear infinite';
                               setIsGeneratingBanner(true);
                               const toastId = toast.loading("AI is designing your banner...");
 
                               setTimeout(() => {
-                                  const p = prompt.toLowerCase();
-                                  let url = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200';
-                                  
-                                  const pick = (arr) => {
-                                    const last = localStorage.getItem('lastBannerUrl');
-                                    const available = arr.filter(u => u !== last);
-                                    const chosen = available[Math.floor(Math.random() * available.length)] || arr[0];
-                                    localStorage.setItem('lastBannerUrl', chosen);
-                                    return chosen;
-                                  };
+                                const p = prompt.toLowerCase();
+                                let url = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200';
 
-                                  if (p.includes('kirani') || p.includes('shop') || p.includes('store') || p.includes('supermarket') || p.includes('grocery')) {
-                                    url = pick([
-                                      'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200',
-                                      'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=1200',
-                                      'https://images.unsplash.com/photo-1604719312563-8912e9223c6a?auto=format&fit=crop&q=80&w=1200',
-                                      'https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&q=80&w=1200',
-                                      'https://images.unsplash.com/photo-1534723452862-4c874018d66d?auto=format&fit=crop&q=80&w=1200'
-                                    ]);
-                                  } else if (p.includes('fruit') || p.includes('mango')) {
-                                    url = pick([
-                                      'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&q=80&w=1200',
-                                      'https://images.unsplash.com/photo-1519996529931-28324d5a630e?auto=format&fit=crop&q=80&w=1200'
-                                    ]);
-                                  } else if (p.includes('veg') || p.includes('organic')) {
-                                    url = pick([
-                                      'https://images.unsplash.com/photo-1566385101042-1a0aa0c12e8c?auto=format&fit=crop&q=80&w=1200',
-                                      'https://images.unsplash.com/photo-1597362868123-a509f8d7c1c5?auto=format&fit=crop&q=80&w=1200'
-                                    ]);
-                                  } else if (p.includes('milk') || p.includes('dairy')) {
-                                    url = pick([
-                                      'https://images.unsplash.com/photo-1550583724-125581fe2f8a?auto=format&fit=crop&q=80&w=1200',
-                                      'https://images.unsplash.com/photo-1628088062854-d1870b4553da?auto=format&fit=crop&q=80&w=1200'
-                                    ]);
-                                  } else if (p.includes('meat') || p.includes('chicken')) {
-                                    url = pick([
-                                      'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&q=80&w=1200',
-                                      'https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&q=80&w=1200'
-                                    ]);
-                                  } else if (p.includes('bakery') || p.includes('bread')) {
-                                    url = pick([
-                                      'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=1200',
-                                      'https://images.unsplash.com/photo-1486427944299-d1955d23e34d?auto=format&fit=crop&q=80&w=1200'
-                                    ]);
-                                  } else if (p.includes('snack') || p.includes('chips')) {
-                                    url = pick([
-                                      'https://images.unsplash.com/photo-1599490659223-eb33e974bb9d?auto=format&fit=crop&q=80&w=1200',
-                                      'https://images.unsplash.com/photo-1621447509374-f4412a324017?auto=format&fit=crop&q=80&w=1200'
-                                    ]);
-                                  } else {
-                                    url = pick([
-                                      'https://images.unsplash.com/photo-1534723452862-4c874018d66d?auto=format&fit=crop&q=80&w=1200',
-                                      'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=1200'
-                                    ]);
-                                  }
+                                const pick = (arr) => {
+                                  const last = localStorage.getItem('lastBannerUrl');
+                                  const available = arr.filter(u => u !== last);
+                                  const chosen = available[Math.floor(Math.random() * available.length)] || arr[0];
+                                  localStorage.setItem('lastBannerUrl', chosen);
+                                  return chosen;
+                                };
 
-                                  setFormData({ ...formData, bannerUrl: url });
-                                  setIsGeneratingBanner(false);
-                                  toast.success("AI Banner Generated!", { id: toastId });
-                                  btn.disabled = false;
-                                  if (btnIcon) btnIcon.style.animation = 'none';
+                                if (p.includes('kirani') || p.includes('shop') || p.includes('store') || p.includes('supermarket') || p.includes('grocery')) {
+                                  url = pick([
+                                    'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200',
+                                    'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=1200',
+                                    'https://images.unsplash.com/photo-1604719312563-8912e9223c6a?auto=format&fit=crop&q=80&w=1200',
+                                    'https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&q=80&w=1200',
+                                    'https://images.unsplash.com/photo-1534723452862-4c874018d66d?auto=format&fit=crop&q=80&w=1200'
+                                  ]);
+                                } else if (p.includes('fruit') || p.includes('mango')) {
+                                  url = pick([
+                                    'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&q=80&w=1200',
+                                    'https://images.unsplash.com/photo-1519996529931-28324d5a630e?auto=format&fit=crop&q=80&w=1200'
+                                  ]);
+                                } else if (p.includes('veg') || p.includes('organic')) {
+                                  url = pick([
+                                    'https://images.unsplash.com/photo-1566385101042-1a0aa0c12e8c?auto=format&fit=crop&q=80&w=1200',
+                                    'https://images.unsplash.com/photo-1597362868123-a509f8d7c1c5?auto=format&fit=crop&q=80&w=1200'
+                                  ]);
+                                } else if (p.includes('milk') || p.includes('dairy')) {
+                                  url = pick([
+                                    'https://images.unsplash.com/photo-1550583724-125581fe2f8a?auto=format&fit=crop&q=80&w=1200',
+                                    'https://images.unsplash.com/photo-1628088062854-d1870b4553da?auto=format&fit=crop&q=80&w=1200'
+                                  ]);
+                                } else if (p.includes('meat') || p.includes('chicken')) {
+                                  url = pick([
+                                    'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&q=80&w=1200',
+                                    'https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&q=80&w=1200'
+                                  ]);
+                                } else if (p.includes('bakery') || p.includes('bread')) {
+                                  url = pick([
+                                    'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=1200',
+                                    'https://images.unsplash.com/photo-1486427944299-d1955d23e34d?auto=format&fit=crop&q=80&w=1200'
+                                  ]);
+                                } else if (p.includes('snack') || p.includes('chips')) {
+                                  url = pick([
+                                    'https://images.unsplash.com/photo-1599490659223-eb33e974bb9d?auto=format&fit=crop&q=80&w=1200',
+                                    'https://images.unsplash.com/photo-1621447509374-f4412a324017?auto=format&fit=crop&q=80&w=1200'
+                                  ]);
+                                } else {
+                                  url = pick([
+                                    'https://images.unsplash.com/photo-1534723452862-4c874018d66d?auto=format&fit=crop&q=80&w=1200',
+                                    'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=1200'
+                                  ]);
+                                }
+
+                                setFormData({ ...formData, bannerUrl: url });
+                                setIsGeneratingBanner(false);
+                                toast.success("AI Banner Generated!", { id: toastId });
+                                btn.disabled = false;
+                                if (btnIcon) btnIcon.style.animation = 'none';
                               }, 2000);
                             }}
                             className="h-14 px-8 bg-white text-indigo-600 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-indigo-50 transition-all flex items-center justify-center gap-2 shrink-0 self-center"
@@ -1370,20 +1333,20 @@ const VendorProfile = () => {
 
                       {formData.bannerUrl && (
                         <div className="mt-6 pt-6 border-t border-white/10">
-                           <p className="text-[9px] font-black text-white/50 uppercase tracking-widest mb-3">Live Sponsored Banner Preview</p>
-                           <div className="relative aspect-[21/9] w-full rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 group bg-gray-900">
-                              <img 
-                                src={formData.bannerUrl} 
-                                alt="Banner" 
-                                className="w-full h-full object-cover transition-all group-hover:scale-105" 
-                                onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200'; }}
-                              />
-                              <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all" />
-                              <div className="absolute top-4 left-4 px-3 py-1 bg-indigo-500 text-white rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2">
-                                <CheckCircle size={10} fill="currentColor" className="text-white" />
-                                Sponsored Banner Active
-                              </div>
-                           </div>
+                          <p className="text-[9px] font-black text-white/50 uppercase tracking-widest mb-3">Live Sponsored Banner Preview</p>
+                          <div className="relative aspect-[21/9] w-full rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 group bg-gray-900">
+                            <img
+                              src={formData.bannerUrl}
+                              alt="Banner"
+                              className="w-full h-full object-cover transition-all group-hover:scale-105"
+                              onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200'; }}
+                            />
+                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all" />
+                            <div className="absolute top-4 left-4 px-3 py-1 bg-indigo-500 text-white rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2">
+                              <CheckCircle size={10} fill="currentColor" className="text-white" />
+                              Sponsored Banner Active
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1429,10 +1392,10 @@ const VendorProfile = () => {
 
                 {/* Modern Search Bar */}
                 <div className="bg-gray-50 p-2 rounded-[24px] border border-gray-100 flex-1 w-full max-w-xl flex items-center gap-2 group focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:bg-white transition-all">
-                   <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center text-gray-400 group-focus-within:text-blue-500 shadow-sm transition-colors">
-                      <Search size={18} />
-                   </div>
-                   <input
+                  <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center text-gray-400 group-focus-within:text-blue-500 shadow-sm transition-colors">
+                    <Search size={18} />
+                  </div>
+                  <input
                     type="text"
                     placeholder="Search your street, area or landmark..."
                     className="flex-1 bg-transparent border-none outline-none text-xs font-bold text-gray-800 placeholder:text-gray-300"
@@ -1461,7 +1424,7 @@ const VendorProfile = () => {
               </div>
 
               <div className="flex items-center gap-3 w-full md:w-auto">
-                <button 
+                <button
                   onClick={() => setShowSatellite(prev => !prev)}
                   className="px-6 h-12 bg-white text-gray-900 rounded-2xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-xl border border-gray-100 hover:bg-sky-50 transition-all flex-1 md:flex-none justify-center"
                 >
@@ -1477,40 +1440,40 @@ const VendorProfile = () => {
             </div>
 
             <div className="flex-1 min-h-0 relative">
-               <LeafletMap 
-                 height="100%"
-                 userCoords={formData.location?.coordinates}
-                 onUserLocationChange={onLocationChange}
-                 onLocationSelect={onLocationChange}
-                 showSatellite={showSatellite}
-                 zoom={19}
-               />
-               
-               {/* Small Detect Location Button */}
-               <button 
-                 onClick={(e) => {
-                   e.stopPropagation();
-                   if (!navigator.geolocation) return toast.error("Geolocation not supported");
-                   const tid = toast.loading("Detecting...");
-                   navigator.geolocation.getCurrentPosition(
-                     (pos) => {
-                       onLocationChange(
-                         { lat: pos.coords.latitude, lng: pos.coords.longitude },
-                         pos.coords.accuracy
-                       );
-                       toast.success("Located with high precision!", { id: tid });
-                     },
-                     (err) => {
-                       toast.error("Enable GPS access", { id: tid });
-                     },
-                     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                   );
-                 }}
-                 className="absolute bottom-6 right-6 z-[1000] w-12 h-12 bg-white rounded-full shadow-2xl flex items-center justify-center text-blue-600 hover:scale-110 active:scale-95 transition-all border border-gray-100"
-                 title="Locate Me"
-               >
-                 <Navigation size={20} fill="currentColor" />
-               </button>
+              <LeafletMap
+                height="100%"
+                userCoords={formData.location?.coordinates}
+                onUserLocationChange={onLocationChange}
+                onLocationSelect={onLocationChange}
+                showSatellite={showSatellite}
+                zoom={19}
+              />
+
+              {/* Small Detect Location Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!navigator.geolocation) return toast.error("Geolocation not supported");
+                  const tid = toast.loading("Detecting...");
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      onLocationChange(
+                        { lat: pos.coords.latitude, lng: pos.coords.longitude },
+                        pos.coords.accuracy
+                      );
+                      toast.success("Located with high precision!", { id: tid });
+                    },
+                    (err) => {
+                      toast.error("Enable GPS access", { id: tid });
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                  );
+                }}
+                className="absolute bottom-6 right-6 z-[1000] w-12 h-12 bg-white rounded-full shadow-2xl flex items-center justify-center text-blue-600 hover:scale-110 active:scale-95 transition-all border border-gray-100"
+                title="Locate Me"
+              >
+                <Navigation size={20} fill="currentColor" />
+              </button>
             </div>
 
             <div className="p-6 bg-gray-50/50 flex items-center justify-between gap-6 flex-shrink-0">

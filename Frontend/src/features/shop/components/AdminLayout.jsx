@@ -11,7 +11,7 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
   const AdminLayout = () => {
     const { logout, user, token } = useAuth();
     const navigate = useNavigate();
-    const { handleGlobalScan, vendorShop, toggleShopStatus } = useStore();
+    const { handleGlobalScan, vendorShop, toggleShopStatus, isDeliveryMode, setIsDeliveryMode } = useStore();
     const location = useLocation();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
@@ -150,7 +150,7 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
   return (
     <div className="flex h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden">
       {/* Sidebar Navigation */}
-      <aside className="w-64 bg-white border-r hidden md:flex flex-col shadow-sm sticky top-0 h-screen overflow-y-auto scrollbar-hide">
+      <aside className="w-64 bg-white border-r hidden md:flex flex-col shadow-sm sticky top-0 h-screen md:overflow-hidden scrollbar-hide">
         <div className="min-h-[110px] flex flex-col justify-center px-5 border-b bg-brand-primaryLight/5 relative shrink-0">
           <div className="flex items-start justify-between w-full gap-2">
             <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -195,7 +195,7 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
           </div>
         </div>
 
-        <nav className="flex-1 px-3 py-4 flex flex-col gap-1.5 overflow-y-auto scrollbar-hide">
+        <nav className="flex-1 px-3 py-4 flex flex-col gap-1.5 md:overflow-hidden scrollbar-hide">
           {/* VENDOR & STAFF LINKS */}
           {(isVendor || isStaff) && (
             <>
@@ -214,7 +214,7 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
                   <NavItem to="/vendor/dashboard/b2b" icon={<Users size={20} />} label="B2B Partners" />
                   <div className="h-px bg-gray-100 my-2 mx-4" />
                   <NavItem to="/vendor/dashboard/staff" icon={<Shield size={20} />} label="Staff Management" />
-                  {vendorShop?.hasHomeDelivery && <NavItem to="/vendor/dashboard/delivery" icon={<Truck size={20} />} label="Delivery Fleet" />}
+                  {/* Delivery Fleet access removed for vendors - centrally managed by Super Admin */}
                   {/* Order Ledger removed from here as it's now Billing History */}
                   {vendorShop?.isPayLater && <NavItem to="/vendor/dashboard/credit-customers" icon={<Wallet size={20} />} label="Credit Ledger" />}
                   <NavItem to="/vendor/dashboard/profile" icon={<User size={20} />} label="Shop Profile" />
@@ -222,7 +222,6 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
               )}
 
               <div className="mt-auto pt-4 flex flex-col gap-2">
-                <PWAInstallButton variant="sidebar" />
                 
                 <button
                   onClick={() => window.dispatchEvent(new CustomEvent('open-report-modal'))}
@@ -238,20 +237,53 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
           {/* SUPER ADMIN ONLY LINKS */}
           {isAdmin && (
             <>
-              <NavItem to="/super-admin" exact icon={<LayoutDashboard size={20} />} label="Management Dashboard" />
-              <div className="h-px bg-gray-100 my-2 mx-4" />
-              <p className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 mt-4">Security Groups</p>
-              <NavItem to="/super-admin/vendors" icon={<Users size={20} />} label="Vendors List" badge={adminStats.vendors} />
-              <NavItem to="/super-admin/customers" icon={<Users size={20} />} label="Customers List" badge={adminStats.customers} />
-              
-              <div className="h-px bg-gray-100 my-2 mx-4" />
-              <p className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 mt-4">Inboxes</p>
-              <NavItem to="/super-admin/support/vendors" icon={<AlertCircle size={20} />} label="Vendor Support" badge={adminStats.vendorReports} />
-              <NavItem to="/super-admin/support/customers" icon={<AlertCircle size={20} />} label="Customer Support" badge={adminStats.customerReports} />
-              
-              <div className="h-px bg-gray-100 my-2 mx-4" />
-              <p className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 mt-4">My Account</p>
-              <NavItem to="/super-admin/profile" icon={<User size={20} />} label="My Security Settings" />
+              {/* Logistics Mode Toggle */}
+              <div className="px-5 mb-6">
+                <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-2xl border border-indigo-100 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-1.5 rounded-lg ${isDeliveryMode ? 'bg-indigo-500 text-white' : 'bg-white text-indigo-400 border border-indigo-100'}`}>
+                      <Truck size={14} strokeWidth={3} />
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-indigo-900">Logistics Mode</span>
+                  </div>
+                  <button 
+                    onClick={() => setIsDeliveryMode(!isDeliveryMode)}
+                    className={`relative w-9 h-5 rounded-full transition-all flex items-center px-1 ${isDeliveryMode ? 'bg-indigo-500 justify-end' : 'bg-indigo-200 justify-start'}`}
+                  >
+                    <div className="w-3 h-3 bg-white rounded-full shadow-sm" />
+                  </button>
+                </div>
+              </div>
+
+              {!isDeliveryMode ? (
+                <>
+                  <NavItem to="/super-admin" exact icon={<LayoutDashboard size={20} />} label="Management Dashboard" />
+                  <NavItem to="/super-admin/orders" icon={<ShoppingCart size={20} />} label="Global Orders" />
+                  <NavItem to="/super-admin/delivery" icon={<Truck size={20} />} label="Delivery Fleet" />
+                  <div className="h-px bg-gray-100 my-2 mx-4" />
+                  <p className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 mt-4">Security Groups</p>
+                  <NavItem to="/super-admin/vendors" icon={<Users size={20} />} label="Vendors List" badge={adminStats.vendors} />
+                  <NavItem to="/super-admin/customers" icon={<Users size={20} />} label="Customers List" badge={adminStats.customers} />
+                  
+                  <div className="h-px bg-gray-100 my-2 mx-4" />
+                  <p className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 mt-4">Inboxes</p>
+                  <NavItem to="/super-admin/support/vendors" icon={<AlertCircle size={20} />} label="Vendor Support" badge={adminStats.vendorReports} />
+                  <NavItem to="/super-admin/support/customers" icon={<AlertCircle size={20} />} label="Customer Support" badge={adminStats.customerReports} />
+                  
+                  <div className="h-px bg-gray-100 my-2 mx-4" />
+                  <p className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 mt-4">My Account</p>
+                  <NavItem to="/super-admin/profile" icon={<User size={20} />} label="My Security Settings" />
+                </>
+              ) : (
+                <>
+                  <NavItem to="/super-admin/orders" icon={<ShoppingCart size={20} />} label="Global Orders" />
+                  <NavItem to="/super-admin/delivery" icon={<Truck size={20} />} label="Delivery Fleet" />
+                  <div className="h-px bg-gray-100 my-2 mx-4" />
+                  <p className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 mt-4">Support Channels</p>
+                  <NavItem to="/super-admin/support/vendors" icon={<AlertCircle size={20} />} label="Delivery Support" badge={adminStats.vendorReports} />
+                  <NavItem to="/super-admin/support/customers" icon={<AlertCircle size={20} />} label="Customer Inquiries" badge={adminStats.customerReports} />
+                </>
+              )}
             </>
           )}
         </nav>
@@ -290,7 +322,7 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
                       <>
                         <NavItem to="/vendor/dashboard/profile" icon={<User size={20} />} label="Profile" onClick={() => setIsMobileMenuOpen(false)} />
                         <NavItem to="/vendor/dashboard/staff" icon={<Shield size={20} />} label="Staff" onClick={() => setIsMobileMenuOpen(false)} />
-                        {vendorShop?.hasHomeDelivery && <NavItem to="/vendor/dashboard/delivery" icon={<Truck size={20} />} label="Delivery" onClick={() => setIsMobileMenuOpen(false)} />}
+                        {/* Delivery access removed for vendors */}
                         {vendorShop?.isWholesale && <NavItem to="/vendor/dashboard/b2b" icon={<Users size={20} />} label="Partners" onClick={() => setIsMobileMenuOpen(false)} />}
                         {/* Ledger removed as it's now History */}
                         {vendorShop?.isPayLater && <NavItem to="/vendor/dashboard/credit-customers" icon={<Wallet size={20} />} label="Credit" onClick={() => setIsMobileMenuOpen(false)} />}
@@ -309,6 +341,8 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
                 {isAdmin && (
                   <>
                     <NavItem to="/super-admin" exact icon={<LayoutDashboard size={20} />} label="Management" onClick={() => setIsMobileMenuOpen(false)} />
+                    <NavItem to="/super-admin/orders" icon={<ShoppingCart size={20} />} label="Global Orders" onClick={() => setIsMobileMenuOpen(false)} />
+                    <NavItem to="/super-admin/delivery" icon={<Truck size={20} />} label="Delivery Fleet" onClick={() => setIsMobileMenuOpen(false)} />
                     <NavItem to="/super-admin/vendors" icon={<Users size={20} />} label="Vendors" badge={adminStats.vendors} onClick={() => setIsMobileMenuOpen(false)} />
                     <NavItem to="/super-admin/customers" icon={<Users size={20} />} label="Customers" badge={adminStats.customers} onClick={() => setIsMobileMenuOpen(false)} />
                     <NavItem to="/super-admin/support/vendors" icon={<AlertCircle size={20} />} label="Vendor Support" badge={adminStats.vendorReports} onClick={() => setIsMobileMenuOpen(false)} />
@@ -326,7 +360,7 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
         )}
 
         <div className="flex-1 flex flex-col min-h-0 bg-gray-50/50 relative">
-          <div className="flex-1 p-4 md:p-8 overflow-y-auto scrollbar-hide flex flex-col">
+          <div className="flex-1 p-4 md:p-8 md:overflow-hidden overflow-y-auto scrollbar-hide flex flex-col">
             <Outlet />
           </div>
         </div>
