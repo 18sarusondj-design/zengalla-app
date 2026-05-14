@@ -153,10 +153,10 @@ const B2BPartners = () => {
   });
 
   return (
-    <div className="p-4 md:p-8 bg-slate-50 min-h-screen">
-      <div className="max-w-[1600px] mx-auto">
+    <div className="flex flex-col md:h-screen md:overflow-hidden min-h-screen bg-slate-50/50 md:p-10 p-2 font-sans">
+      <div className="max-w-[1600px] mx-auto flex flex-col h-full">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6 md:mb-10 flex-shrink-0">
           <div className="flex items-center gap-4">
             <button onClick={() => navigate('/vendor/dashboard')} className="p-3 bg-white rounded-2xl shadow-sm hover:bg-sky-600 hover:text-white transition-all">
               <ArrowLeft size={20} />
@@ -174,9 +174,9 @@ const B2BPartners = () => {
           </button>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex flex-col lg:flex-row gap-8 flex-1 min-h-0 md:overflow-hidden">
           {/* Left Side: Stats Column */}
-          <div className="lg:w-80 flex flex-col gap-4">
+          <div className="w-full lg:w-80 flex flex-col gap-4 md:overflow-y-auto custom-scrollbar pb-4 lg:pb-0">
             <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex items-center gap-4 group hover:border-sky-500 transition-all">
               <div className="w-14 h-14 bg-sky-50 text-sky-600 rounded-2xl flex items-center justify-center group-hover:bg-sky-500 group-hover:text-white transition-all">
                 <Briefcase size={28} />
@@ -219,7 +219,7 @@ const B2BPartners = () => {
           </div>
 
           {/* Right Side: Partners List */}
-          <div className="flex-1 space-y-6">
+          <div className="flex-1 flex flex-col gap-6 min-h-0 md:overflow-hidden">
                 {/* Filters */}
             <div className="bg-white p-4 rounded-[32px] border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4">
               <div className="relative flex-1">
@@ -245,8 +245,8 @@ const B2BPartners = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden">
-               <div className="overflow-x-auto">
+            <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
+               <div className="overflow-x-auto flex-1 overflow-y-auto custom-scrollbar">
                   <table className="w-full">
                      <thead>
                         <tr className="bg-slate-50/50 border-b border-slate-100">
