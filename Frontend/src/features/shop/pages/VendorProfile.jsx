@@ -1260,16 +1260,16 @@ const VendorProfile = () => {
                               type="button"
                               onClick={() => {
                                 const themes = [
-                                  "Fresh Organic Vegetables from Local Farms",
-                                  "Exotic Tropical Fruits and Juicy Mangoes",
-                                  "Premium Dairy Products and Fresh Milk",
-                                  "Artisanal Bakery with Warm Sourdough Bread",
-                                  "High Quality Meat and Poultry Selection",
-                                  "Traditional Spices and Organic Pulses",
-                                  "Healthy Snacks and Nutritious Dry Fruits",
-                                  "Luxury Gourmet Chocolates and Desserts",
-                                  "Modern Minimalist Grocery Store Aesthetics",
-                                  "Vibrant Street Market with Fresh Produce"
+                                  "Traditional Kirani Provision Store with Spices",
+                                  "Fresh Daily Groceries and Household Essentials",
+                                  "Indian Grocery Store with Organic Pulses and Rice",
+                                  "Vibrant Neighborhood Kirani Shop Aesthetics",
+                                  "Premium Groceries, Grains and Cooking Oils",
+                                  "Local Kirani Store with Fresh Fruits and Vegetables",
+                                  "Authentic Indian Spices and Dry Fruits Collection",
+                                  "Modern Grocery Mart with Daily Home Essentials",
+                                  "Healthy Grains, Flours and Traditional Staples",
+                                  "Complete Provision Store for Your Kitchen Needs"
                                 ];
                                 const randomTheme = themes[Math.floor(Math.random() * themes.length)];
                                 document.getElementById('banner-prompt-input').value = randomTheme;
@@ -1310,12 +1310,13 @@ const VendorProfile = () => {
                                     return chosen;
                                   };
 
-                                  if (p.includes('shop') || p.includes('store') || p.includes('supermarket')) {
+                                  if (p.includes('kirani') || p.includes('shop') || p.includes('store') || p.includes('supermarket') || p.includes('grocery')) {
                                     url = pick([
                                       'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200',
                                       'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=1200',
                                       'https://images.unsplash.com/photo-1604719312563-8912e9223c6a?auto=format&fit=crop&q=80&w=1200',
-                                      'https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&q=80&w=1200'
+                                      'https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&q=80&w=1200',
+                                      'https://images.unsplash.com/photo-1534723452862-4c874018d66d?auto=format&fit=crop&q=80&w=1200'
                                     ]);
                                   } else if (p.includes('fruit') || p.includes('mango')) {
                                     url = pick([
