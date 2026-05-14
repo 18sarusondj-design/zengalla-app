@@ -99,17 +99,17 @@ const ShopList = () => {
 
       let data;
       if (userCoords) {
-        data = await fetchNearbyShops(userCoords.lat, userCoords.lng, 10); // 10km radius
+        // Pass query to backend for deep product-based search
+        data = await fetchNearbyShops(userCoords.lat, userCoords.lng, 10, query); 
       } else {
         data = contextShops;
-      }
-
-      // Apply local search filter if query exists
-      if (query && data) {
-        data = data.filter(s => 
-          s.name.toLowerCase().includes(query.toLowerCase()) || 
-          s.category?.toLowerCase().includes(query.toLowerCase())
-        );
+        // Basic fallback for non-geo search if needed
+        if (query && data) {
+          data = data.filter(s => 
+            s.name.toLowerCase().includes(query.toLowerCase()) || 
+            s.category?.toLowerCase().includes(query.toLowerCase())
+          );
+        }
       }
 
       setShops(data || []);
@@ -157,24 +157,32 @@ const ShopList = () => {
           ...shop,
           dynamicRating: avgRating,
           ratingCount: ratingCount,
-          distance: calculateDistance(
+          distance: shop.distance ?? calculateDistance(
             Number(userCoords?.lat),
             Number(userCoords?.lng),
-            Number(shop.location?.coordinates?.lat),
-            Number(shop.location?.coordinates?.lng)
+            shop.location?.coordinates?.[1],
+            shop.location?.coordinates?.[0]
           )
         };
       });
 
       enriched.sort((a, b) => {
+        // 1. Sponsored first
         if (a.isSponsored && !b.isSponsored) return -1;
         if (!a.isSponsored && b.isSponsored) return 1;
+        
+        // 2. Best Rating next
+        const ratingA = Number(a.dynamicRating) || 0;
+        const ratingB = Number(b.dynamicRating) || 0;
+        if (ratingB !== ratingA) return ratingB - ratingA;
+
+        // 3. Distance (Proximity)
         if (userCoords) {
           if (a.distance === null) return 1;
           if (b.distance === null) return -1;
           if (a.distance !== b.distance) return a.distance - b.distance;
         }
-        return (a._id || a.id).localeCompare(b._id || b.id);
+        return (a._id || a.id).toString().localeCompare((b._id || b.id).toString());
       });
       setShopsWithDistance(enriched);
     }
