@@ -42,7 +42,7 @@ const Landing = () => {
           "@type": "Organization",
           "name": "ZenGalla",
           "url": "https://zengalla-app-vrkx.vercel.app",
-          "logo": "https://zengalla-app-vrkx.vercel.app/logo.png",
+          "logo": "https://zengalla-app-vrkx.vercel.app/logo.svg",
           "description": "Premium Grocery & Marketplace"
         }}
       />

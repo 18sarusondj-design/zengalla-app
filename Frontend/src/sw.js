@@ -49,7 +49,7 @@ self.addEventListener('push', (event) => {
   const data = event.data.json();
   const options = {
     body: data.body,
-    icon: '/logo.png',
+    icon: '/logo.svg',
     badge: '/favicon.svg',
     vibrate: [200, 100, 200, 100, 200, 100, 200],
     data: {

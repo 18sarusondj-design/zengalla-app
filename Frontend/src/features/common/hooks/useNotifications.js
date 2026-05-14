@@ -25,7 +25,7 @@ const useNotifications = () => {
 
     const defaultOptions = {
       body,
-      icon: '/logo.png',
+      icon: '/logo.svg',
       badge: '/favicon.svg',
       vibrate: [200, 100, 200],
       ...options
