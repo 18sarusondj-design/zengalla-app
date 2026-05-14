@@ -348,11 +348,11 @@ const CreditCustomers = () => {
   );
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30 p-6 md:p-8 rounded-[40px] border border-slate-200/50 relative overflow-hidden">
+    <div className="flex flex-col md:h-screen md:overflow-hidden min-h-screen bg-slate-50/30 p-2 md:p-8 md:rounded-[40px] border border-slate-200/50 relative overflow-hidden font-sans">
       <div className="absolute top-[-10%] right-[-5%] w-96 h-96 bg-sky-500/5 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-[-10%] left-[-5%] w-96 h-96 bg-brand-primary/5 rounded-full blur-3xl pointer-events-none"></div>
 
-      <div className="mb-10 flex flex-col lg:flex-row lg:items-end justify-between gap-6 relative z-10">
+      <div className="mb-6 md:mb-10 flex flex-col lg:flex-row lg:items-end justify-between gap-6 relative z-10 flex-shrink-0">
         <div>
           <h1 className="text-4xl font-black text-gray-900 tracking-tight uppercase leading-none">
               Credit Ledger
@@ -390,7 +390,7 @@ const CreditCustomers = () => {
         </div>
       </div>
 
-          <div className="flex-1 bg-white rounded-[40px] shadow-2xl shadow-gray-200/50 border border-gray-100 overflow-hidden flex flex-col relative z-10 h-[calc(100vh-350px)]">
+          <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col min-h-0 md:overflow-hidden">
               <div className="px-8 py-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/20 shrink-0">
                   <h3 className="text-sm font-black uppercase tracking-widest text-gray-900 flex items-center gap-2">
                       <CreditCard size={20} className="text-sky-600" />
