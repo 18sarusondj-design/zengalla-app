@@ -18,9 +18,9 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const refreshUser = async () => {
+  const refreshUser = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const { data } = await api.get('/auth/me');
       setUser(data.user);
     } catch (err) {
@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }) => {
       setToken(null);
       setUser(null);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
