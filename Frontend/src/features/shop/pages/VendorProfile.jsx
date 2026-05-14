@@ -6,7 +6,6 @@ import { useQueryParam } from '../../../hooks/useQueryParam';
 import { Store, MapPin, Camera, Save, Loader2, Mail, Phone, Info, Navigation, Power, CheckCircle, XCircle, Smartphone, QrCode, Printer, Truck, Shield, Key, Award, Download, Eye, EyeOff, Clock, Users, Plus, Trash2, Sparkles, Share2, MessageSquare, ExternalLink, Gift, X, Wallet, CreditCard, Zap, Globe, Search } from 'lucide-react';
 import api from '../../../config/api.js';
 import { toast } from 'sonner';
-import { GoogleMap, Marker, useJsApiLoader, Autocomplete } from '@react-google-maps/api';
 import { jsPDF } from 'jspdf';
 import PWAInstallButton from '../../common/components/PWAInstallButton';
 
@@ -17,6 +16,8 @@ const mapContainerStyle = {
 };
 
 const LIBRARIES = ['places', 'geometry'];
+
+import LeafletMap from '../../common/components/LeafletMap';
 
 const VendorProfile = () => {
   const {
@@ -34,6 +35,7 @@ const VendorProfile = () => {
   const [showQR, setShowQR] = useState(false);
   const [activeTab, setActiveTab] = useQueryParam('tab', 'details');
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [showSatellite, setShowSatellite] = useState(true);
   const [showCouponForm, setShowCouponForm] = useState(false);
   const [isGeneratingBanner, setIsGeneratingBanner] = useState(false);
   const [isSendingCoupon, setIsSendingCoupon] = useState(false);
@@ -97,46 +99,34 @@ const VendorProfile = () => {
     }
   });
 
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
-    libraries: LIBRARIES
-  });
-
-  const onMapClick = React.useCallback(async (e) => {
-    const lat = e.latLng.lat();
-    const lng = e.latLng.lng();
+  const onLocationChange = async (coords, accuracy) => {
+    const { lat, lng } = coords;
     
     setFormData(prev => ({
       ...prev,
-      location: { ...prev.location, coordinates: { lat, lng } }
+      location: { ...prev.location, coordinates: { lat, lng } },
+      gpsAccuracy: accuracy || prev.gpsAccuracy
     }));
 
     const toastId = toast.loading('Detecting location details...');
 
-    // Detect address and PIN code
+    // Detect address and PIN code using Nominatim (OSM)
     try {
-      const geocoder = new window.google.maps.Geocoder();
-      const response = await geocoder.geocode({ location: { lat, lng } });
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en`);
+      const data = await response.json();
       
-      if (response.results && response.results[0]) {
-        const address = response.results[0].formatted_address;
-        let pin = '';
-        
-        // Extract PIN code from address components
-        for (const component of response.results[0].address_components) {
-          if (component.types.includes('postal_code')) {
-            pin = component.long_name;
-            break;
-          }
-        }
-
+      if (data) {
+        const poiName = data.address?.shop || data.address?.amenity || data.address?.building || data.address?.office || data.address?.tourism;
+        const fullAddress = poiName && !data.display_name.startsWith(poiName) 
+          ? `${poiName}, ${data.display_name}` 
+          : data.display_name;
+          
         setFormData(prev => ({
           ...prev,
           pinCode: pin || prev.pinCode,
           location: {
             ...prev.location,
-            address: address
+            address: fullAddress
           }
         }));
         
@@ -167,10 +157,10 @@ const VendorProfile = () => {
         toast.error('Could not find address for this spot', { id: toastId });
       }
     } catch (error) {
-      console.error('Geocoding error:', error);
+      console.error('OSM error:', error);
       toast.error('Location service busy. Please try again.', { id: toastId });
     }
-  }, []);
+  };
 
   // -- Data Fetching --
   useEffect(() => {
@@ -188,20 +178,27 @@ const VendorProfile = () => {
     loadInitialData();
   }, [token]); // Run on mount/auth change
 
-  // -- Form Syncing -- MongoDB uses camelCase already
   useEffect(() => {
     if (vendorShop) {
+      const coords = vendorShop.location?.coordinates;
+      let lat = 15.3647;
+      let lng = 75.1240;
+
+      if (Array.isArray(coords)) {
+        lng = coords[0];
+        lat = coords[1];
+      } else if (coords && typeof coords === 'object') {
+        lat = coords.lat || lat;
+        lng = coords.lng || lng;
+      }
+
       setFormData(prev => ({
         ...prev,
         ...vendorShop,
-        // Ensure coupons is always an array and favor existing coupons if backend returns none during sync
         coupons: vendorShop.coupons || prev.coupons || [],
         location: {
           address: vendorShop.address || vendorShop.location?.address || prev.location.address,
-          coordinates: {
-            lat: vendorShop.location?.coordinates?.lat ?? 15.3647,
-            lng: vendorShop.location?.coordinates?.lng ?? 75.1240,
-          }
+          coordinates: { lat, lng }
         }
       }));
     }
@@ -283,7 +280,24 @@ const VendorProfile = () => {
     }
     try {
       setIsUpdating(true);
-      const res = await updateShop(formData);
+      
+      // Transform coordinates for GeoJSON [lng, lat]
+      const payload = {
+        ...formData,
+        location: {
+          ...formData.location,
+          type: 'Point',
+          coordinates: [
+            Number(formData.location.coordinates.lng || 75.1240),
+            Number(formData.location.coordinates.lat || 15.3647)
+          ]
+        },
+        // Ensure top-level fields required by backend are present
+        address: formData.location.address,
+        pinCode: formData.pinCode
+      };
+
+      const res = await updateShop(payload);
       if (res.success) {
         toast.success(`${label} updated successfully!`);
       } else {
@@ -548,6 +562,25 @@ const VendorProfile = () => {
                           className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 focus:bg-white rounded-xl p-3 text-[11px] font-bold text-gray-800 transition-all outline-none"
                         />
                       </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">Pin Code</label>
+                        <input
+                          type="text" maxLength="6"
+                          value={formData.pinCode}
+                          onChange={(e) => setFormData({ ...formData, pinCode: e.target.value.replace(/\D/g, '') })}
+                          className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 focus:bg-white rounded-xl p-3 text-[11px] font-bold text-gray-800 transition-all outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">Full Store Address</label>
+                      <textarea
+                        rows="2"
+                        value={formData.location?.address}
+                        onChange={(e) => setFormData({ ...formData, location: { ...formData.location, address: e.target.value } })}
+                        className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 focus:bg-white rounded-2xl p-4 text-xs font-bold text-gray-800 transition-all outline-none resize-none"
+                      />
                     </div>
                     <SectionSaveButton label="Store Details" />
                   </div>
@@ -678,34 +711,23 @@ const VendorProfile = () => {
                 {activeTab === 'location' && (
                   <div className="space-y-2 animate-in fade-in slide-in-from-bottom-3 duration-500 h-full flex flex-col">
                     <div className="relative group h-64 rounded-[32px] overflow-hidden border-2 border-blue-50 shadow-xl bg-gray-50 flex items-center justify-center">
-                      {isLoaded ? (
-                        <div className="w-full h-full relative cursor-pointer" onClick={() => setIsMapModalOpen(true)}>
-                          <GoogleMap
-                            mapContainerStyle={mapContainerStyle}
-                            center={{
-                              lat: Number(formData.location?.coordinates?.lat) || 15.3647,
-                              lng: Number(formData.location?.coordinates?.lng) || 75.1240
-                            }}
-                            zoom={15}
-                            options={{ disableDefaultUI: true, gestureHandling: 'none' }}
-                          >
-                            <Marker position={{
-                              lat: Number(formData.location?.coordinates?.lat) || 15.3647,
-                              lng: Number(formData.location?.coordinates?.lng) || 75.1240
-                            }} />
-                          </GoogleMap>
+                      <div className="w-full h-full relative cursor-pointer" onClick={() => setIsMapModalOpen(true)}>
+                        <LeafletMap 
+                          height="100%"
+                          userCoords={formData.location?.coordinates}
+                          zoom={15}
+                          autoDetect={false}
+                          interactive={false}
+                        />
 
-                          {/* Hover Overlay */}
-                          <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-[2px] pointer-events-none">
-                            <div className="bg-white/90 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 transform translate-y-4 group-hover:translate-y-0 transition-all">
-                              <Navigation className="text-blue-500 animate-bounce" size={18} />
-                              <span className="font-black text-[10px] uppercase tracking-widest text-gray-800">Tap to Adjust Point</span>
-                            </div>
+                        {/* Hover Overlay */}
+                        <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-[2px] pointer-events-none z-[1000]">
+                          <div className="bg-white/90 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 transform translate-y-4 group-hover:translate-y-0 transition-all">
+                            <Navigation className="text-blue-500 animate-bounce" size={18} />
+                            <span className="font-black text-[10px] uppercase tracking-widest text-gray-800">Tap to Adjust Point</span>
                           </div>
                         </div>
-                      ) : (
-                        <Loader2 className="animate-spin text-blue-500" size={32} />
-                      )}
+                      </div>
                     </div>
 
                     <div className="space-y-2">
@@ -1383,19 +1405,6 @@ const VendorProfile = () => {
                 )}
               </div>
 
-              {/* Action Bar */}
-              <div className="mt-3 flex-shrink-0 flex items-center justify-between bg-white/60 backdrop-blur-md rounded-[24px] p-2 border border-gray-100 shadow-xl">
-                <div className="ml-6 flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-sky-600 animate-pulse" />
-                  <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest italic">Live Changes</p>
-                </div>
-                <button
-                  type="submit" disabled={isUpdating}
-                  className="h-14 px-10 bg-gray-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl hover:bg-black transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                >
-                  {isUpdating ? <Loader2 className="animate-spin" size={20} /> : <><Save size={20} /> Update Profile</>}
-                </button>
-              </div>
             </form>
           </div>
         </div>
@@ -1406,60 +1415,102 @@ const VendorProfile = () => {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-2xl" onClick={() => setIsMapModalOpen(false)} />
 
           <div className="relative w-full max-w-5xl h-[80vh] bg-white rounded-[40px] shadow-2xl overflow-hidden border border-white/20 flex flex-col animate-scale-in">
-            <div className="p-6 bg-white border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-              <div className="flex-1 flex items-center gap-4">
-                <div className="p-3 bg-blue-50 text-blue-500 rounded-2xl">
-                  <MapPin size={24} />
-                </div>
-                <div className="flex-1">
-                  <div className="relative group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={18} />
-                    <Autocomplete
-                      onLoad={(autocomplete) => { window.autocomplete = autocomplete; }}
-                      onPlaceChanged={() => {
-                        const place = window.autocomplete.getPlace();
-                        if (place.geometry) {
-                          const lat = place.geometry.location.lat();
-                          const lng = place.geometry.location.lng();
-                          onMapClick({ latLng: { lat: () => lat, lng: () => lng } });
-                        }
-                      }}
-                    >
-                      <input
-                        type="text"
-                        placeholder="Search for your shop location or neighborhood..."
-                        className="w-full bg-gray-50 border-2 border-transparent focus:border-blue-400 focus:bg-white rounded-2xl py-3 pl-12 pr-4 text-sm font-bold text-gray-800 transition-all outline-none"
-                      />
-                    </Autocomplete>
+            <div className="p-6 bg-white border-b border-gray-100 flex flex-col md:flex-row items-center justify-between gap-6 flex-shrink-0">
+              <div className="flex-1 flex flex-col md:flex-row items-center gap-6 w-full">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-blue-50 text-blue-500 rounded-2xl shadow-inner">
+                    <MapPin size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-gray-900 tracking-tighter uppercase leading-none">Adjust Shop Location</h3>
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">Satellite Precision Active</p>
                   </div>
                 </div>
+
+                {/* Modern Search Bar */}
+                <div className="bg-gray-50 p-2 rounded-[24px] border border-gray-100 flex-1 w-full max-w-xl flex items-center gap-2 group focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:bg-white transition-all">
+                   <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center text-gray-400 group-focus-within:text-blue-500 shadow-sm transition-colors">
+                      <Search size={18} />
+                   </div>
+                   <input
+                    type="text"
+                    placeholder="Search your street, area or landmark..."
+                    className="flex-1 bg-transparent border-none outline-none text-xs font-bold text-gray-800 placeholder:text-gray-300"
+                    onKeyDown={async (e) => {
+                      if (e.key === 'Enter') {
+                        const query = e.target.value;
+                        if (!query) return;
+                        const toastId = toast.loading('Searching location...');
+                        try {
+                          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&accept-language=en`);
+                          const results = await res.json();
+                          if (results && results.length > 0) {
+                            const { lat, lon } = results[0];
+                            onLocationChange({ lat: parseFloat(lat), lng: parseFloat(lon) });
+                            toast.success('Location found!', { id: toastId });
+                          } else {
+                            toast.error('Location not found', { id: toastId });
+                          }
+                        } catch (err) {
+                          toast.error('Search failed', { id: toastId });
+                        }
+                      }
+                    }}
+                  />
+                </div>
               </div>
-              <button
-                onClick={() => setIsMapModalOpen(false)}
-                className="p-4 hover:bg-gray-100 rounded-full transition-all text-gray-400 hover:text-gray-900 ml-4"
-              >
-                <XCircle size={32} />
-              </button>
+
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                <button 
+                  onClick={() => setShowSatellite(prev => !prev)}
+                  className="px-6 h-12 bg-white text-gray-900 rounded-2xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-xl border border-gray-100 hover:bg-sky-50 transition-all flex-1 md:flex-none justify-center"
+                >
+                  {showSatellite ? 'Map View' : 'Satellite View'}
+                </button>
+                <button
+                  onClick={() => setIsMapModalOpen(false)}
+                  className="w-12 h-12 bg-gray-900 text-white rounded-2xl flex items-center justify-center shadow-xl hover:bg-rose-600 transition-all active:scale-90"
+                >
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 min-h-0 relative">
-              {isLoaded ? (
-                  <GoogleMap
-                    mapContainerStyle={mapContainerStyle}
-                    center={{ lat: Number(formData.location?.coordinates?.lat) || 15.3647, lng: Number(formData.location?.coordinates?.lng) || 75.1240 }}
-                    zoom={15} onClick={onMapClick}
-                    options={{ disableDefaultUI: false }}
-                  >
-                    <Marker 
-                      position={{ lat: Number(formData.location?.coordinates?.lat) || 15.3647, lng: Number(formData.location?.coordinates?.lng) || 75.1240 }}
-                      onClick={onMapClick}
-                    />
-                  </GoogleMap>
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Loader2 className="animate-spin text-blue-500" size={40} />
-                </div>
-              )}
+               <LeafletMap 
+                 height="100%"
+                 userCoords={formData.location?.coordinates}
+                 onUserLocationChange={onLocationChange}
+                 onLocationSelect={onLocationChange}
+                 showSatellite={showSatellite}
+                 zoom={19}
+               />
+               
+               {/* Small Detect Location Button */}
+               <button 
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   if (!navigator.geolocation) return toast.error("Geolocation not supported");
+                   const tid = toast.loading("Detecting...");
+                   navigator.geolocation.getCurrentPosition(
+                     (pos) => {
+                       onLocationChange(
+                         { lat: pos.coords.latitude, lng: pos.coords.longitude },
+                         pos.coords.accuracy
+                       );
+                       toast.success("Located with high precision!", { id: tid });
+                     },
+                     (err) => {
+                       toast.error("Enable GPS access", { id: tid });
+                     },
+                     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                   );
+                 }}
+                 className="absolute bottom-6 right-6 z-[1000] w-12 h-12 bg-white rounded-full shadow-2xl flex items-center justify-center text-blue-600 hover:scale-110 active:scale-95 transition-all border border-gray-100"
+                 title="Locate Me"
+               >
+                 <Navigation size={20} fill="currentColor" />
+               </button>
             </div>
 
             <div className="p-6 bg-gray-50/50 flex items-center justify-between gap-6 flex-shrink-0">
@@ -1470,10 +1521,13 @@ const VendorProfile = () => {
                 </p>
               </div>
               <button
-                onClick={() => setIsMapModalOpen(false)}
+                onClick={(e) => {
+                  setIsMapModalOpen(false);
+                  handleUpdate(e, 'Location');
+                }}
                 className="h-14 px-10 bg-blue-600 text-white rounded-2xl font-black text-[12px] uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
               >
-                Save & Close Location
+                Finalize & Save Location
               </button>
             </div>
           </div>
