@@ -58,7 +58,7 @@ const Landing = () => {
 
         <div className="relative max-w-[1400px] mx-auto px-6 pt-20 pb-24 text-center">
           <div className="flex justify-center mb-6 animate-in zoom-in duration-1000">
-            <Logo className="h-16" variant="icon" />
+            <Logo className="h-20" variant="full" />
           </div>
 
 
