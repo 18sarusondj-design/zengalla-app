@@ -76,14 +76,22 @@ export const getNearbyShops = async (req, res) => {
       return res.json({ success: true, shops });
     }
 
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+    const searchRadius = parseFloat(radius);
+
+    if (isNaN(latitude) || isNaN(longitude)) {
+      return res.status(400).json({ error: 'Invalid coordinates' });
+    }
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const shops = await Shop.find({
       ...filter,
       location: {
         $near: {
-          $geometry: { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] },
-          $maxDistance: parseFloat(radius) * 1000 // Convert km to meters
+          $geometry: { type: 'Point', coordinates: [longitude, latitude] },
+          $maxDistance: (isNaN(searchRadius) ? 10 : searchRadius) * 1000 // Convert km to meters
         }
       }
     })
@@ -93,7 +101,8 @@ export const getNearbyShops = async (req, res) => {
 
     res.json({ success: true, shops });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('getNearbyShops Error:', err);
+    res.status(500).json({ error: 'Geospatial search failed. Ensure shops have valid location data.', details: err.message });
   }
 };
 
