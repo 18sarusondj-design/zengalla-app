@@ -71,8 +71,8 @@ const Login = () => {
         />
         <div className="absolute inset-0 bg-gradient-to-tr from-gray-900 via-gray-900/40 to-transparent flex flex-col justify-end p-16">
           <div className="animate-fade-in-up">
-            <div className="w-16 h-16 bg-white text-sky-600 rounded-2xl flex items-center justify-center shadow-2xl mb-8 transform -rotate-3">
-              <Store size={32} strokeWidth={2.5} />
+            <div className="w-20 h-20 flex items-center justify-center mb-8 transform -rotate-3">
+              <Logo className="w-20 h-20" variant="full" white />
             </div>
             <h2 className="text-5xl font-black text-white tracking-tighter uppercase mb-4 leading-[0.85]">Pure<br/>Simplicity.</h2>
             <p className="text-sm text-white/70 font-medium leading-relaxed mb-10 max-w-xs">
@@ -95,7 +95,7 @@ const Login = () => {
           <div className="absolute inset-0 bg-gradient-to-b from-sky-900/70 via-sky-900/40 to-slate-50" />
           <div className="absolute bottom-8 left-8 right-8">
             <div className="flex items-center gap-4">
-              <Logo className="h-14" variant="icon" />
+              <Logo className="h-14" variant="full" white />
               <div>
                 <h2 className="text-2xl font-black text-white tracking-tighter uppercase leading-none">ZenGalla</h2>
                 <p className="text-[9px] font-black text-white/70 uppercase tracking-widest mt-1">Nature • Balance • Tranquility</p>
@@ -107,13 +107,13 @@ const Login = () => {
         <div className="flex flex-col items-center justify-center flex-1 py-12 px-6">
           <div className="w-full max-w-[420px]">
             <div className="hidden lg:flex flex-col items-center text-center mb-4">
-              <Logo className="h-10 mb-1" variant="full" />
+              <Logo className="h-10 mb-1" />
               <h1 className="text-xl font-black text-gray-900 tracking-tighter uppercase leading-none">Welcome Back</h1>
             </div>
 
             <div className="bg-white py-6 px-8 sm:px-10 shadow-[0_30px_100px_-20px_rgba(0,0,0,0.1)] rounded-[40px] border border-gray-100 flex flex-col gap-6 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-8 opacity-[0.02] pointer-events-none scale-150 group-hover:rotate-45 transition-transform duration-1000">
-                <Store size={150} />
+              <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none scale-[2.5] group-hover:rotate-12 transition-transform duration-1000">
+                <Logo variant="icon" className="w-32 h-32" />
               </div>
 
               <form className="space-y-4" onSubmit={handleSubmit}>
