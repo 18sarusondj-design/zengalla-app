@@ -13,6 +13,8 @@ const userSchema = new mongoose.Schema({
   shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', default: null },
   walletBalance: { type: Number, default: 0 },
   addresses: { type: Array, default: [] },
+  address: { type: String, default: '' },
+  pincode: { type: String, default: '' },
   deliveryModeEnabled: { type: Boolean, default: true },
   plan: { type: String, default: 'basic' },
   planExpiresAt: { type: Date, default: null },
