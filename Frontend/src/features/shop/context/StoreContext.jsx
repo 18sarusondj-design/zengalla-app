@@ -134,9 +134,9 @@ export const StoreProvider = ({ children }) => {
   }, [vendorShop?._id, user?._id, user?.id]);
 
   // -- Fetch Nearby Shops --
-  const fetchNearbyShops = useCallback(async (lat, lng, radius = 10) => {
+  const fetchNearbyShops = useCallback(async (lat, lng, radius = 10, search = '') => {
     try {
-      const { data } = await api.get(`/shops/nearby?lat=${lat}&lng=${lng}&radius=${radius}`);
+      const { data } = await api.get(`/shops/nearby?lat=${lat}&lng=${lng}&radius=${radius}&search=${encodeURIComponent(search)}`);
       return data.shops || [];
     } catch (err) {
       return [];
