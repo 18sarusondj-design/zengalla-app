@@ -382,15 +382,14 @@ const VendorProfile = () => {
   };
 
   const SectionSaveButton = ({ label }) => (
-    <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
+    <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end">
       <button
         type="submit" disabled={isUpdating}
-        className={`h-14 px-10 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl transition-all flex items-center justify-center gap-3 disabled:opacity-50 
-          bg-sky-500 hover:bg-sky-600 text-white shadow-sky-200 ring-4 ring-sky-50
+        className={`h-12 px-8 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 
+          bg-sky-500 hover:bg-sky-600 text-white shadow-sky-200 ring-2 ring-sky-50
         `}
-
       >
-        {isUpdating ? <Loader2 className="animate-spin" size={20} /> : <><Save size={20} /> Finalize & Save {label}</>}
+        {isUpdating ? <Loader2 className="animate-spin" size={16} /> : <><Save size={16} /> Save {label}</>}
       </button>
     </div>
   );
@@ -417,8 +416,8 @@ const VendorProfile = () => {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-screen relative">
-      <div className="mb-6 flex-shrink-0 bg-white/60 backdrop-blur-sm sticky top-0 z-10 py-4 px-2 border-b border-sky-100 flex items-center justify-between">
+    <div className="flex flex-col md:h-screen md:overflow-hidden min-h-screen bg-slate-50 relative p-2 md:p-4">
+      <div className="mb-4 flex-shrink-0 bg-white/60 backdrop-blur-sm sticky top-0 z-10 py-3 px-2 border-b border-sky-100 flex items-center justify-between rounded-t-[32px]">
         <div className="flex items-center gap-4">
           {/* Compact Branding Upside */}
           <div className="relative group shrink-0">
@@ -455,7 +454,7 @@ const VendorProfile = () => {
       <div className="flex-1 min-h-0">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 min-h-0">
           {/* LEFT SIDEBAR: Console & Status */}
-          <div className="lg:col-span-1 flex flex-col pb-10">
+          <div className="lg:col-span-1 flex flex-col md:h-full">
             <div className="bg-white/40 backdrop-blur-md rounded-[40px] p-2 border border-white shadow-xl flex flex-col space-y-1">
               <p className="px-4 py-0.5 text-[8px] font-black text-gray-600 uppercase tracking-widest border-b border-white/30 mb-0.5">Store Console</p>
 
@@ -525,9 +524,9 @@ const VendorProfile = () => {
           </div>
 
           {/* RIGHT PANEL: Dynamic Content Forms */}
-          <div className="lg:col-span-2 flex flex-col min-h-screen lg:h-[75vh] pb-10">
-            <form onSubmit={handleUpdate} className="flex flex-col h-full">
-              <div className={`flex-1 ${(activeTab === 'wholesale' || activeTab === 'credit') ? 'overflow-hidden' : 'overflow-y-auto custom-scrollbar-visible'} bg-white/60 backdrop-blur-md rounded-[40px] shadow-2xl border border-white/50 p-6`}>
+          <div className="lg:col-span-2 flex flex-col md:h-full">
+            <form onSubmit={handleUpdate} className="flex flex-col md:h-full">
+              <div className={`flex-1 ${['marketing', 'sponsorship'].includes(activeTab) ? 'md:overflow-y-auto custom-scrollbar-visible' : 'md:overflow-hidden'} bg-white/60 backdrop-blur-md rounded-[40px] shadow-2xl border border-white/50 p-5 overflow-y-auto`}>
 
                 {activeTab === 'details' && (
                   <div className="space-y-3 animate-in fade-in slide-in-from-bottom-3 duration-500">
@@ -582,7 +581,7 @@ const VendorProfile = () => {
                         className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 focus:bg-white rounded-2xl p-4 text-xs font-bold text-gray-800 transition-all outline-none resize-none"
                       />
                     </div>
-                    <SectionSaveButton label="Store Details" />
+                    <SectionSaveButton label="Details" />
                   </div>
                 )}
 
