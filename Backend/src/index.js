@@ -31,9 +31,9 @@ const globalLimiter = rateLimit({
 
 // Auth Rate Limiting (Stricter)
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20, // 20 attempts per 15 mins
-  message: { error: 'Too many login attempts, please wait 15 minutes.' }
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 50, // 50 attempts per minute
+  message: { error: 'Too many login attempts, please wait 1 minute.' }
 });
 
 app.use('/api', globalLimiter);
