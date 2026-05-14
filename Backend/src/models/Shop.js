@@ -8,8 +8,8 @@ const shopSchema = new mongoose.Schema({
   bannerUrl: { type: String, default: '' },
   address: { type: String, default: '' },
   location: {
-    type: { type: String, enum: ['Point'], default: 'Point' },
-    coordinates: { type: [Number], default: [75.1240, 15.3647] } // [lng, lat]
+    type: { type: String, enum: ['Point'], default: 'Point', required: true },
+    coordinates: { type: [Number], default: [75.1240, 15.3647], required: true } // [lng, lat]
   },
 
   category: { type: String, default: 'Grocery' },
