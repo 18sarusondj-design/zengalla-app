@@ -156,12 +156,12 @@ const StaffManagement = () => {
   );
 
   return (
-    <div className="flex flex-col h-full bg-white md:p-8 p-4 rounded-[48px] border border-gray-100 shadow-sm relative overflow-hidden font-sans">
+    <div className="flex flex-col md:h-screen md:overflow-hidden min-h-screen bg-white p-2 md:p-8 md:rounded-[48px] border border-gray-100 shadow-sm relative overflow-hidden font-sans">
       {/* Premium Header */}
-      <div className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6 pb-10 border-b border-gray-100/50">
+      <div className="mb-6 md:mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 md:pb-10 border-b border-gray-100/50 flex-shrink-0">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-4xl font-black text-gray-900 tracking-tight uppercase leading-none">Store Personnel</h1>
+            <h1 className="text-2xl md:text-4xl font-black text-gray-900 tracking-tight uppercase leading-none">Store Personnel</h1>
             <div className="px-3 py-1 bg-indigo-50 border border-indigo-100 rounded-full flex items-center gap-2">
                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{staffList.length} Total</span>
@@ -176,16 +176,16 @@ const StaffManagement = () => {
             setFormData({ name: '', phone: '', password: '' });
             setIsModalOpen(true);
           }}
-          className="h-14 px-8 bg-sky-600 text-white rounded-[22px] font-black uppercase text-[10px] tracking-[0.15em] flex items-center gap-4 hover:bg-sky-700 hover:shadow-2xl hover:shadow-sky-200 transition-all active:scale-95 group shadow-xl shadow-sky-100"
+          className="h-12 md:h-14 px-8 bg-sky-600 text-white rounded-[22px] font-black uppercase text-[10px] tracking-[0.15em] flex items-center gap-4 hover:bg-sky-700 hover:shadow-2xl hover:shadow-sky-200 transition-all active:scale-95 group shadow-xl shadow-sky-100"
         >
           <UserPlus size={16} className="group-hover:rotate-12 transition-transform" /> Add New Assistant
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 flex-1 min-h-0">
+      <div className="flex flex-col lg:flex-row gap-8 flex-1 min-h-0 md:overflow-hidden">
         {/* Info Column - Enhanced Global Authority Control */}
-        <div className="lg:col-span-1 space-y-6">
-           <div className="bg-gradient-to-br from-indigo-50/80 to-white rounded-[32px] p-8 border border-indigo-100/50 shadow-sm relative overflow-hidden group">
+        <div className="w-full lg:w-80 space-y-6 md:overflow-y-auto custom-scrollbar pb-4 lg:pb-0">
+           <div className="bg-gradient-to-br from-indigo-50/80 to-white rounded-[32px] p-6 md:p-8 border border-indigo-100/50 shadow-sm relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-100/20 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-150 duration-700" />
               
               <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-indigo-600 mb-6 shadow-md border border-indigo-50 relative z-10">
@@ -250,11 +250,11 @@ const StaffManagement = () => {
         </div>
 
         {/* List Column - Premium Deck */}
-        <div className="lg:col-span-3 flex flex-col min-h-0">
-          <div className="space-y-4 flex-1 overflow-y-auto pr-4 custom-scrollbar">
+        <div className="flex-1 flex flex-col min-h-0 md:overflow-hidden">
+          <div className="space-y-4 flex-1 overflow-y-auto md:pr-4 custom-scrollbar pb-10 md:pb-0">
             {staffList.length === 0 && (
-               <div className="bg-white rounded-[40px] p-20 border border-dashed border-indigo-100 flex flex-col items-center justify-center text-center">
-                  <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-200 mb-6">
+               <div className="bg-white rounded-[40px] p-10 md:p-20 border border-dashed border-indigo-100 flex flex-col items-center justify-center text-center">
+                  <div className="w-16 md:w-20 h-16 md:h-20 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-200 mb-6">
                      <Shield size={40} />
                   </div>
                   <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter mb-2">No Staff Members</h3>
@@ -263,10 +263,10 @@ const StaffManagement = () => {
             )}
             
             {staffList.map((staff) => (
-            <div key={staff._id} className="group bg-white rounded-[32px] p-6 border border-gray-100 shadow-sm flex items-center justify-between hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-50/50 transition-all duration-300 hover:scale-[1.01]">
-              <div className="flex items-center gap-6">
-                <div className="relative">
-                  <div className={`w-16 h-16 rounded-[22px] flex items-center justify-center text-xl font-black transition-transform group-hover:rotate-3 shadow-md border-4 border-white ${
+            <div key={staff._id} className="group bg-white rounded-[32px] p-4 md:p-6 border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-50/50 transition-all duration-300 hover:scale-[1.01] gap-4">
+              <div className="flex items-center gap-4 md:gap-6">
+                <div className="relative shrink-0">
+                  <div className={`w-14 md:w-16 h-14 md:h-16 rounded-[22px] flex items-center justify-center text-xl font-black transition-transform group-hover:rotate-3 shadow-md border-4 border-white ${
                     staff.status === 'active' ? 'bg-indigo-50 text-indigo-500' : 'bg-gray-50 text-gray-300'
                   }`}>
                     {staff.name.charAt(0).toUpperCase()}
@@ -278,36 +278,36 @@ const StaffManagement = () => {
                   </div>
                 </div>
                 
-                <div>
-                  <h4 className="font-black text-gray-900 uppercase tracking-wide text-lg leading-tight mb-2 group-hover:text-indigo-600 transition-colors">{staff.name}</h4>
-                  <div className="flex items-center gap-4">
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-black text-gray-900 uppercase tracking-wide text-md md:text-lg leading-tight mb-2 group-hover:text-indigo-600 transition-colors truncate">{staff.name}</h4>
+                  <div className="flex flex-wrap items-center gap-2 md:gap-4">
                     <div className="flex items-center gap-2 px-2.5 py-1 bg-gray-50 rounded-xl border border-gray-100 shadow-inner">
                       <Smartphone size={10} className="text-gray-400" />
-                      <span className="text-[10px] font-black text-gray-600">ID: {staff.phone}</span>
+                      <span className="text-[9px] md:text-[10px] font-black text-gray-600">{staff.phone}</span>
                     </div>
-                    <div className={`px-3 py-1 rounded-full flex items-center gap-2 border shadow-sm transition-all ${
+                    <div className={`px-2 md:px-3 py-1 rounded-full flex items-center gap-2 border shadow-sm transition-all ${
                       staff.status === 'active' ? 'bg-sky-50 border-sky-100 text-sky-600' : 'bg-rose-50 border-rose-100 text-rose-600'
                     }`}>
                        <div className={`w-1.5 h-1.5 rounded-full ${staff.status === 'active' ? 'bg-sky-500 animate-pulse' : 'bg-rose-400'}`} />
-                       <span className="text-[9px] font-black uppercase tracking-widest">{staff.status}</span>
+                       <span className="text-[8px] md:text-[9px] font-black uppercase tracking-widest">{staff.status}</span>
                     </div>
                   </div>
                 </div>
               </div>
               
-              <div className="flex items-center gap-4">
-                <div className="flex items-center bg-gray-50/50 p-1.5 rounded-[22px] border border-gray-100">
+              <div className="flex items-center justify-end gap-3 md:gap-4">
+                <div className="flex items-center bg-gray-50/50 p-1 rounded-[22px] border border-gray-100">
                   <button 
                     onClick={() => openEditModal(staff)}
-                    className="p-3 bg-white rounded-2xl text-gray-400 hover:text-indigo-600 transition-all hover:shadow-md border border-transparent hover:border-indigo-100 flex items-center gap-2 group/btn"
+                    className="p-2.5 md:p-3 bg-white rounded-2xl text-gray-400 hover:text-indigo-600 transition-all hover:shadow-md border border-transparent hover:border-indigo-100 flex items-center gap-2 group/btn"
                   >
                     <Eye size={16} />
-                    <span className="text-[9px] font-black uppercase hidden md:inline ml-1">Properties</span>
+                    <span className="text-[9px] font-black uppercase hidden md:inline ml-1">Edit</span>
                   </button>
                   <div className="w-[1px] h-4 bg-gray-200 mx-1" />
                   <button 
                     onClick={() => toggleStatus(staff)}
-                    className={`px-4 py-3 rounded-2xl text-[9px] font-black uppercase transition-all flex items-center gap-2 group/status ${
+                    className={`px-3 md:px-4 py-2.5 md:py-3 rounded-2xl text-[9px] font-black uppercase transition-all flex items-center gap-2 group/status ${
                       staff.status === 'active' ? 'text-rose-400 hover:text-rose-600' : 'text-sky-400 hover:text-sky-600'
                     }`}
                   >
@@ -318,7 +318,7 @@ const StaffManagement = () => {
                 
                 <button 
                   onClick={() => handleDeleteStaff(staff.id)}
-                  className="w-12 h-12 rounded-[20px] flex items-center justify-center text-gray-200 hover:text-rose-500 hover:bg-rose-50 transition-all group/del"
+                  className="w-10 md:w-12 h-10 md:h-12 rounded-[20px] flex items-center justify-center text-gray-200 hover:text-rose-500 hover:bg-rose-50 transition-all group/del"
                 >
                   <Trash2 size={20} className="group-hover/del:scale-110 transition-transform" />
                 </button>
@@ -333,7 +333,7 @@ const StaffManagement = () => {
       {isModalOpen && (
         <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[500] flex items-center justify-center p-4">
           <div className="bg-white rounded-[40px] w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+            <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
                <div>
                  <h2 className="text-xl font-black text-gray-900 tracking-tight uppercase">{editingStaff ? 'Update Identity' : 'New Assistant'}</h2>
                  <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mt-0.5">{editingStaff ? 'Modify Staff Credentials' : 'Grant New Store Access'}</p>
@@ -341,13 +341,13 @@ const StaffManagement = () => {
                <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors"><XCircle size={24}/></button>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-8 space-y-6">
-              <div className="space-y-5">
+            <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
+              <div className="space-y-4 md:space-y-5">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-5">Personnel Name</label>
                   <div className="relative group">
                     <User className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-indigo-500 transition-colors" size={18} />
-                    <input required placeholder="Assistant Name" className="w-full bg-gray-50 border-2 border-transparent rounded-[24px] py-5 pl-14 pr-6 font-bold text-sm focus:border-indigo-100 focus:bg-white focus:ring-4 ring-indigo-50/50 transition-all outline-none" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                    <input required placeholder="Assistant Name" className="w-full bg-gray-50 border-2 border-transparent rounded-[24px] py-4 md:py-5 pl-14 pr-6 font-bold text-sm focus:border-indigo-100 focus:bg-white focus:ring-4 ring-indigo-50/50 transition-all outline-none" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
                   </div>
                 </div>
 
@@ -355,7 +355,7 @@ const StaffManagement = () => {
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-5">Identity (Mobile)</label>
                   <div className="relative group">
                     <Smartphone className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-indigo-500 transition-colors" size={18} />
-                    <input required maxLength="10" placeholder="10 Digit Login ID" className="w-full bg-gray-50 border-2 border-transparent rounded-[24px] py-5 pl-14 pr-6 font-bold text-sm focus:border-indigo-100 focus:bg-white focus:ring-4 ring-indigo-50/50 transition-all outline-none" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                    <input required maxLength="10" placeholder="10 Digit Login ID" className="w-full bg-gray-50 border-2 border-transparent rounded-[24px] py-4 md:py-5 pl-14 pr-6 font-bold text-sm focus:border-indigo-100 focus:bg-white focus:ring-4 ring-indigo-50/50 transition-all outline-none" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
                   </div>
                 </div>
 
@@ -369,9 +369,6 @@ const StaffManagement = () => {
                           {passStrength.isValid ? `✓ ${passStrength.label}` : passStrength.label}
                         </span>
                       )}
-                      {!passStrength.isValid && formData.password && (
-                         <span className="text-[7px] font-bold text-rose-400 uppercase tracking-tighter">Use stronger key (8+ chars, 2+ types)</span>
-                      )}
                     </div>
                   </div>
                   <div className="relative group">
@@ -380,7 +377,7 @@ const StaffManagement = () => {
                        required={!editingStaff}
                        type={showPassword ? "text" : "password"} 
                        placeholder={editingStaff ? "••••••••" : "Store Auth Password"} 
-                       className="w-full bg-gray-50 border-2 border-transparent rounded-[24px] py-5 pl-14 pr-14 font-bold text-sm focus:border-indigo-100 focus:bg-white focus:ring-4 ring-indigo-50/50 transition-all outline-none" 
+                       className="w-full bg-gray-50 border-2 border-transparent rounded-[24px] py-4 md:py-5 pl-14 pr-14 font-bold text-sm focus:border-indigo-100 focus:bg-white focus:ring-4 ring-indigo-50/50 transition-all outline-none" 
                        value={formData.password} 
                        onChange={e => setFormData({...formData, password: e.target.value})} 
                     />
@@ -398,7 +395,7 @@ const StaffManagement = () => {
               <button 
                 type="submit" 
                 disabled={isSubmitting || !isPassValid}
-                className="w-full h-18 py-5 bg-sky-600 text-white rounded-[28px] font-black uppercase text-[11px] tracking-[0.2em] shadow-2xl shadow-sky-100 hover:bg-sky-700 hover:shadow-sky-200 transition-all flex items-center justify-center gap-4 disabled:opacity-50 active:scale-95"
+                className="w-full h-16 md:h-18 py-4 md:py-5 bg-sky-600 text-white rounded-[28px] font-black uppercase text-[11px] tracking-[0.2em] shadow-2xl shadow-sky-100 hover:bg-sky-700 hover:shadow-sky-200 transition-all flex items-center justify-center gap-4 disabled:opacity-50 active:scale-95"
               >
                 {isSubmitting ? <Loader2 className="animate-spin" size={24} /> : (editingStaff ? <Check size={20} strokeWidth={3} /> : <UserPlus size={20} />)}
                 {editingStaff ? 'Commit Changes' : 'Grant Store Access'}
