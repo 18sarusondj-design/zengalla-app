@@ -106,9 +106,11 @@ const Login = () => {
 
         <div className="flex flex-col items-center justify-center flex-1 py-12 px-6">
           <div className="w-full max-w-[420px]">
-            <div className="hidden lg:flex flex-col items-center text-center mb-4">
-              <Logo className="h-10 mb-1" />
-              <h1 className="text-xl font-black text-gray-900 tracking-tighter uppercase leading-none">Welcome Back</h1>
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="h-14 w-14 bg-sky-500 rounded-2xl flex items-center justify-center shadow-xl shadow-sky-100 border border-sky-400 mb-4">
+                <Logo className="h-10" variant="icon" white />
+              </div>
+              <h1 className="text-2xl font-black text-gray-900 tracking-tighter uppercase leading-none">Welcome Back</h1>
             </div>
 
             <div className="bg-white py-6 px-8 sm:px-10 shadow-[0_30px_100px_-20px_rgba(0,0,0,0.1)] rounded-[40px] border border-gray-100 flex flex-col gap-6 relative overflow-hidden group">

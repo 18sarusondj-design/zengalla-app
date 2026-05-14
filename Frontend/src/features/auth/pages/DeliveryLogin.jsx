@@ -108,7 +108,9 @@ const DeliveryLogin = () => {
               </div>
               
               <div className="flex flex-col items-center mb-8">
-                <Logo className="h-16 mx-auto mb-4" />
+                <div className="h-16 w-16 bg-sky-500 rounded-2xl flex items-center justify-center shadow-xl shadow-sky-100 border border-sky-400 mb-4">
+                  <Logo className="h-10" variant="icon" white />
+                </div>
                 <h2 className="text-2xl font-black text-gray-900 tracking-tighter uppercase">Logistics Entry</h2>
                 <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">
                   Zengalla Delivery Portal

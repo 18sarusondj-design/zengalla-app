@@ -97,13 +97,19 @@ const ShopList = () => {
       if (shops.length === 0) setLoading(true);
       else setIsSearching(true);
 
-      let data;
+      let data = [];
+      
+      // Try to fetch nearby shops if coords available
       if (userCoords) {
-        // Pass query to backend for deep product-based search
-        data = await fetchNearbyShops(userCoords.lat, userCoords.lng, 10, query); 
+        try {
+          data = await fetchNearbyShops(userCoords.lat, userCoords.lng, 10, query); 
+        } catch (err) {
+          console.warn("Nearby fetch failed, using fallback:", err);
+          data = contextShops;
+        }
       } else {
+        // Immediate fallback to context shops for speed
         data = contextShops;
-        // Basic fallback for non-geo search if needed
         if (query && data) {
           data = data.filter(s => 
             s.name.toLowerCase().includes(query.toLowerCase()) || 
@@ -225,7 +231,8 @@ const ShopList = () => {
     return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
   };
 
-  if (loading) {
+  // Only show full screen loader on VERY first load when we have NOTHING
+  if (loading && shops.length === 0 && contextShops.length === 0) {
     return <FullScreenLoader message="Scanning for nearby stores..." />;
   }
 
@@ -312,7 +319,7 @@ const ShopList = () => {
       </div>
 
       {/* ── Scrollable Body ── */}
-      <div className="pb-16">
+      <div className="pb-4">
 
         {/* ════ FEATURED / AD CAROUSEL ════ */}
         {!searchTerm && (

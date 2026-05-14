@@ -306,8 +306,10 @@ const VendorSignup = () => {
           <div className="bg-white py-8 px-8 sm:px-12 shadow-[0_40px_120px_-20px_rgba(0,0,0,0.15)] rounded-[48px] border border-gray-100 flex flex-col gap-6 animate-fade-in-up relative">
             
             <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-4">
-                  <Logo className="h-10 px-4" variant="full" />
+              <div className="flex items-center gap-5">
+                <div className="h-14 w-14 bg-sky-500 rounded-2xl flex items-center justify-center shadow-xl shadow-sky-100 border border-sky-400">
+                  <Logo className="h-10" variant="icon" white />
+                </div>
                 <div>
                   <h2 className="text-2xl font-black text-gray-900 tracking-tighter uppercase leading-none">New Shop Details</h2>
                   <p className="mt-1 text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none text-emerald-500">Business Verification Hub</p>

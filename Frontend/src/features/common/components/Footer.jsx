@@ -6,12 +6,14 @@ import PWAInstallButton from './PWAInstallButton';
 
 const Footer = ({ onReportClick, navigate }) => {
   return (
-    <footer className="relative overflow-hidden shrink-0 pt-6 pb-24 md:pb-20 w-full" style={{ background: 'linear-gradient(160deg, #0ea5e9 0%, #0284c7 40%, #0369a1 100%)', boxShadow: '0 500px 0 500px #0369a1' }}>
+    <footer className="relative overflow-hidden shrink-0 pt-6 pb-8 w-full" style={{ background: 'linear-gradient(160deg, #0ea5e9 0%, #0284c7 40%, #0369a1 100%)', boxShadow: '0 500px 0 500px #0369a1' }}>
       <div className="max-w-[1400px] mx-auto relative z-10 px-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-12 mb-6">
           {/* Branding - Smaller on mobile */}
           <div className="col-span-2 hidden sm:flex flex-col sm:flex-row items-center sm:items-start gap-4 mb-4 sm:mb-0">
-            <Logo className="h-14" variant="full" white />
+            <div className="h-12 w-12 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20 shadow-lg">
+              <Logo className="h-8" variant="icon" white />
+            </div>
             <div className="flex flex-col">
               <button
                 onClick={onReportClick}

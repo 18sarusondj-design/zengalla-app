@@ -6,74 +6,75 @@ import { useAuth } from '../../auth/context/AuthContext';
 import { toast } from 'sonner';
 import api from '../../../config/api.js';
 import Logo from '../../common/components/Logo';
+import AdminLogo from '../../common/components/AdminLogo';
 import PWAInstallButton from '../../common/components/PWAInstallButton';
 
-  const AdminLayout = () => {
-    const { logout, user, token } = useAuth();
-    const navigate = useNavigate();
-    const { handleGlobalScan, vendorShop, toggleShopStatus, isDeliveryMode, setIsDeliveryMode } = useStore();
-    const location = useLocation();
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
-    const isAdmin = user?.role === 'admin';
-    const isVendor = user?.role === 'vendor';
-    const isStaff = user?.role === 'staff';
-    const [vendorShopName, setVendorShopName] = useState(user?.shopName || 'SHOP ADMIN');
-    const [adminStats, setAdminStats] = useState({ vendors: 0, customers: 0, vendorReports: 0, customerReports: 0 });
+const AdminLayout = () => {
+  const { logout, user, token } = useAuth();
+  const navigate = useNavigate();
+  const { handleGlobalScan, vendorShop, toggleShopStatus, isDeliveryMode, setIsDeliveryMode } = useStore();
+  const location = useLocation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-    // Determine Permissions
-    const canManageInventory = isVendor || (isStaff && vendorShop?.staffPermissions?.canManageInventory !== false);
-    const canViewCustomers = isVendor || (isStaff && vendorShop?.staffPermissions?.canViewCustomers !== false);
+  const isAdmin = user?.role === 'admin';
+  const isVendor = user?.role === 'vendor';
+  const isStaff = user?.role === 'staff';
+  const [vendorShopName, setVendorShopName] = useState(user?.shopName || 'SHOP ADMIN');
+  const [adminStats, setAdminStats] = useState({ vendors: 0, customers: 0, vendorReports: 0, customerReports: 0 });
 
-    React.useEffect(() => {
-      if (vendorShop?.name) {
-        setVendorShopName(vendorShop.name);
-      }
-    }, [vendorShop]);
+  // Determine Permissions
+  const canManageInventory = isVendor || (isStaff && vendorShop?.staffPermissions?.canManageInventory !== false);
+  const canViewCustomers = isVendor || (isStaff && vendorShop?.staffPermissions?.canViewCustomers !== false);
 
-    React.useEffect(() => {
-      if ((isVendor || isStaff) && token) {
-        // Also listen for shop update events
-        const handleShopUpdate = (e) => {
-          if (e.detail?.name) setVendorShopName(e.detail.name);
-        };
-        window.addEventListener('shop-updated', handleShopUpdate);
-        return () => window.removeEventListener('shop-updated', handleShopUpdate);
-      }
-    }, [isVendor, isStaff, token]);
+  React.useEffect(() => {
+    if (vendorShop?.name) {
+      setVendorShopName(vendorShop.name);
+    }
+  }, [vendorShop]);
 
-    React.useEffect(() => {
-      if (isAdmin && token) {
-        const fetchAdminStats = async () => {
-          try {
-            const { data } = await api.get('/admin/stats');
-            if (data && data.stats) {
-              setAdminStats({
-                vendors: data.stats.pendingVendors,
-                customers: data.stats.totalUsers,
-                vendorReports: data.stats.vendorReports,
-                customerReports: data.stats.customerReports
-              });
-            }
-          } catch (err) {
-            console.error("Failed to sync admin stats:", err);
+  React.useEffect(() => {
+    if ((isVendor || isStaff) && token) {
+      // Also listen for shop update events
+      const handleShopUpdate = (e) => {
+        if (e.detail?.name) setVendorShopName(e.detail.name);
+      };
+      window.addEventListener('shop-updated', handleShopUpdate);
+      return () => window.removeEventListener('shop-updated', handleShopUpdate);
+    }
+  }, [isVendor, isStaff, token]);
+
+  React.useEffect(() => {
+    if (isAdmin && token) {
+      const fetchAdminStats = async () => {
+        try {
+          const { data } = await api.get('/admin/stats');
+          if (data && data.stats) {
+            setAdminStats({
+              vendors: data.stats.pendingVendors,
+              customers: data.stats.totalUsers,
+              vendorReports: data.stats.vendorReports,
+              customerReports: data.stats.customerReports
+            });
           }
-        };
+        } catch (err) {
+          console.error("Failed to sync admin stats:", err);
+        }
+      };
 
-        fetchAdminStats();
-        
-        // Listen for manual update triggers
-        const handleManualUpdate = () => fetchAdminStats();
-        window.addEventListener('admin-stats-update', handleManualUpdate);
+      fetchAdminStats();
 
-        // Keep stats updated every 30 seconds
-        const intervalId = setInterval(fetchAdminStats, 30000);
-        return () => {
-          clearInterval(intervalId);
-          window.removeEventListener('admin-stats-update', handleManualUpdate);
-        };
-      }
-    }, [isAdmin, token]);
+      // Listen for manual update triggers
+      const handleManualUpdate = () => fetchAdminStats();
+      window.addEventListener('admin-stats-update', handleManualUpdate);
+
+      // Keep stats updated every 30 seconds
+      const intervalId = setInterval(fetchAdminStats, 30000);
+      return () => {
+        clearInterval(intervalId);
+        window.removeEventListener('admin-stats-update', handleManualUpdate);
+      };
+    }
+  }, [isAdmin, token]);
 
   const [isReportModalOpen, useState2] = useState(false);
   const [reportMessage, setReportMessage] = useState('');
@@ -123,7 +124,7 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
       const currentTime = Date.now();
-      
+
       // 2. TIMING: Hardware scanners are very fast (< 50ms)
       if (currentTime - lastKeyTime > 50) {
         barcodeData = '';
@@ -154,8 +155,8 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
         <div className="min-h-[110px] flex flex-col justify-center px-5 border-b bg-brand-primaryLight/5 relative shrink-0">
           <div className="flex items-start justify-between w-full gap-2">
             <div className="flex items-start gap-3 min-w-0 flex-1">
-              <div className="shrink-0 mt-1">
-                <Logo className="h-9 w-9" variant="icon" />
+              <div className="shrink-0 mt-1 h-12 w-12 bg-sky-500 rounded-xl flex items-center justify-center shadow-lg shadow-sky-100 border border-sky-400">
+                <Logo className="h-8" variant="icon" white />
               </div>
               <div className="flex flex-col min-w-0 flex-1">
                 <div className="flex flex-col">
@@ -174,7 +175,7 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
                   </h2>
                 </div>
                 {!isAdmin && (isVendor || isStaff) && (
-                  <button 
+                  <button
                     onClick={toggleShopStatus}
                     className={`mt-2 flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all active:scale-95 w-fit ${(vendorShop?.isOpen ?? vendorShop?.is_active) ? 'bg-sky-50 text-sky-600 border-sky-100 shadow-sm shadow-sky-50' : 'bg-red-50 text-red-500 border-red-100 shadow-sm shadow-red-50'}`}
                   >
@@ -222,7 +223,7 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
               )}
 
               <div className="mt-auto pt-4 flex flex-col gap-2">
-                
+
                 <button
                   onClick={() => window.dispatchEvent(new CustomEvent('open-report-modal'))}
                   className="flex items-center gap-3 px-4 py-2.5 rounded-xl w-full text-sky-600 bg-sky-50 hover:bg-sky-100 transition-all font-black text-[10px] uppercase tracking-widest border border-sky-100"
@@ -246,7 +247,7 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
                     </div>
                     <span className="text-[9px] font-black uppercase tracking-widest text-indigo-900">Logistics Mode</span>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setIsDeliveryMode(!isDeliveryMode)}
                     className={`relative w-9 h-5 rounded-full transition-all flex items-center px-1 ${isDeliveryMode ? 'bg-indigo-500 justify-end' : 'bg-indigo-200 justify-start'}`}
                   >
@@ -264,12 +265,12 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
                   <p className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 mt-4">Security Groups</p>
                   <NavItem to="/super-admin/vendors" icon={<Users size={20} />} label="Vendors List" badge={adminStats.vendors} />
                   <NavItem to="/super-admin/customers" icon={<Users size={20} />} label="Customers List" badge={adminStats.customers} />
-                  
+
                   <div className="h-px bg-gray-100 my-2 mx-4" />
                   <p className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 mt-4">Inboxes</p>
                   <NavItem to="/super-admin/support/vendors" icon={<AlertCircle size={20} />} label="Vendor Support" badge={adminStats.vendorReports} />
                   <NavItem to="/super-admin/support/customers" icon={<AlertCircle size={20} />} label="Customer Support" badge={adminStats.customerReports} />
-                  
+
                   <div className="h-px bg-gray-100 my-2 mx-4" />
                   <p className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 mt-4">My Account</p>
                   <NavItem to="/super-admin/profile" icon={<User size={20} />} label="My Security Settings" />
@@ -295,7 +296,7 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
         {/* Mobile Header */}
         <header className="h-16 bg-white border-b flex items-center justify-between px-6 md:hidden text-brand-primary font-black text-xl z-30 relative shadow-sm">
           <div className="flex items-center gap-2 text-sm">
-            <Logo className="h-8" variant="icon" /> {isAdmin ? 'ADMINISTRATION' : 'SHOP'}
+            <AdminLogo className="h-8 w-8" /> {isAdmin ? 'ADMINISTRATION' : 'SHOP'}
           </div>
           <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 -mr-2 text-gray-600">
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -328,7 +329,7 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
                         {vendorShop?.isPayLater && <NavItem to="/vendor/dashboard/credit-customers" icon={<Wallet size={20} />} label="Credit" onClick={() => setIsMobileMenuOpen(false)} />}
                       </>
                     )}
-                    
+
                     <button
                       onClick={() => { setIsMobileMenuOpen(false); window.dispatchEvent(new CustomEvent('open-report-modal')); }}
                       className="flex items-center gap-3 px-5 py-4 rounded-2xl w-full text-sky-600 bg-sky-50 hover:bg-sky-100 transition-all font-black text-xs uppercase tracking-widest border border-sky-100"
@@ -392,7 +393,7 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
                   </div>
 
                   {(isVendor || isStaff) && (
-                    <a 
+                    <a
                       href="tel:6364589875"
                       className="flex items-center justify-center gap-4 w-full h-16 bg-sky-600 text-white rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-sky-700 transition-all shadow-lg shadow-sky-100 group"
                     >
