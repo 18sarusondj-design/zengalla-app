@@ -11,11 +11,8 @@ const Footer = ({ onReportClick, navigate }) => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-12 mb-6">
           {/* Branding - Smaller on mobile */}
           <div className="col-span-2 hidden sm:flex flex-col sm:flex-row items-center sm:items-start gap-4 mb-4 sm:mb-0">
-            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/20">
-              <Logo className="h-6" variant="icon" />
-            </div>
+            <Logo className="h-14" variant="full" white />
             <div className="flex flex-col">
-              <h3 className="text-xl font-black text-white tracking-tighter uppercase leading-none">ZenGalla</h3>
               <button
                 onClick={onReportClick}
                 className="mt-2 flex items-center gap-2 px-3 h-8 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-[8px] font-black text-white uppercase tracking-widest transition-all"
@@ -23,13 +20,6 @@ const Footer = ({ onReportClick, navigate }) => {
                 <HelpCircle size={12} className="text-sky-400" />
                 Report Issue
               </button>
-              
-              {/* PWA Install Trigger */}
-              <div className="mt-6 w-full max-w-[200px]">
-                <PWAInstallButton variant="sidebar" className="!bg-white !text-sky-500 !h-12 !rounded-xl shadow-2xl" />
-              </div>
-
-
             </div>
           </div>
 
