@@ -71,7 +71,7 @@ const FeaturedCarousel = memo(({ featuredShops, navigate }) => {
                 alt={shop.name}
                 referrerPolicy="no-referrer"
                 loading={idx === 0 ? "eager" : "lazy"}
-                fetchpriority={idx === 0 ? "high" : "low"}
+                fetchPriority={idx === 0 ? "high" : "low"}
                 className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
 
                 onError={(e) => {
