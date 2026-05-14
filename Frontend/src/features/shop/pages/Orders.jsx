@@ -254,7 +254,6 @@ const Orders = () => {
   }, [activeStatus]);
 
   return (
-  return (
     <div className="flex flex-col md:h-screen md:overflow-hidden min-h-screen p-2 md:p-4 bg-slate-50 font-sans">
       {/* Top Header */}
       <div className="mb-6 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
