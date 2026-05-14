@@ -75,12 +75,13 @@ const VendorPending = () => {
   const totalPrice = (selectedPlan === 'premium' ? 999 : 499) + (addSponsorship ? 199 : 0);
 
   return (
-    <div className="h-screen w-full bg-sky-50 flex flex-col items-center p-2 md:p-4 font-sans relative overflow-hidden text-slate-900">
+  return (
+    <div className="md:h-screen w-full bg-sky-50 flex flex-col items-center p-2 md:p-4 font-sans relative md:overflow-hidden min-h-screen overflow-y-auto text-slate-900">
       {/* Background Decor */}
       <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-sky-400/20 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] left-[-5%] w-[30%] h-[30%] bg-blue-400/10 rounded-full blur-[100px] pointer-events-none" />
       
-      <div className="w-full max-w-7xl flex flex-col gap-4 relative z-10 h-full max-h-[95vh]">
+      <div className="w-full max-w-7xl flex flex-col gap-4 relative z-10 md:h-full md:max-h-[95vh]">
         
         {/* TOP: Training & Tutorials Bar */}
         <div className="bg-white border border-sky-100 rounded-[32px] overflow-hidden flex flex-col md:flex-row items-center justify-between p-4 shadow-xl shadow-sky-200/50 relative overflow-hidden">
@@ -138,10 +139,10 @@ const VendorPending = () => {
         </div>
 
         {/* MAIN CONTENT Area */}
-        <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0 overflow-hidden">
+        <div className="flex-1 flex flex-col lg:flex-row gap-4 md:min-h-0 md:overflow-hidden pb-10 md:pb-0">
           
           {/* Plans Selection - 2 Columns */}
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 min-h-0">
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 md:min-h-0">
             <PlanCard 
               active={selectedPlan === 'basic'}
               onClick={() => setSelectedPlan('basic')}
@@ -164,7 +165,7 @@ const VendorPending = () => {
           </div>
 
           {/* Right Sidebar - Summary & Sponsorship */}
-          <div className="w-full lg:w-[320px] flex flex-col gap-3 h-full">
+          <div className="w-full lg:w-[320px] flex flex-col gap-3 md:h-full">
             
             <div className={`p-4 rounded-[24px] border-2 transition-all cursor-pointer relative group ${addSponsorship ? 'bg-sky-600 border-sky-400 shadow-xl shadow-sky-200' : 'bg-white border-white hover:border-sky-100 shadow-xl shadow-sky-100'}`} onClick={() => setAddSponsorship(!addSponsorship)}>
                <div className="flex items-center justify-between mb-2">
