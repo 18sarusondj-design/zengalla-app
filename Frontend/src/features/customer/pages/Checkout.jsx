@@ -30,8 +30,32 @@ const Checkout = () => {
   const isB2BClient = activeShop?.isWholesale && user?.phone && activeShop?.b2bPartners?.some(p => p.phone === user.phone);
   const isPayLaterClient = user?.phone && activeShop?.payLaterPartners?.some(p => p.phone === user.phone);
   const [isLoadingShop, setIsLoadingShop] = useState(false);
-  const [userCoords, setUserCoords] = useState(null);
+  const [userCoords, setUserCoords] = useState(() => {
+    if (user?.location?.coordinates && (user.location.coordinates[0] !== 0 || user.location.coordinates[1] !== 0)) {
+      return { lat: user.location.coordinates[1], lng: user.location.coordinates[0] };
+    }
+    return null;
+  });
+
   const [distance, setDistance] = useState(0);
+
+  // Recalculate distance when userCoords or activeShop changes
+  useEffect(() => {
+    if (userCoords && activeShop?.location?.coordinates) {
+      const shopCoords = activeShop.location.coordinates;
+      const d = calculateDistance(
+        shopCoords[1], // lat
+        shopCoords[0], // lng
+        userCoords.lat,
+        userCoords.lng
+      );
+      setDistance(d);
+      if (orderType === 'DELIVERY') {
+        toast.success(`Delivery distance: ${d.toFixed(2)} km`, { id: 'location-trace' });
+      }
+    }
+  }, [userCoords, activeShop, orderType]);
+
   const [isManualMapOpen, setIsManualMapOpen] = useState(false);
   const [useWallet, setUseWallet] = useState(false);
   const [showPaymentGuide, setShowPaymentGuide] = useState(false);
@@ -90,29 +114,18 @@ const Checkout = () => {
     }
 
     isRequestingLocation.current = true;
-    toast.info("Requesting location access for delivery...", { id: 'location-trace' });
+    toast.info("Requesting live location...", { id: 'location-trace' });
     
     navigator.geolocation.getCurrentPosition(
       (position) => {
         isRequestingLocation.current = false;
         const { latitude, longitude } = position.coords;
         setUserCoords({ lat: latitude, lng: longitude });
-        
-        if (activeShop?.location?.coordinates) {
-          const d = calculateDistance(
-            activeShop.location.coordinates.lat,
-            activeShop.location.coordinates.lng,
-            latitude,
-            longitude
-          );
-          setDistance(d);
-          toast.success(`Delivery distance: ${d.toFixed(2)} km`, { id: 'location-trace' });
-        }
       },
       (error) => {
         isRequestingLocation.current = false;
         console.error("Location error:", error);
-        toast.error("Please enable location access for home delivery", { id: 'location-trace' });
+        toast.error("Please enable location access", { id: 'location-trace' });
         setOrderType('PICKUP');
       },
       { enableHighAccuracy: true }
@@ -1217,8 +1230,8 @@ const Checkout = () => {
           setUserCoords(newCoords);
           if (activeShop?.location?.coordinates) {
             const d = calculateDistance(
-              activeShop.location.coordinates.lat,
-              activeShop.location.coordinates.lng,
+              activeShop.location.coordinates[1],
+              activeShop.location.coordinates[0],
               newCoords.lat,
               newCoords.lng
             );
@@ -1501,8 +1514,8 @@ const Checkout = () => {
           </>
         );
       })()}
-      {/* QR Payment Modal for B2C */}
-      {showQRModal && (
+      
+       {showQRModal && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xl animate-in fade-in duration-300">
            <div className="bg-white w-full max-w-sm rounded-[40px] shadow-2xl p-10 animate-in zoom-in-95 duration-200 flex flex-col relative overflow-hidden text-center">
               <div className="mb-8">
@@ -1519,7 +1532,9 @@ const Checkout = () => {
                    />
                  ) : (
                    <div className="text-center p-4">
-                     <XCircle size={40} className="mx-auto text-rose-400 mb-2" />
+                     <div className="w-10 h-10 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                       <X size={20} />
+                     </div>
                      <p className="text-[10px] font-black text-rose-500 uppercase tracking-tight">Shop UPI ID Missing</p>
                      <p className="text-[8px] font-bold text-gray-400 mt-1 uppercase">Please use another payment method</p>
                    </div>
@@ -1555,7 +1570,7 @@ const Checkout = () => {
 
                  <div className="grid grid-cols-2 gap-4">
                     <button 
-                      type="button"
+                      type="button" 
                       onClick={() => setShowQRModal(false)}
                       className="py-4 bg-slate-50 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest"
                     >Cancel</button>
@@ -1587,6 +1602,33 @@ const Checkout = () => {
            </div>
         </div>
       )}
+
+      <DeliveryLocationModal 
+        isOpen={isManualMapOpen}
+        onClose={() => setIsManualMapOpen(false)}
+        initialCoords={userCoords || (activeShop?.location?.coordinates ? {
+          lat: activeShop.location.coordinates[1],
+          lng: activeShop.location.coordinates[0]
+        } : null)}
+        shopLocation={activeShop?.location?.coordinates ? {
+          lat: activeShop.location.coordinates[1],
+          lng: activeShop.location.coordinates[0]
+        } : null}
+        onConfirm={(data) => {
+          setUserCoords(data);
+          if (activeShop?.location?.coordinates) {
+            const d = calculateDistance(
+              activeShop.location.coordinates.lat,
+              activeShop.location.coordinates.lng,
+              data.lat,
+              data.lng
+            );
+            setDistance(d);
+            toast.success(`Address detected: ${data.pincode || 'Pincode saved'}`);
+          }
+          setIsManualMapOpen(false);
+        }}
+      />
     </>
   );
 };
