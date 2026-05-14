@@ -244,12 +244,15 @@ export const getMe = async (req, res) => {
 // PUT /api/auth/me
 export const updateMe = async (req, res) => {
   try {
-    const { name, phone, deliveryModeEnabled, addresses } = req.body;
+    const { name, phone, deliveryModeEnabled, addresses, location, address, pincode } = req.body;
     const update = {};
     if (name !== undefined) update.name = name;
     if (phone !== undefined) update.phone = phone;
     if (deliveryModeEnabled !== undefined) update.deliveryModeEnabled = deliveryModeEnabled;
     if (addresses !== undefined) update.addresses = addresses;
+    if (location !== undefined) update.location = location;
+    if (address !== undefined) update.address = address;
+    if (pincode !== undefined) update.pincode = pincode;
 
     const user = await User.findByIdAndUpdate(req.user._id, update, { new: true });
     res.json({ success: true, user });
