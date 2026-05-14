@@ -61,48 +61,133 @@ export const getShops = async (req, res) => {
 };
 
 
-// GET /api/shops/nearby?lat=&lng=&radius=
+// GET /api/shops/nearby?lat=&lng=&radius=&search=
 export const getNearbyShops = async (req, res) => {
   try {
-    const { lat, lng, radius = 10, page = 1, limit = 50 } = req.query;
+    const { lat, lng, radius = 10, page = 1, limit = 50, search = '' } = req.query;
     
-    const filter = { 
+    let filter = { 
       isActive: true,
       subscriptionPlan: 'premium'
     };
 
-    if (!lat || !lng) {
-      const shops = await Shop.find(filter).select('-razorpayKeySecret').limit(parseInt(limit));
-      return res.json({ success: true, shops });
+    let shopIdToProducts = {};
+
+    // 1. If searching, find shops by name, category OR products they sell
+    if (search) {
+      const Product = (await import('../models/Product.js')).default;
+      
+      // Find products matching query
+      const products = await Product.find({
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { category: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } }
+        ]
+      }).select('shopId name').lean();
+      
+      products.forEach(p => {
+        if (!shopIdToProducts[p.shopId]) shopIdToProducts[p.shopId] = [];
+        if (!shopIdToProducts[p.shopId].includes(p.name)) {
+          shopIdToProducts[p.shopId].push(p.name);
+        }
+      });
+
+      const shopIdsFromProducts = Object.keys(shopIdToProducts);
+
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { category: { $regex: search, $options: 'i' } },
+        { _id: { $in: shopIdsFromProducts } }
+      ];
     }
 
     const latitude = parseFloat(lat);
     const longitude = parseFloat(lng);
     const searchRadius = parseFloat(radius);
-
-    if (isNaN(latitude) || isNaN(longitude)) {
-      return res.status(400).json({ error: 'Invalid coordinates' });
-    }
-
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const shops = await Shop.find({
-      ...filter,
-      location: {
-        $near: {
-          $geometry: { type: 'Point', coordinates: [longitude, latitude] },
-          $maxDistance: (isNaN(searchRadius) ? 10 : searchRadius) * 1000 // Convert km to meters
-        }
-      }
-    })
-    .select('-razorpayKeySecret')
-    .skip(skip)
-    .limit(parseInt(limit));
+    // 2. Perform the search
+    let shops = [];
+    const hasCoords = !isNaN(latitude) && !isNaN(longitude);
 
-    res.json({ success: true, shops });
+    try {
+      if (hasCoords) {
+        // Use aggregation for distance
+        const pipeline = [
+          {
+            $geoNear: {
+              near: { type: 'Point', coordinates: [longitude, latitude] },
+              distanceField: 'rawDistance',
+              maxDistance: (isNaN(searchRadius) ? 10 : searchRadius) * 1000,
+              query: filter,
+              spherical: true
+            }
+          },
+          {
+            $set: {
+              distance: { $round: [{ $divide: ['$rawDistance', 1000] }, 1] }
+            }
+          },
+          {
+            $project: {
+              razorpayKeySecret: 0
+            }
+          }
+        ];
+        shops = await Shop.aggregate(pipeline);
+      } else {
+        // Fallback or no coords: standard find
+        shops = await Shop.find(filter)
+          .select('-razorpayKeySecret')
+          .sort({ isSponsored: -1, rating: -1 })
+          .limit(parseInt(limit) * 2)
+          .lean();
+      }
+    } catch (geoErr) {
+      console.warn('Spatial query failed, falling back to basic listing:', geoErr.message);
+      shops = await Shop.find(filter)
+        .select('-razorpayKeySecret')
+        .sort({ isSponsored: -1, rating: -1 })
+        .limit(parseInt(limit) * 2)
+        .lean();
+    }
+
+    // 3. Attach matched products and final sorting
+    shops = shops.map(shop => ({
+      ...shop,
+      matchedProducts: shopIdToProducts[shop._id] || []
+    }));
+
+    // Re-sort to prioritize: 1. Sponsored, 2. Rating, 3. Distance
+    shops.sort((a, b) => {
+      // 1. Sponsored first
+      if (a.isSponsored && !b.isSponsored) return -1;
+      if (!a.isSponsored && b.isSponsored) return 1;
+      
+      // 2. Best rating next
+      const ratingA = a.rating || 0;
+      const ratingB = b.rating || 0;
+      if (ratingB !== ratingA) return ratingB - ratingA;
+      
+      // 3. Distance (if available)
+      if (a.distance !== undefined && b.distance !== undefined) {
+        return a.distance - b.distance;
+      }
+      return 0;
+    });
+
+    res.json({ 
+      success: true, 
+      shops: shops.slice(skip, skip + parseInt(limit)) 
+    });
   } catch (err) {
-    console.error('getNearbyShops Error:', err);
-    res.status(500).json({ error: 'Geospatial search failed. Ensure shops have valid location data.', details: err.message });
+    console.error('getNearbyShops Critical Error:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Search failed.', 
+      details: err.message 
+    });
   }
 };
 
