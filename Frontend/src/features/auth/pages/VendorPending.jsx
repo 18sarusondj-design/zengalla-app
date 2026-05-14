@@ -75,7 +75,6 @@ const VendorPending = () => {
   const totalPrice = (selectedPlan === 'premium' ? 999 : 499) + (addSponsorship ? 199 : 0);
 
   return (
-  return (
     <div className="md:h-screen w-full bg-sky-50 flex flex-col items-center p-2 md:p-4 font-sans relative md:overflow-hidden min-h-screen overflow-y-auto text-slate-900">
       {/* Background Decor */}
       <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-sky-400/20 rounded-full blur-[120px] pointer-events-none" />
