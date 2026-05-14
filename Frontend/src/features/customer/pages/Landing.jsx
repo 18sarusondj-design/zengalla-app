@@ -42,7 +42,7 @@ const Landing = () => {
           "@type": "Organization",
           "name": "ZenGalla",
           "url": "https://zengalla-app-vrkx.vercel.app",
-          "logo": "https://zengalla-app-vrkx.vercel.app/pwa-512.png",
+          "logo": "https://zengalla-app-vrkx.vercel.app/logo.png",
           "description": "Premium Grocery & Marketplace"
         }}
       />
@@ -56,16 +56,12 @@ const Landing = () => {
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/3 pointer-events-none" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-sky-600/5 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative max-w-[1400px] mx-auto px-6 pt-20 pb-24 text-center">
+        <div className="relative max-w-[1400px] mx-auto px-6 pt-12 pb-16 text-center">
           <div className="flex justify-center mb-6 animate-in zoom-in duration-1000">
-            <Logo className="h-20" variant="full" />
+            <Logo className="h-16" variant="full" white />
           </div>
 
-
-          <h1 className="text-5xl sm:text-6xl font-black text-white tracking-tighter uppercase leading-[0.9] mb-6">
-            Zen<span className="text-sky-400">galla</span>
-          </h1>
-          <p className="text-sm text-white/50 font-bold uppercase tracking-[0.15em] leading-relaxed mb-10 max-w-xs mx-auto">
+          <p className="text-[10px] sm:text-xs text-white/50 font-bold uppercase tracking-[0.2em] leading-relaxed mb-8 max-w-xs mx-auto animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300">
             Connect with your favorite local stores and shop with ease.
           </p>
 
@@ -73,11 +69,10 @@ const Landing = () => {
             <button
               onClick={() => navigate('/shops')}
               aria-label="Explore nearby shops"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-3 h-14 px-10 bg-sky-500 hover:bg-sky-600 text-white rounded-2xl shadow-2xl shadow-sky-900/40 font-black uppercase tracking-widest text-[11px] active:scale-95 transition-all group"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-3 h-10 px-8 bg-sky-500 hover:bg-sky-600 text-white rounded-xl shadow-2xl shadow-sky-900/40 font-black uppercase tracking-widest text-[9px] active:scale-95 transition-all group whitespace-nowrap"
             >
-              Explore Nearby Shops <ArrowRight size={16} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" />
+              Explore Nearby Shops <ArrowRight size={14} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" />
             </button>
-
 
             <PWAInstallButton variant="hero" />
           </div>
@@ -94,10 +89,10 @@ const Landing = () => {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { num: '01', icon: <Logo variant="icon" className="w-6 h-6 bg-transparent p-0" />, title: 'Find Store', desc: 'Browse verified local vendors near you.' },
-              { num: '02', icon: <ShoppingBag size={24} />, title: 'Fill Cart', desc: 'Add products with ease.' },
-              { num: '03', icon: <Smartphone size={24} />, title: 'Scan & Pay', desc: 'Instant UPI payment.' },
-              { num: '04', icon: <Truck size={24} />, title: 'Get Goods', desc: 'Pickup or delivery options.' },
+              { num: '01', icon: <Store size={22} strokeWidth={2.5} />, title: 'Find Store', desc: 'Browse verified local vendors near you.' },
+              { num: '02', icon: <ShoppingBag size={22} strokeWidth={2.5} />, title: 'Fill Cart', desc: 'Add products with ease.' },
+              { num: '03', icon: <Smartphone size={22} strokeWidth={2.5} />, title: 'Scan & Pay', desc: 'Instant UPI payment.' },
+              { num: '04', icon: <Truck size={22} strokeWidth={2.5} />, title: 'Get Goods', desc: 'Pickup or delivery options.' },
             ].map(({ num, icon, title, desc }) => (
               <div key={num} className="bg-white border border-gray-100 rounded-[32px] p-6 flex flex-col gap-4 shadow-sm hover:shadow-xl hover:border-sky-100 transition-all group">
                 <div className="flex items-center justify-between">
