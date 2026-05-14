@@ -240,19 +240,6 @@ const AdminProfile = () => {
                 
               </div>
 
-              {/* Action Bar */}
-              <div className="mt-3 flex-shrink-0 flex items-center justify-between bg-white/60 backdrop-blur-md rounded-[24px] p-2 border border-gray-100 shadow-xl">
-                 <div className="ml-6 flex items-center gap-2">
-                   <div className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
-                   <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest italic">Live Changes</p>
-                 </div>
-                 <button 
-                  type="submit" disabled={loading}
-                  className={`h-14 px-10 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-2xl hover:brightness-110 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50 ${isSuccess ? 'bg-emerald-600 text-white' : 'bg-gray-900 text-white hover:bg-black'}`}
-                >
-                  {loading ? <Loader2 className="animate-spin" size={20} /> : isSuccess ? <><CheckCircle size={20} /> Success</> : <><Save size={20} /> Update Profile</>}
-                </button>
-              </div>
             </form>
           </div>
         </div>
