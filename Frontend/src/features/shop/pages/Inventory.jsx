@@ -13,10 +13,11 @@ const Inventory = () => {
 
   // -- Auto-Fetch Shop if missing --
   useEffect(() => {
-    if (token && !vendorShop) {
-      fetchVendorShop();
+    if (token) {
+      if (!vendorShop) fetchVendorShop();
+      fetchData(); // Trigger full data fetch for inventory
     }
-  }, [token, vendorShop, fetchVendorShop]);
+  }, [token, vendorShop, fetchVendorShop, fetchData]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('INFO'); // 'INFO' or 'STOCK'

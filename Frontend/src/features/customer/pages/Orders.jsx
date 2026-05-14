@@ -7,7 +7,7 @@ import { useQueryParam } from '../../../hooks/useQueryParam';
 import Logo from '../../common/components/Logo';
 
 const CustomerOrders = () => {
-  const { orders, deleteOrder, currentShopId, clearMyOrderHistory, setCurrentShopId } = useStore();
+  const { orders, deleteOrder, currentShopId, clearMyOrderHistory, setCurrentShopId, fetchCustomerOrders } = useStore();
   const navigate = useNavigate();
 
   // Filter orders by shopId if in shop mode
@@ -25,6 +25,10 @@ const CustomerOrders = () => {
     // Otherwise show orders for the active shop
     return orderShopId === activeShopId;
   });
+
+  React.useEffect(() => {
+    fetchCustomerOrders();
+  }, [fetchCustomerOrders]);
 
   const [activeTab, setActiveTab] = useQueryParam('tab', 'ACTIVE');
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../auth/context/AuthContext';
 import { toast } from 'sonner';
-import { Store, Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { Store, Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, ShieldCheck, Truck } from 'lucide-react';
 import Logo from '../../common/components/Logo';
 
 const Login = () => {
@@ -69,6 +69,15 @@ const Login = () => {
           className="absolute inset-0 w-full h-full object-cover scale-105 animate-pulse-slow"
           alt="Branding"
         />
+        
+        {/* Delivery Entry Icon */}
+        <Link 
+          to="/delivery-login"
+          className="absolute top-8 left-8 z-20 w-12 h-12 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl flex items-center justify-center text-white hover:bg-sky-500 hover:border-sky-400 transition-all duration-300 shadow-2xl group"
+          title="Delivery Login"
+        >
+          <Truck size={22} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
+        </Link>
         <div className="absolute inset-0 bg-gradient-to-tr from-gray-900 via-gray-900/40 to-transparent flex flex-col justify-end p-16">
           <div className="animate-fade-in-up">
             <div className="w-20 h-20 flex items-center justify-center mb-8 transform -rotate-3">
@@ -93,6 +102,14 @@ const Login = () => {
             alt="Branding Mobile"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-sky-900/70 via-sky-900/40 to-slate-50" />
+          
+          {/* Mobile Delivery Entry Icon */}
+          <Link 
+            to="/delivery-login"
+            className="absolute top-6 left-6 z-20 w-10 h-10 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl flex items-center justify-center text-white active:scale-95 transition-all shadow-lg"
+          >
+            <Truck size={18} strokeWidth={2.5} />
+          </Link>
           <div className="absolute bottom-8 left-8 right-8">
             <div className="flex items-center gap-4">
               <Logo className="h-14" variant="full" white />

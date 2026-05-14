@@ -26,7 +26,7 @@ const ShopList = () => {
   const [topSponsoredShops, setTopSponsoredShops] = useState([]);
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const { shops: contextShops, products, totalCartItemCount, fetchNearbyShops } = useStore();
+  const { shops: contextShops, products, totalCartItemCount, fetchNearbyShops, fetchShops: fetchContextShops } = useStore();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -58,7 +58,8 @@ const ShopList = () => {
 
   useEffect(() => {
     detectLocation();
-  }, []);
+    fetchContextShops(); // Pre-fetch baseline shops
+  }, [fetchContextShops]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

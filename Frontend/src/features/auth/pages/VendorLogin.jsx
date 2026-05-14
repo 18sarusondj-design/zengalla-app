@@ -168,19 +168,12 @@ const VendorLogin = () => {
                   <div className="flex-1 h-px bg-gray-100" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1">
                   <Link
                     to="/staff-login"
                     className="h-12 border border-gray-100 rounded-xl hover:border-sky-500/30 hover:bg-sky-50/20 transition-all flex items-center justify-center gap-2 text-gray-900 font-black uppercase tracking-widest text-[8px] active:scale-95"
                   >
-                    <ShieldCheck size={14} className="text-sky-500" /> Staff
-                  </Link>
-
-                  <Link
-                    to="/delivery-login"
-                    className="h-12 border border-gray-100 rounded-xl hover:border-sky-500/30 hover:bg-sky-50/20 transition-all flex items-center justify-center gap-2 text-gray-900 font-black uppercase tracking-widest text-[8px] active:scale-95"
-                  >
-                    <Truck size={14} className="text-sky-500" /> Delivery
+                    <ShieldCheck size={14} className="text-sky-500" /> Staff Login
                   </Link>
                 </div>
               </form>

@@ -32,7 +32,7 @@ const StatCard = ({ label, value, color, alert, trend }) => {
 }
 
 const Dashboard = () => {
-  const { orders = [], products = [], deleteOrder } = useStore();
+  const { orders = [], products = [], deleteOrder, fetchVendorData } = useStore();
   const { token, user } = useAuth();
   const navigate = useNavigate();
 
@@ -109,8 +109,11 @@ const Dashboard = () => {
         console.error('Failed to fetch shop details:', err);
       }
     };
-    if (user?.id) fetchShop();
-  }, [user]);
+    if (user?.id) {
+      fetchShop();
+      fetchVendorData();
+    }
+  }, [user, fetchVendorData]);
 
   const shopId = shop?._id || shop?.id;
   // Context orders for vendors are already scoped to their shop by the backend

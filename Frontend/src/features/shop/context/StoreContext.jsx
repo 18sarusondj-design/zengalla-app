@@ -40,58 +40,81 @@ export const StoreProvider = ({ children }) => {
     else localStorage.removeItem('currentShopId');
   }, [currentShopId]);
 
-  // -- Data Fetching --
+  // -- Granular Data Fetching --
+  const fetchShops = useCallback(async () => {
+    try {
+      const shopsRes = await api.get('/shops');
+      if (shopsRes.data?.shops) setShops(shopsRes.data.shops);
+    } catch (err) {
+      console.error('fetchShops error:', err.message);
+    }
+  }, []);
+
+  const fetchVendorData = useCallback(async () => {
+    if (!user || (user.role !== 'vendor' && user.role !== 'staff')) return;
+    try {
+      const shopRes = await api.get('/shops/my');
+      const vShop = shopRes.data?.shop || null;
+      setVendorShop(vShop);
+
+      if (vShop) {
+        const [prodRes, ordRes] = await Promise.all([
+          api.get(`/products?shopId=${vShop._id}`),
+          api.get(`/orders?shopId=${vShop._id}`),
+        ]);
+        if (prodRes.data?.products) setProducts(prodRes.data.products);
+        if (ordRes.data?.orders) setOrders(ordRes.data.orders);
+      }
+    } catch (err) {
+      console.error('fetchVendorData error:', err.message);
+    }
+  }, [user]);
+
+  const fetchCustomerOrders = useCallback(async () => {
+    if (!user || user.role !== 'customer') return;
+    try {
+      const ordRes = await api.get('/orders/my');
+      if (ordRes.data?.orders) setOrders(ordRes.data.orders);
+    } catch (err) {
+      console.error('fetchCustomerOrders error:', err.message);
+    }
+  }, [user]);
+
+  const fetchAdminOrders = useCallback(async () => {
+    if (!user || user.role !== 'admin') return;
+    try {
+      const ordRes = await api.get('/orders');
+      if (ordRes.data?.orders) setOrders(ordRes.data.orders);
+    } catch (err) {
+      console.error('fetchAdminOrders error:', err.message);
+    }
+  }, [user]);
+
   const fetchData = useCallback(async () => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
     setLoading(true);
-    try {
-      // Fetch all shops
-      const shopsRes = await api.get('/shops');
-      if (shopsRes.data?.shops) setShops(shopsRes.data.shops);
+    
+    // Default fetch: just shops for discovery
+    await fetchShops();
 
-      if (user?._id || user?.id) {
-        const userId = user?._id || user?.id;
-        if (user.role === 'vendor' || user.role === 'staff') {
-          // Fetch vendor's shop
-          const shopRes = await api.get('/shops/my');
-          const vShop = shopRes.data?.shop || null;
-          setVendorShop(vShop);
-
-          if (vShop) {
-            // Fetch products for vendor shop
-            const [prodRes, ordRes] = await Promise.all([
-              api.get(`/products?shopId=${vShop._id}`),
-              api.get(`/orders?shopId=${vShop._id}`),
-            ]);
-            if (prodRes.data?.products) setProducts(prodRes.data.products);
-            if (ordRes.data?.orders) setOrders(ordRes.data.orders);
-          }
-        } else if (user.role === 'admin') {
-          // Super Admin: fetch all platform orders
-          const ordRes = await api.get('/orders');
-          if (ordRes.data?.orders) setOrders(ordRes.data.orders);
-        } else {
-          // Customer: fetch their orders
-          const ordRes = await api.get('/orders/my');
-          if (ordRes.data?.orders) setOrders(ordRes.data.orders);
-        }
-      }
-    } catch (err) {
-      console.error('fetchData error:', err.message);
-    } finally {
-      setLoading(false);
-      isFetchingRef.current = false;
-      // Initialize prevOrderCountRef on first fetch
-      if (prevOrderCountRef.current === 0 && orders.length > 0) {
-        prevOrderCountRef.current = orders.length;
+    if (user) {
+      if (user.role === 'vendor' || user.role === 'staff') {
+        await fetchVendorData();
+      } else if (user.role === 'admin') {
+        await fetchAdminOrders();
+      } else {
+        await fetchCustomerOrders();
       }
     }
-  }, [user?._id, user?.id, user?.role]);
+    
+    setLoading(false);
+    isFetchingRef.current = false;
+  }, [user, fetchShops, fetchVendorData, fetchAdminOrders, fetchCustomerOrders]);
 
-  useEffect(() => {
-    if (token !== undefined) fetchData();
-  }, [token, fetchData]);
+  // REMOVED: Global useEffect that fetches on token change. 
+  // Pages will now call fetchData() or specific fetchers as needed.
+
 
   // -- Real-time Order Notification for Admin --
   useEffect(() => {
@@ -755,7 +778,7 @@ export const StoreProvider = ({ children }) => {
     products, shops, orders, setOrders, cart, currentShopId, setCurrentShopId,
     loading, vendorShop, customerGstin, setCustomerGstin,
     cartTotal, totalCartItemCount,
-    fetchData, fetchVendorShop, fetchNearbyShops,
+    fetchData, fetchShops, fetchVendorData, fetchCustomerOrders, fetchAdminOrders, fetchVendorShop, fetchNearbyShops,
     toggleShopStatus, updateShop,
     addToCart, removeFromCart, clearCart, updateQuantity, setItemQuantity,
     placeOrder, cancelOrder,
@@ -769,7 +792,7 @@ export const StoreProvider = ({ children }) => {
   }), [
     products, shops, orders, cart, currentShopId, loading, vendorShop,
     customerGstin, cartTotal, totalCartItemCount,
-    fetchData, fetchVendorShop, fetchNearbyShops,
+    fetchData, fetchShops, fetchVendorData, fetchCustomerOrders, fetchAdminOrders, fetchVendorShop, fetchNearbyShops,
     toggleShopStatus, updateShop,
     addToCart, removeFromCart, clearCart, updateQuantity, setItemQuantity,
     placeOrder, cancelOrder,

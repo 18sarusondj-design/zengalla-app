@@ -13,7 +13,28 @@ const SystemUpdateBanner = () => {
                 const isDismissed = sessionStorage.getItem('system-update-dismissed');
                 if (isDismissed) return;
 
-                const response = await api.get('/system/maintenance');
+                // Caching: Only check every 10 minutes to save API calls
+                const lastCheck = sessionStorage.getItem('maintenance-last-check');
+                const cachedData = sessionStorage.getItem('maintenance-data');
+                
+                if (lastCheck && cachedData && (Date.now() - parseInt(lastCheck) < 600000)) {
+                    const data = JSON.parse(cachedData);
+                    if (data?.settings?.isActive) {
+                        const s = data.settings;
+                        if (s.scheduledTime && new Date(s.scheduledTime) > new Date()) {
+                            setSettings(s);
+                            setVisible(true);
+                        }
+                    }
+                    return;
+                }
+
+                // Use a short timeout for this non-critical check
+                const response = await api.get('/system/maintenance', { timeout: 5000 });
+                
+                sessionStorage.setItem('maintenance-last-check', Date.now().toString());
+                sessionStorage.setItem('maintenance-data', JSON.stringify(response.data));
+
                 if (response.data?.settings?.isActive) {
                     const s = response.data.settings;
                     
@@ -24,7 +45,8 @@ const SystemUpdateBanner = () => {
                     }
                 }
             } catch (err) {
-                console.error("Maintenance check failed:", err);
+                // Silently fail for maintenance check to not disturb user experience
+                console.debug("Maintenance check skipped:", err.message);
             }
         };
 

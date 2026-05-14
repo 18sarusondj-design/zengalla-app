@@ -24,7 +24,8 @@ axiosRetry(api, {
 // Request Deduplication & Cache
 const pendingRequests = new Map();
 const cache = new Map();
-const CACHE_TTL = 5000; // 5 seconds cache for GET requests
+const CACHE_TTL = 5000; // Default 5 seconds cache
+const LONG_CACHE_TTL = 60000; // 1 minute cache for static-ish data
 
 // Helper to generate a unique key for a request
 const getRequestKey = (config) => {
@@ -38,10 +39,13 @@ api.interceptors.request.use((config) => {
   // Only deduplicate and cache GET requests
   if (config.method === 'get') {
     const key = getRequestKey(config);
+    
+    // Determine TTL: System maintenance and settings get longer cache
+    const ttl = config.url.includes('/system/') ? LONG_CACHE_TTL : CACHE_TTL;
 
     // Check Cache
     const cached = cache.get(key);
-    if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+    if (cached && (Date.now() - cached.timestamp < ttl)) {
        config.adapter = () => Promise.resolve({
          data: cached.data,
          status: 200,
@@ -88,6 +92,11 @@ api.interceptors.response.use(
     if (config?.requestKey) {
       if (config.resolvePending) config.resolvePending();
       pendingRequests.delete(config.requestKey);
+    }
+
+    // Handle timeout specifically for better user feedback
+    if (error.code === 'ECONNABORTED' && error.message.includes('timeout')) {
+      return Promise.reject(new Error('Network is slow. Request timed out.'));
     }
 
     const msg = error.response?.data?.error || error.message;
