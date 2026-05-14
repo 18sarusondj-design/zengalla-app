@@ -244,7 +244,7 @@ const Billing = () => {
   );
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] bg-gray-50/50 p-4 lg:p-6 overflow-hidden">
+    <div className="flex flex-col md:h-screen md:overflow-hidden min-h-screen bg-gray-50/50 p-2 lg:p-6 overflow-hidden font-sans">
       {/* Header with Customer Info */}
       <div className="bg-white rounded-[40px] shadow-sm border border-gray-100 p-6 mb-6 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex items-center gap-4">
@@ -293,9 +293,9 @@ const Billing = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0 overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0 md:overflow-hidden">
         {/* Product Selection */}
-        <div className="lg:col-span-7 flex flex-col min-h-0 bg-white rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+        <div className="lg:col-span-7 flex flex-col min-h-0 bg-white rounded-[40px] shadow-sm border border-gray-100 md:overflow-hidden">
           <div className="p-6 border-b border-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3 w-full sm:w-auto">
               {/* Barcode Scanner Toggle */}
@@ -383,7 +383,7 @@ const Billing = () => {
         </div>
 
         {/* Cart / Invoice Summary */}
-        <div className="lg:col-span-5 flex flex-col min-h-0 bg-white rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+        <div className="lg:col-span-5 flex flex-col min-h-0 bg-white rounded-[40px] shadow-sm border border-gray-100 md:overflow-hidden">
           <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
             <div className="flex items-center gap-2">
               <ReceiptIcon size={18} className="text-sky-500" />
