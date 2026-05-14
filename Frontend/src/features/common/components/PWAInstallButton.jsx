@@ -10,13 +10,13 @@ const PWAInstallButton = ({ variant = 'default', className = "" }) => {
   const isInStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
   if (isInStandalone) return null;
 
-  const baseStyles = "flex flex-col items-center justify-center gap-1 transition-all font-black uppercase tracking-widest active:scale-95 text-center";
+  const baseStyles = "flex items-center justify-center gap-2 transition-all font-black uppercase tracking-widest active:scale-95 text-center";
   
   const variants = {
     default: `px-4 py-2.5 rounded-xl text-sky-600 bg-sky-50 hover:bg-sky-100 border border-sky-100 shadow-sm ${baseStyles}`,
-    hero: `h-14 px-10 bg-sky-500 hover:bg-sky-600 text-white rounded-2xl shadow-2xl shadow-sky-900/40 text-[11px] border border-sky-400/30 ${baseStyles}`,
-    banner: `w-full h-full px-5 py-4 bg-gradient-to-br from-sky-500 to-sky-600 text-white rounded-3xl shadow-lg ${baseStyles}`,
-    sidebar: `px-4 py-3.5 rounded-2xl w-full text-sky-600 bg-sky-50 hover:bg-sky-100 text-xs tracking-tight border border-sky-100 shadow-sm ${baseStyles}`
+    hero: `h-10 px-8 bg-sky-500 hover:bg-sky-600 text-white rounded-xl shadow-2xl shadow-sky-900/40 text-[9px] border border-sky-400/30 whitespace-nowrap ${baseStyles}`,
+    banner: `w-full h-full px-5 py-4 bg-gradient-to-br from-sky-500 to-sky-600 text-white rounded-3xl shadow-lg flex-col ${baseStyles}`,
+    sidebar: `px-4 py-3.5 rounded-2xl w-full text-sky-600 bg-sky-50 hover:bg-sky-100 text-xs tracking-tight border border-sky-100 shadow-sm flex-col ${baseStyles}`
   };
 
   const handleAction = () => {
