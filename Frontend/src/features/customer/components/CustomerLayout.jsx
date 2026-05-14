@@ -196,7 +196,7 @@ const CustomerLayout = () => {
                     <ChevronLeft size={24} strokeWidth={3} />
                   </button>
                 )}
-                <Logo className="h-10" />
+                <Logo className="h-10" variant="full" white />
               </div>
 
               {/* Top Right Cart Icon - Visible everywhere except Home and Orders */}
@@ -250,7 +250,7 @@ const CustomerLayout = () => {
                 // 🎁 Simplified Guest Navigation
                 <>
                   <NavItem to="/" icon={<Home size={22} />} label="Home" />
-                  <NavItem to="/shops" icon={<Logo variant="icon" className="h-5 w-5 bg-transparent p-0" />} label="Shops" />
+                  <NavItem to="/shops" icon={<Store size={22} />} label="Shops" />
                   <NavItem to="/cart" icon={<ShoppingCart size={22} />} label="Cart" badge={totalCartItemCount > 0 ? Math.floor(totalCartItemCount) : null} />
                   <NavItem to="/profile" icon={<User size={22} />} label="Login" />
                 </>
@@ -259,7 +259,7 @@ const CustomerLayout = () => {
                 <>
                   <NavItem to="/" icon={<Home size={22} />} label="Home" />
                   <NavItem to="/my-shops" icon={<Clock size={22} />} label="Recent" />
-                  <NavItem to="/shops" icon={<Logo variant="icon" className="h-5 w-5 bg-transparent p-0" />} label="Shops" />
+                  <NavItem to="/shops" icon={<Store size={22} />} label="Shops" />
                   <NavItem to="/cart" icon={<ShoppingCart size={22} />} label="Cart" badge={totalCartItemCount > 0 ? Math.floor(totalCartItemCount) : null} />
                   <NavItem to="/orders" icon={<ClipboardList size={22} />} label="Orders" />
                   <NavItem to="/profile" icon={<User size={22} />} label="Profile" />
