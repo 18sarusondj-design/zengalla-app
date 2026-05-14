@@ -8,9 +8,7 @@ import { toast } from 'sonner';
 import { QRCodeSVG } from 'qrcode.react';
 import CustomerReportModal from '../components/CustomerReportModal';
 import ReviewModal from '../components/ReviewModal';
-import { GoogleMap, Marker, useJsApiLoader, Polyline } from '@react-google-maps/api';
-
-const LIBRARIES = ['places', 'geometry'];
+import LeafletMap from '../../common/components/LeafletMap';
 
 const OrderStatus = () => {
   const location = useLocation();
@@ -22,29 +20,7 @@ const OrderStatus = () => {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
   const [trackingData, setTrackingData] = useState(null);
-  const mapRef = useRef(null);
 
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "AIzaSyA87K78i9m6eLHk8jfzeCF-A400ATGX59g",
-    libraries: LIBRARIES
-  });
-
-  // Auto-center and fit bounds when tracking data changes
-  useEffect(() => {
-    if (isLoaded && mapRef.current && trackingData?.driverLocation && trackingData?.deliveryLocation) {
-      const bounds = new window.google.maps.LatLngBounds();
-      bounds.extend(new window.google.maps.LatLng(trackingData.driverLocation.lat, trackingData.driverLocation.lng));
-      bounds.extend(new window.google.maps.LatLng(trackingData.deliveryLocation.lat, trackingData.deliveryLocation.lng));
-      mapRef.current.fitBounds(bounds, 50); // 50px padding
-      
-      // Limit zoom if markers are too close
-      const listener = window.google.maps.event.addListener(mapRef.current, 'idle', () => {
-        if (mapRef.current.getZoom() > 16) mapRef.current.setZoom(16);
-        window.google.maps.event.removeListener(listener);
-      });
-    }
-  }, [isLoaded, trackingData?.driverLocation, trackingData?.deliveryLocation]);
   
   // Get order ID from state (post-checkout) or default to newest order for demo
   const orderId = location.state?.orderId || (orders[0]?._id || orders[0]?.id);
@@ -78,6 +54,28 @@ const OrderStatus = () => {
       return () => clearInterval(interval);
     }
   }, [order?.status]);
+
+  const trackingMarkers = [];
+  if (trackingData?.deliveryLocation) {
+    trackingMarkers.push({
+      lat: trackingData.deliveryLocation.lat,
+      lng: trackingData.deliveryLocation.lng,
+      iconUrl: "https://cdn-icons-png.flaticon.com/512/1239/1239525.png",
+      label: "You"
+    });
+  }
+  if (trackingData?.driverLocation) {
+    trackingMarkers.push({
+      lat: trackingData.driverLocation.lat,
+      lng: trackingData.driverLocation.lng,
+      iconUrl: "https://cdn-icons-png.flaticon.com/512/2972/2972185.png",
+      label: "Driver"
+    });
+  }
+
+  const trackingPolyline = trackingData?.driverLocation && trackingData?.deliveryLocation 
+    ? [trackingData.driverLocation, trackingData.deliveryLocation]
+    : null;
 
   useEffect(() => {
     if (order && order.status === 'COMPLETED') {
@@ -189,45 +187,15 @@ const OrderStatus = () => {
         {/* Live Tracking Map */}
         {(currentStatus === 'OUT_FOR_DELIVERY' || currentStatus === 'ASSIGNED') && (
            <div className="bg-white rounded-[40px] p-2 shadow-xl border border-gray-100 overflow-hidden relative group h-[300px] mb-3">
-              {isLoaded && trackingData?.driverLocation ? (
-                <GoogleMap
-                  mapContainerStyle={{ width: '100%', height: '100%', borderRadius: '32px' }}
-                  center={trackingData?.driverLocation || trackingData?.deliveryLocation || { lat: 0, lng: 0 }}
+              {trackingData?.driverLocation ? (
+                <LeafletMap 
+                  height="100%"
+                  center={trackingData.driverLocation}
                   zoom={15}
-                  onLoad={(map) => { mapRef.current = map; }}
-                  onUnmount={() => { mapRef.current = null; }}
-                  options={{
-                    disableDefaultUI: true,
-                    styles: [{ "featureType": "poi", "stylers": [{ "visibility": "off" }] }]
-                  }}
-                >
-                  {trackingData?.deliveryLocation && (
-                    <Marker 
-                      position={trackingData.deliveryLocation}
-                      icon={{
-                        url: "https://cdn-icons-png.flaticon.com/512/1239/1239525.png",
-                        scaledSize: new window.google.maps.Size(40, 40)
-                      }}
-                      title="You"
-                    />
-                  )}
-                  {trackingData?.driverLocation && (
-                    <Marker 
-                      position={trackingData.driverLocation}
-                      icon={{
-                        url: "https://cdn-icons-png.flaticon.com/512/2972/2972185.png",
-                        scaledSize: new window.google.maps.Size(45, 45)
-                      }}
-                      title="Driver"
-                    />
-                  )}
-                  {trackingData?.driverLocation && trackingData?.deliveryLocation && (
-                    <Polyline 
-                      path={[trackingData.driverLocation, trackingData.deliveryLocation]}
-                      options={{ strokeColor: '#f97316', strokeOpacity: 0.8, strokeWeight: 4, icons: [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 }, offset: '0', repeat: '20px' }] }}
-                    />
-                  )}
-                </GoogleMap>
+                  markers={trackingMarkers}
+                  polyline={trackingPolyline}
+                  autoDetect={false}
+                />
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50 gap-4">
                   <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center text-slate-300 shadow-lg animate-pulse">
@@ -244,7 +212,7 @@ const OrderStatus = () => {
                 </div>
               )}
               
-              <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md p-4 rounded-[24px] shadow-lg flex items-center justify-between border border-white">
+              <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md p-4 rounded-[24px] shadow-lg flex items-center justify-between border border-white z-[1000]">
                  <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-sky-500 rounded-2xl flex items-center justify-center text-white">
                        <Truck size={20} />
