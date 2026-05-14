@@ -303,7 +303,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col md:h-screen md:overflow-hidden min-h-screen p-2 md:p-4 bg-slate-50">
 
       {/* FIXED TOP SECTION: Header & Stats */}
       <div className="flex-none pr-4">
@@ -397,8 +397,8 @@ const Dashboard = () => {
       </div>
 
       {/* Analytics & Guides */}
-      <div className="flex-1 pr-4 pb-4 min-h-0">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="flex-1 md:overflow-y-auto custom-scrollbar pb-4 min-h-0">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
           
           {/* Revenue Chart Section */}
           <div className="lg:col-span-2 bg-white rounded-[32px] md:rounded-[40px] shadow-2xl shadow-gray-200/50 border border-gray-100 overflow-hidden flex flex-col p-4 md:p-6 h-full">
