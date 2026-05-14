@@ -299,9 +299,9 @@ const DeliveryManagement = () => {
   );
 
   return (
-    <div className="flex flex-col h-full bg-white md:p-8 p-4 rounded-[48px] border border-gray-100 shadow-sm relative overflow-hidden font-sans">
+    <div className="flex flex-col md:h-screen md:overflow-hidden min-h-screen bg-gray-50/50 p-2 lg:p-6 overflow-hidden font-sans">
       {/* Header */}
-      <div className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6 pb-10 border-b border-gray-100/50">
+      <div className="mb-6 md:mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 md:pb-10 border-b border-gray-100/50 flex-shrink-0">
         <div>
           <h1 className="text-4xl font-black text-gray-900 tracking-tight uppercase leading-none">Delivery Fleet</h1>
           <p className="text-gray-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-2">Logistics & Distribution Hub</p>
@@ -353,9 +353,9 @@ const DeliveryManagement = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 flex-1 min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 flex-1 min-h-0 md:overflow-hidden">
         {/* Config Column */}
-        <div className="lg:col-span-1 space-y-6">
+        <div className="w-full lg:w-80 space-y-6 md:overflow-y-auto custom-scrollbar pb-4 lg:pb-0">
            <div className="bg-gradient-to-br from-sky-50/80 to-white rounded-[32px] p-8 border border-sky-100/50 shadow-sm relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-sky-100/20 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-150 duration-700" />
               
@@ -400,7 +400,7 @@ const DeliveryManagement = () => {
         </div>
 
         {/* List Column */}
-        <div className="lg:col-span-3 flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col min-h-0 md:overflow-hidden">
           <div className="space-y-4 flex-1 overflow-y-auto pr-4 custom-scrollbar">
             {partners.length === 0 && (
                <div className="bg-white rounded-[40px] p-20 border border-dashed border-gray-200 flex flex-col items-center justify-center text-center">
