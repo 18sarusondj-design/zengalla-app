@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   User, LogOut, ArrowLeft, Mail, Phone, Settings, Save,
   HelpCircle, Eye, EyeOff, ChevronRight, IndianRupee,
-  ShoppingCart, Wallet
+  ShoppingCart, Wallet, MapPin, X, Navigation
 } from 'lucide-react';
 import CustomerReportModal from '../components/CustomerReportModal';
 import { toast } from 'sonner';
@@ -12,24 +12,29 @@ import { useStore } from '../../shop/context/StoreContext';
 import { getPasswordStrength } from '../../../utils/passwordStrength';
 import api from '../../../config/api.js';
 import SEO from '../../common/components/SEO';
+import LeafletMap from '../../common/components/LeafletMap';
 import PWAInstallButton from '../../common/components/PWAInstallButton';
-
-
-
-
+import DeliveryLocationModal from '../components/DeliveryLocationModal';
 
 const Profile = () => {
-  const { user: authUser, token, logout, refreshUser, updateProfile } = useAuth();
-  const { totalCartItemCount, user: storeUser } = useStore();
-  const user = authUser || storeUser;
+  const { user, token, logout, refreshUser, updateProfile } = useAuth();
+  const { totalCartItemCount } = useStore();
   const navigate = useNavigate();
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     phone: user?.phone || '',
     password: '',
-    deliveryModeEnabled: user?.deliveryModeEnabled ?? true
+    deliveryModeEnabled: user?.deliveryModeEnabled ?? true,
+    location: user?.location?.coordinates ? {
+      lat: user.location.coordinates[1],
+      lng: user.location.coordinates[0]
+    } : null,
+    address: user?.address || '',
+    pincode: user?.pincode || ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -63,28 +68,55 @@ const Profile = () => {
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     setLoading(true);
+    const toastId = toast.loading('Updating profile...');
     try {
-      // Update custom profile data
       const result = await updateProfile({
         name: formData.name,
         phone: formData.phone,
-        deliveryModeEnabled: formData.deliveryModeEnabled
+        deliveryModeEnabled: formData.deliveryModeEnabled,
+        location: formData.location ? {
+          type: 'Point',
+          coordinates: [formData.location.lng, formData.location.lat]
+        } : undefined,
+        address: formData.address,
+        pincode: formData.pincode
       });
       
       if (!result.success) throw new Error(result.error || 'Failed to update profile');
 
-      // Update password if provided
       if (formData.password) {
         await api.put('/auth/password', { password: formData.password });
       }
 
       setIsEditing(false);
       setFormData(prev => ({ ...prev, password: '' }));
-      // Let the success toast come from updateProfile or handle it locally
+      toast.success('Profile updated successfully', { id: toastId });
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.message, { id: toastId });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLocationConfirm = async (data) => {
+    const toastId = toast.loading('Updating delivery point...');
+    try {
+      const result = await updateProfile({
+        location: {
+          type: 'Point',
+          coordinates: [data.lng, data.lat]
+        },
+        address: data.address,
+        pincode: data.pincode
+      });
+      if (result.success) {
+        toast.success('Location & Address updated!', { id: toastId });
+        setIsLocationModalOpen(false);
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (err) {
+      toast.error(err.message, { id: toastId });
     }
   };
 
@@ -103,7 +135,6 @@ const Profile = () => {
         className="px-8 py-3 bg-sky-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-sky-500/20">
         Go to Login
       </button>
-
     </div>
   );
 
@@ -115,24 +146,19 @@ const Profile = () => {
         canonical="/profile"
       />
 
-
-      {/* ── FULL-WIDTH HEADER ── */}
       <div className="w-full sticky top-0 z-50 overflow-hidden"
         style={{ background: 'linear-gradient(160deg, #075985 0%, #0369a1 40%, #1e40af 100%)' }}>
-        {/* Blobs */}
         <div className="absolute top-0 right-0 w-72 h-72 rounded-full pointer-events-none opacity-30"
           style={{ background: 'radial-gradient(circle,#fb923c 0%,transparent 70%)', transform: 'translate(35%,-55%)' }} />
         <div className="absolute bottom-0 left-0 w-56 h-56 rounded-full pointer-events-none opacity-20"
           style={{ background: 'radial-gradient(circle,#818cf8 0%,transparent 70%)', transform: 'translate(-35%,55%)' }} />
 
-        {/* Nav row */}
         <div className="relative flex items-center justify-between px-4 sm:px-8 pt-4 pb-2">
           <button onClick={() => navigate(-1)}
             aria-label="Go back"
             className="w-9 h-9 bg-white/10 hover:bg-white/20 border border-white/10 text-white rounded-full flex items-center justify-center transition-all">
             <ArrowLeft size={16} strokeWidth={2.5} />
           </button>
-
           <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.35em]">My Profile</p>
           <div className="flex items-center gap-2">
             <button onClick={() => navigate('/cart')}
@@ -152,9 +178,7 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* Hero — desktop: sidebar-style, mobile: stacked */}
         <div className="relative px-4 sm:px-8 pt-4 pb-8 flex flex-col sm:flex-row sm:items-center gap-4">
-          {/* Avatar */}
           <div className="relative w-fit">
             <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-[22px] sm:rounded-[26px] flex items-center justify-center text-3xl sm:text-4xl font-black text-white shadow-2xl"
               style={{ background: 'linear-gradient(135deg,#f97316,#ec4899)' }}>
@@ -163,7 +187,6 @@ const Profile = () => {
             <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-400 rounded-full border-2 border-[#0f172a]" />
           </div>
 
-          {/* Name & meta */}
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight truncate leading-none mb-2">
               {user.name}
@@ -178,7 +201,6 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* Desktop quick stats — show only on sm+ */}
           <div className="hidden sm:flex items-center gap-4 shrink-0">
             {user.role === 'customer' && (
               <>
@@ -199,11 +221,8 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* ── BODY ── */}
       <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-
         {isEditing ? (
-          /* ─── EDIT FORM: full width on mobile, centered card on desktop ─── */
           <form onSubmit={handleUpdateProfile}
             className="w-full max-w-xl mx-auto bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="px-6 pt-6 pb-3 border-b border-gray-50 flex items-center justify-between">
@@ -256,24 +275,64 @@ const Profile = () => {
                 <button type="button"
                   onClick={() => setFormData({ ...formData, deliveryModeEnabled: !formData.deliveryModeEnabled })}
                   className={`w-12 h-6 rounded-full transition-all relative ${formData.deliveryModeEnabled ? 'bg-sky-500' : 'bg-gray-300'}`}>
-                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-md transition-all ${formData.deliveryModeEnabled ? 'right-1' : 'left-1'}`} />
                 </button>
               </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">My Home Location</label>
+                <div className="rounded-2xl overflow-hidden border-2 border-gray-100">
+                  <LeafletMap 
+                    height="200px"
+                    userCoords={formData.location}
+                    onUserLocationChange={async (coords) => {
+                      setFormData(prev => ({ ...prev, location: coords }));
+                      try {
+                        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lng}&addressdetails=1&accept-language=en`);
+                        const data = await res.json();
+                        if (data) {
+                          const poiName = data.address?.shop || data.address?.amenity || data.address?.building || data.address?.office || data.address?.tourism;
+                          const fullAddress = poiName && !data.display_name.startsWith(poiName) 
+                            ? `${poiName}, ${data.display_name}` 
+                            : data.display_name;
+
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            address: fullAddress,
+                            pincode: data.address?.postcode?.split(' ')[0].replace(/\D/g, '').substring(0, 6) || data.display_name.match(/\b\d{6}\b/)?.[0] || prev.pincode
+                          }));
+                        }
+                      } catch (err) { console.error(err); }
+                    }}
+                    autoDetect={!formData.location}
+                    showSatellite={true}
+                    zoom={18}
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-4 mt-3">
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Detected Pin Code</label>
+                    <input type="text" maxLength="6" value={formData.pincode}
+                      onChange={e => setFormData({ ...formData, pincode: e.target.value.replace(/\D/g, '') })}
+                      className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold text-gray-900 focus:border-sky-400 focus:bg-white outline-none transition-all" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Full Delivery Address</label>
+                    <textarea rows="2" value={formData.address}
+                      onChange={e => setFormData({ ...formData, address: e.target.value })}
+                      className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold text-gray-900 focus:border-sky-400 focus:bg-white outline-none transition-all resize-none" />
+                  </div>
+                </div>
+              </div>
+
               <button type="submit" disabled={loading || !isPassValid}
                 className="w-full flex justify-center items-center gap-2 bg-sky-500 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-sky-500/25 hover:scale-[1.01] disabled:opacity-50 disabled:scale-100 transition-all hover:bg-sky-600">
                 <Save size={15} /> {loading ? 'Saving...' : 'Save Changes'}
               </button>
-
             </div>
           </form>
         ) : (
-          /* ─── DASHBOARD LAYOUT: 1-col mobile → sidebar+main on desktop ─── */
           <div className="flex flex-col lg:flex-row gap-5">
-
-            {/* LEFT COLUMN */}
             <div className="w-full lg:w-72 xl:w-80 flex flex-col gap-3 shrink-0">
-
-              {/* Contact cards: 2-col always */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-3xl p-4 text-white shadow-md relative overflow-hidden"
                   style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)' }}>
@@ -284,7 +343,6 @@ const Profile = () => {
                   <p className="text-[7px] font-black text-indigo-200 uppercase tracking-widest mb-1">Email</p>
                   <p className="text-[11px] font-black text-white break-all leading-tight">{user.email}</p>
                 </div>
-
                 <div className="rounded-3xl p-4 text-white shadow-md relative overflow-hidden"
                   style={{ background: 'linear-gradient(135deg,#0ea5e9,#0284c7)' }}>
                   <div className="absolute -top-3 -right-3 w-12 h-12 bg-white/10 rounded-full" />
@@ -296,10 +354,8 @@ const Profile = () => {
                 </div>
               </div>
 
-              {/* Financial cards: customers only */}
               {user.role === 'customer' && (
                 <>
-                  {/* Wallet — full width */}
                   <div className="rounded-3xl p-5 text-white shadow-lg relative overflow-hidden"
                     style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
                     <div className="absolute top-0 right-0 w-20 h-20 rounded-full opacity-20"
@@ -315,13 +371,8 @@ const Profile = () => {
                         <Wallet size={22} className="text-white" />
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 mt-3">
-                      <div className="w-1.5 h-1.5 bg-emerald-300 rounded-full animate-pulse" />
-                      <span className="text-[8px] font-black text-emerald-100/70 uppercase tracking-widest">Live Balance</span>
-                    </div>
                   </div>
 
-                  {/* Dues — clickable, rose gradient */}
                   <button onClick={() => navigate('/dues')}
                     className="rounded-3xl p-5 text-white shadow-lg relative overflow-hidden w-full text-left hover:scale-[1.01] active:scale-[0.99] transition-all"
                     style={{ background: 'linear-gradient(135deg,#f43f5e,#be185d)' }}>
@@ -338,24 +389,58 @@ const Profile = () => {
                         <IndianRupee size={22} className="text-white" />
                       </div>
                     </div>
-                    <div className="flex items-center justify-between mt-3">
-                      <div className="flex items-center gap-1.5">
-                        {creditOrders.length > 0 && <div className="w-1.5 h-1.5 bg-rose-200 rounded-full animate-pulse" />}
-                        <span className="text-[8px] font-black text-rose-100/70 uppercase tracking-widest">
-                          {creditOrders.length} {creditOrders.length === 1 ? 'Pending Bill' : 'Pending Bills'}
-                        </span>
-                      </div>
-                      <ChevronRight size={16} className="text-white/60" />
-                    </div>
                   </button>
                 </>
               )}
             </div>
 
-            {/* RIGHT COLUMN (actions + logout) */}
             <div className="flex-1 flex flex-col gap-4">
+              <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex-1">
+                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Saved Location</p>
+                    <h3 className="text-sm font-black text-gray-900 uppercase leading-tight truncate max-w-[200px]">
+                      {user.address ? user.address.split(',')[0] : 'Delivery Point'}
+                    </h3>
+                    {user.pincode && (
+                      <p className="text-[10px] font-bold text-sky-600 uppercase tracking-wider mt-0.5">{user.pincode}</p>
+                    )}
+                  </div>
+                  <div className="w-10 h-10 bg-sky-50 rounded-2xl flex items-center justify-center text-sky-500 shrink-0">
+                    <MapPin size={18} />
+                  </div>
+                </div>
+                <div 
+                  className="rounded-2xl overflow-hidden h-48 border border-gray-50 cursor-pointer relative group"
+                  onClick={() => setIsLocationModalOpen(true)}
+                >
+                  {user.location?.coordinates ? (
+                    <>
+                      <LeafletMap 
+                        height="100%" 
+                        userCoords={{ 
+                          lat: user.location.coordinates[1], 
+                          lng: user.location.coordinates[0] 
+                        }} 
+                        autoDetect={false}
+                        interactive={false}
+                        showSatellite={true}
+                      />
+                      <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-[2px]">
+                        <div className="bg-white/90 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 transform translate-y-4 group-hover:translate-y-0 transition-all">
+                          <Navigation size={16} className="text-sky-600 animate-bounce" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-sky-600">Open Fullscreen Editor</span>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="h-full bg-gray-50 flex items-center justify-center text-center p-4">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">No location set. Tap to set your delivery point.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
 
-              {/* Action menu */}
               <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                 {[
                   {
@@ -383,23 +468,24 @@ const Profile = () => {
                     <ChevronRight size={15} className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all shrink-0" />
                   </button>
                 ))}
-                
-                {/* PWA Install for Mobile */}
-                <div className="p-4 sm:p-5 border-t border-gray-50 bg-sky-50/30">
-                  <PWAInstallButton variant="sidebar" className="!bg-sky-500 !text-white !border-sky-400 shadow-sky-100" />
-                </div>
-
               </div>
-
-
-              <div className="h-4" />
+              <div className="h-24" />
             </div>
-
           </div>
         )}
       </div>
 
       <CustomerReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} shopName="General Support" />
+      
+      <DeliveryLocationModal 
+        isOpen={isLocationModalOpen}
+        onClose={() => setIsLocationModalOpen(false)}
+        initialCoords={user.location?.coordinates ? {
+          lat: user.location.coordinates[1],
+          lng: user.location.coordinates[0]
+        } : null}
+        onConfirm={handleLocationConfirm}
+      />
     </div>
   );
 };
