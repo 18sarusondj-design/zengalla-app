@@ -254,7 +254,8 @@ const Orders = () => {
   }, [activeStatus]);
 
   return (
-    <div className="flex flex-col h-full max-w-full overflow-hidden font-sans">
+  return (
+    <div className="flex flex-col md:h-screen md:overflow-hidden min-h-screen p-2 md:p-4 bg-slate-50 font-sans">
       {/* Top Header */}
       <div className="mb-6 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
         <div>
@@ -318,8 +319,8 @@ const Orders = () => {
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0 min-w-0">
-        <div className="w-full lg:w-64 flex flex-col gap-2 shrink-0">
+      <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0 min-w-0 md:overflow-hidden">
+        <div className="w-full lg:w-64 flex flex-col gap-2 shrink-0 md:overflow-y-auto custom-scrollbar pb-4 lg:pb-0">
           <div className="bg-white rounded-[24px] p-2 shadow-sm border border-gray-100">
             {statuses.map(status => {
               const count = orders.filter(o => {
