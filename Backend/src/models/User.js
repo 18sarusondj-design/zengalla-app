@@ -12,6 +12,12 @@ const userSchema = new mongoose.Schema({
   status: { type: String, enum: ['active', 'pending', 'suspended'], default: 'active' },
   shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', default: null },
   walletBalance: { type: Number, default: 0 },
+  shopBalances: [
+    {
+      shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop' },
+      balance: { type: Number, default: 0 }
+    }
+  ],
   addresses: { type: Array, default: [] },
   address: { type: String, default: '' },
   pincode: { type: String, default: '' },

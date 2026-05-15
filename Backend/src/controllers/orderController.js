@@ -55,19 +55,41 @@ export const placeOrder = async (req, res) => {
       }
     }
 
-    // 3. Handle Wallet Deductions
+    // 3. Handle Wallet Deductions (Unified and Shop-Specific)
     let walletDeducted = 0;
     if (useWalletBalance && req.user) {
       const u = await User.findById(req.user._id);
       walletDeducted = Math.min(u.walletBalance || 0, totalPrice);
-      await User.findByIdAndUpdate(req.user._id, { $inc: { walletBalance: -walletDeducted } });
+      
+      if (walletDeducted > 0) {
+        // Deduct from global
+        u.walletBalance -= walletDeducted;
+        
+        // Try to deduct from this shop specifically if it has a balance
+        const shopBalanceIdx = u.shopBalances?.findIndex(b => b.shopId.toString() === shopId.toString());
+        if (shopBalanceIdx !== -1) {
+          const deductionFromShop = Math.min(u.shopBalances[shopBalanceIdx].balance, walletDeducted);
+          u.shopBalances[shopBalanceIdx].balance -= deductionFromShop;
+        }
+        await u.save();
+      }
     }
 
-    // 4. Handle Wallet Excess (Additions)
+    // 4. Handle Wallet Excess (Additions to Shop-Specific Ledger)
     if (walletExcess > 0) {
       const targetUserId = req.user?._id || (await User.findOne({ phone }))?._id;
       if (targetUserId) {
-        await User.findByIdAndUpdate(targetUserId, { $inc: { walletBalance: Number(walletExcess) } });
+        const u = await User.findById(targetUserId);
+        u.walletBalance = (u.walletBalance || 0) + Number(walletExcess);
+        
+        // Update or Add shop-specific balance
+        const shopBalanceIdx = u.shopBalances?.findIndex(b => b.shopId.toString() === shopId.toString());
+        if (shopBalanceIdx !== -1) {
+          u.shopBalances[shopBalanceIdx].balance += Number(walletExcess);
+        } else {
+          u.shopBalances.push({ shopId, balance: Number(walletExcess) });
+        }
+        await u.save();
       }
     }
 

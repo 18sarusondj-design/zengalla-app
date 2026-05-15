@@ -1,9 +1,0 @@
-{
-  "products": [
-    {
-      "name": "Test Product",
-      "price": 100,
-      "category": "Test"
-    }
-  ]
-}

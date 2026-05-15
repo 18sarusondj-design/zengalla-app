@@ -162,6 +162,10 @@ export const toggleSponsorship = async (req, res) => {
     const sanitizedShop = shop.toObject();
     delete sanitizedShop.razorpayKeySecret;
     
+    if (shop.owner) {
+      await User.findByIdAndUpdate(shop.owner, { status: 'active' });
+    }
+
     res.json({ success: true, shop: sanitizedShop });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -272,6 +276,7 @@ export const updateShopPlan = async (req, res) => {
     // CRITICAL: Activate the vendor's user account so they can access the dashboard
     if (shop.owner) {
       await User.findByIdAndUpdate(shop.owner, { status: 'active' });
+      console.log(`[AUTH] Activated owner ${shop.owner} for shop ${shop._id}`);
     }
 
     res.json({ success: true, shop });

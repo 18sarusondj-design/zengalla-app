@@ -14,6 +14,11 @@ const Register = () => {
   const [formData, setFormData] = useState({
     name: '', email: '', password: '', phone: ''
   });
+  const [isPassValid, setIsPassValid] = useState(false);
+
+  useEffect(() => {
+    setIsPassValid(/^(?=.*[0-9]).{7,}$/.test(formData.password));
+  }, [formData.password]);
 
   const navigate = useNavigate();
 
@@ -171,6 +176,9 @@ const Register = () => {
                             </button>
                           }
                         />
+                        {!isPassValid && formData.password && (
+                          <p className="absolute -bottom-4 left-4 text-[7px] text-rose-500 font-bold uppercase tracking-widest">Min. 7 Chars + 1 Number</p>
+                        )}
                       </div>
                       <FormInput 
                         label="Phone Number" 
@@ -185,7 +193,7 @@ const Register = () => {
 
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || !isPassValid}
                     className="w-full h-14 bg-gray-900 text-white rounded-[24px] shadow-2xl shadow-gray-200 hover:bg-sky-600 transition-all duration-500 flex items-center justify-center gap-3 font-black uppercase tracking-widest text-[10px] active:scale-95 disabled:opacity-50 group hover:shadow-sky-200"
                   >
                     {loading ? <Loader2 className="animate-spin" size={20} /> : (

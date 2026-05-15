@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   User, LogOut, ArrowLeft, Mail, Phone, Settings, Save,
   HelpCircle, Eye, EyeOff, ChevronRight, IndianRupee,
-  ShoppingCart, Wallet, MapPin, X, Navigation
+  ShoppingCart, Wallet, MapPin, X, Navigation, Store
 } from 'lucide-react';
 import CustomerReportModal from '../components/CustomerReportModal';
 import { toast } from 'sonner';
@@ -24,6 +24,17 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (isWalletModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [isWalletModalOpen]);
+
   const [formData, setFormData] = useState({
     name: user?.name || '',
     phone: user?.phone || '',
@@ -356,18 +367,21 @@ const Profile = () => {
 
               {user.role === 'customer' && (
                 <>
-                  <div className="rounded-3xl p-5 text-white shadow-lg relative overflow-hidden"
+                  <div 
+                    onClick={() => setIsWalletModalOpen(true)}
+                    className="rounded-3xl p-5 text-white shadow-lg relative overflow-hidden cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all group"
                     style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
-                    <div className="absolute top-0 right-0 w-20 h-20 rounded-full opacity-20"
+                    <div className="absolute top-0 right-0 w-20 h-20 rounded-full opacity-20 group-hover:scale-150 transition-transform duration-700"
                       style={{ background: 'radial-gradient(circle,#fff 0%,transparent 70%)', transform: 'translate(25%,-25%)' }} />
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[8px] font-black text-emerald-100/60 uppercase tracking-widest mb-1">Wallet Balance</p>
+                        <p className="text-[8px] font-black text-emerald-100/60 uppercase tracking-widest mb-1">Total Wallet Balance</p>
                         <h3 className="text-3xl font-black text-white tracking-tight">
                           ₹{(user.walletBalance || 0).toLocaleString()}
                         </h3>
+                        <p className="text-[7px] font-bold text-white/40 uppercase tracking-widest mt-1">Tap to see shop breakdown</p>
                       </div>
-                      <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
+                      <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center shadow-inner">
                         <Wallet size={22} className="text-white" />
                       </div>
                     </div>
@@ -399,8 +413,8 @@ const Profile = () => {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex-1">
                     <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Saved Location</p>
-                    <h3 className="text-sm font-black text-gray-900 uppercase leading-tight truncate max-w-[200px]">
-                      {user.address ? user.address.split(',')[0] : 'Delivery Point'}
+                    <h3 className="text-[11px] font-black text-gray-900 uppercase leading-snug">
+                      {user.address || 'Delivery Point'}
                     </h3>
                     {user.pincode && (
                       <p className="text-[10px] font-bold text-sky-600 uppercase tracking-wider mt-0.5">{user.pincode}</p>
@@ -486,6 +500,65 @@ const Profile = () => {
         } : null}
         onConfirm={handleLocationConfirm}
       />
+
+      {/* Wallet Breakdown Modal */}
+      {isWalletModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 isolation-auto">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setIsWalletModalOpen(false)} />
+          <div className="relative bg-white w-full max-w-md rounded-[40px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-8 bg-emerald-600 text-white relative overflow-hidden">
+               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
+               <div className="relative z-10">
+                  <p className="text-[10px] font-black text-emerald-100 uppercase tracking-[0.2em] mb-1">Funds Ledger</p>
+                  <h3 className="text-3xl font-black tracking-tighter">Shop Balances</h3>
+                  <p className="text-xs text-emerald-50/60 font-medium mt-1">Breakdown of your available credit across stores</p>
+               </div>
+               <button onClick={() => setIsWalletModalOpen(false)} className="absolute top-8 right-8 text-white/50 hover:text-white transition-colors">
+                  <X size={20} />
+               </button>
+            </div>
+
+            <div className="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+               {user.shopBalances && user.shopBalances.length > 0 ? (
+                 <div className="space-y-3">
+                    {user.shopBalances.map((b, i) => (
+                      <div key={i} className="bg-slate-50 rounded-3xl p-5 border border-slate-100 flex items-center justify-between hover:border-emerald-200 transition-all group">
+                         <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm border border-slate-100 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                               <Store size={20} />
+                            </div>
+                            <div>
+                               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Store Credit</p>
+                               <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight leading-tight">{b.shopId?.name || 'Local Shop'}</h4>
+                               <p className="text-[9px] text-slate-400 font-medium truncate max-w-[180px]">{b.shopId?.address || 'Area Location'}</p>
+                            </div>
+                         </div>
+                         <div className="text-right">
+                            <p className="text-xl font-black text-emerald-600 tracking-tighter">₹{b.balance.toLocaleString()}</p>
+                            <p className="text-[7px] font-black text-slate-300 uppercase tracking-[0.15em]">Available</p>
+                         </div>
+                      </div>
+                    ))}
+                 </div>
+               ) : (
+                 <div className="py-12 text-center">
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-200">
+                       <Wallet size={32} />
+                    </div>
+                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">No Shop Credits</h4>
+                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest mt-1">Your wallet is unified or empty</p>
+                 </div>
+               )}
+            </div>
+
+            <div className="p-6 bg-slate-50 border-t border-slate-100">
+               <button onClick={() => setIsWalletModalOpen(false)} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-emerald-600 transition-all">
+                  Understood
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -240,6 +240,29 @@ const AdminProfile = () => {
                 
               </div>
 
+              {/* ACTION BAR: Bottom Sticky */}
+              <div className="mt-8 flex items-center justify-end gap-4">
+                <button 
+                  type="button"
+                  onClick={() => navigate('/super-admin')}
+                  className="px-8 py-4 bg-white border-2 border-gray-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-all active:scale-95 shadow-sm"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={loading}
+                  className={`flex items-center justify-center gap-3 px-10 py-4 bg-sky-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-sky-100 active:scale-95 disabled:opacity-50 ${isSuccess ? 'bg-emerald-500 shadow-emerald-100' : ''}`}
+                >
+                  {loading ? (
+                    <Loader2 className="animate-spin" size={18} />
+                  ) : isSuccess ? (
+                    <>Saved Successfully <CheckCircle size={18} /></>
+                  ) : (
+                    <>Save Profile Changes <Save size={18} /></>
+                  )}
+                </button>
+              </div>
             </form>
           </div>
         </div>

@@ -65,7 +65,7 @@ const StaffManagement = () => {
     // 0. Specific Validation
     if (!formData.name.trim()) return toast.error('Personnel name is required');
     if (!formData.phone || formData.phone.length !== 10) return toast.error('Mobile Identity must be exactly 10 digits');
-    if (!editingStaff && (!formData.password || formData.password.length < 4)) return toast.error('Authority Key must be at least 4 digits');
+    if (!editingStaff && !isPassValid) return toast.error('Security password must be at least 7 characters and include at least one number');
 
     setIsSubmitting(true);
     try {

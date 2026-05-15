@@ -96,7 +96,7 @@ export const register = async (req, res) => {
     if (role === 'vendor') {
       const shop = await Shop.create({
         owner: user._id,
-        name: `${name}'s Store`,
+        name: name,
         address: shop_address || '',
         pinCode: pinCode || '000000',
         location: {
@@ -233,7 +233,7 @@ export const resetPassword = async (req, res) => {
 
 export const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user._id).populate('shopBalances.shopId', 'name');
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ success: true, user });
   } catch (err) {

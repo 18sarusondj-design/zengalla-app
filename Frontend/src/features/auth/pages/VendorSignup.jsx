@@ -45,7 +45,7 @@ const VendorSignup = () => {
   }, [resendTimer]);
 
   useEffect(() => {
-    setIsPassValid(formData.password.length >= 6);
+    setIsPassValid(/^(?=.*[0-9]).{7,}$/.test(formData.password));
     setIsPhoneValid(/^\d{10}$/.test(formData.phone));
   }, [formData.password, formData.phone]);
 
@@ -365,7 +365,7 @@ const VendorSignup = () => {
                          }
                        />
                        {!isPassValid && formData.password && (
-                         <p className="absolute -bottom-4 left-4 text-[7px] text-rose-500 font-bold uppercase tracking-widest">Min. 6 Characters</p>
+                         <p className="absolute -bottom-4 left-4 text-[7px] text-rose-500 font-bold uppercase tracking-widest">Min. 7 Chars + 1 Number</p>
                        )}
                      </div>
 

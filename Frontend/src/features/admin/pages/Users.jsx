@@ -6,6 +6,7 @@ import Pagination from '../../common/components/Pagination';
 import api from '../../../config/api.js';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import SafeDeleteModal from '../../common/components/SafeDeleteModal';
 
 const Users = ({ roleFilter }) => {
   const { token, user: currentUser } = useAuth();
@@ -22,6 +23,7 @@ const Users = ({ roleFilter }) => {
   const [pinAreaMap, setPinAreaMap] = useState({}); // { '580025': 'Hubballi' }
   const [modalData, setModalData] = useState(null);
   const [isModified, setIsModified] = useState(false);
+  const [isSafeDeleteOpen, setIsSafeDeleteOpen] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -118,24 +120,16 @@ const Users = ({ roleFilter }) => {
 
     const handleDelete = async (id) => {
       if (!id) return toast.error("Cannot delete: Missing User ID");
-
-      toast.error(`Delete this ${roleFilter || 'user'}?`, {
-        action: {
-          label: "Confirm Delete",
-          onClick: async () => {
-            try {
-              const { data } = await api.delete(`/admin/users/${id}`);
-              if (data.success) {
-                setUsers(prev => prev.filter(u => (u._id || u.id) !== id));
-                setSelectedVendor(null); // Close modal on delete
-                toast.success('Account deleted permanently from database');
-              }
-            } catch (err) {
-              toast.error(err.message || 'Identity delete failed');
-            }
-          }
+      try {
+        const { data } = await api.delete(`/admin/users/${id}`);
+        if (data.success) {
+          setUsers(prev => prev.filter(u => (u._id || u.id) !== id));
+          setSelectedVendor(null); // Close modal on delete
+          toast.success('Account deleted permanently from database');
         }
-      });
+      } catch (err) {
+        toast.error(err.message || 'Identity delete failed');
+      }
     };
 
     const handleStatusToggle = async (userId) => {
@@ -235,7 +229,7 @@ const Users = ({ roleFilter }) => {
     }
   };
 
-    const handleToggleSponsorship = async (userId, shopId) => {
+    const handleToggleSponsorship = async (userId, shopId, silent = false) => {
       if (!shopId) {
         toast.error("No shop associated with this vendor");
         return;
@@ -244,7 +238,7 @@ const Users = ({ roleFilter }) => {
       try {
         const { data } = await api.patch(`/admin/shops/${shopId}/sponsor`);
         if (data.success) {
-          toast.success(data.shop.isSponsored ? "✓ Sponsorship Badge Activated!" : "Sponsorship Removed");
+          if (!silent) toast.success(data.shop.isSponsored ? "✓ Sponsorship Badge Activated!" : "Sponsorship Removed");
           // Update modal in real-time
           setSelectedVendor(prev => prev ? { ...prev, isSponsored: data.shop.isSponsored } : null);
           fetchUsers();
@@ -317,14 +311,14 @@ const Users = ({ roleFilter }) => {
     return groups;
   }, [filteredUsers, groupByPinCode, roleFilter]);
 
-  const handleUpdatePlan = async (shopId, plan) => {
+  const handleUpdatePlan = async (shopId, plan, silent = false) => {
     if (!shopId) return toast.error("No shop associated with this vendor");
     setIsProcessing(shopId);
     try {
       const { data } = await api.patch(`/admin/shops/${shopId}/plan`, { 
         subscriptionPlan: plan 
       });
-      toast.success(`✓ Plan updated to ${plan.toUpperCase()}`);
+      if (!silent) toast.success(`✓ Plan updated to ${plan.toUpperCase()}`);
       // Update modal in real-time
       setSelectedVendor(prev => prev ? { ...prev, subscriptionPlan: plan } : null);
       fetchUsers();
@@ -350,40 +344,43 @@ const Users = ({ roleFilter }) => {
   return (
     <div className="flex flex-col min-h-screen space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h1 className="text-5xl font-black text-gray-900 tracking-tighter uppercase leading-none mb-2">{pageTitle}</h1>
+        <div className="flex flex-col gap-2">
+          <h1 className="text-5xl md:text-7xl font-black text-gray-900 tracking-tighter uppercase leading-none">
+            {roleFilter === 'vendor' ? 'Vendor' : 'Customer'} <span className="text-sky-500">Management</span>
+          </h1>
+          <p className="text-[10px] md:text-xs font-black text-gray-400 uppercase tracking-[0.3em]">{pageDesc}</p>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
            {roleFilter === 'vendor' && (
              <button 
                onClick={() => setShowExpiringSoon(!showExpiringSoon)}
-               className={`flex items-center gap-2 px-6 py-4 rounded-[24px] transition-all active:scale-95 shadow-lg font-black text-[10px] uppercase tracking-widest ${
+               className={`flex items-center gap-2 px-6 py-4 rounded-full transition-all active:scale-95 shadow-lg font-black text-[10px] uppercase tracking-widest ${
                  showExpiringSoon 
                    ? 'bg-rose-500 text-white shadow-rose-200' 
                    : 'bg-white border-2 border-gray-100 text-gray-400 hover:border-rose-200 hover:text-rose-500'
                }`}
              >
-               <Sparkles size={16} /> {showExpiringSoon ? 'Show All Vendors' : 'Critical Expiry (5 Days)'}
+               <Sparkles size={16} /> {showExpiringSoon ? 'Show All Vendors' : 'Critical Expiry'}
              </button>
            )}
           <button 
             onClick={handleDownloadPDF}
-            className={`flex items-center gap-2 px-6 py-4 rounded-[24px] transition-all active:scale-95 shadow-lg font-black text-[10px] uppercase tracking-widest ${
+            className={`flex items-center gap-2 px-6 py-4 rounded-full transition-all active:scale-95 shadow-lg font-black text-[10px] uppercase tracking-widest ${
               selectedPinFilter !== 'all' 
-                ? 'bg-sky-600 text-white shadow-sky-100 ring-4 ring-sky-50' 
-                : 'bg-gray-900 text-white hover:bg-black'
+                ? 'bg-sky-500 text-white shadow-sky-100' 
+                : 'bg-gray-900 text-white hover:bg-sky-600'
             }`}
           >
             <Download size={16} /> 
-            {selectedPinFilter !== 'all' ? `Download PIN ${selectedPinFilter} Report` : 'Download Full Registry'}
+            {selectedPinFilter !== 'all' ? `PIN ${selectedPinFilter}` : 'Export PDF'}
           </button>
 
-          <div className="bg-white px-6 py-4 rounded-[24px] shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="bg-white px-6 py-4 rounded-full shadow-sm border border-gray-100 flex items-center gap-4">
             <div className="min-w-[2.5rem] h-10 px-3 bg-sky-50 rounded-2xl flex items-center justify-center text-sky-500 font-black">
               {users.length}
             </div>
-            <div>
+            <div className="hidden sm:block">
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">Total</p>
               <p className="text-xs font-black text-gray-900 uppercase tracking-tighter mt-1">{roleFilter === 'vendor' ? 'Vendors' : 'Customers'}</p>
             </div>
@@ -704,15 +701,29 @@ const Users = ({ roleFilter }) => {
                     onClick={async () => {
                       setIsProcessing(modalData._id);
                       try {
-                        // Apply Plan change if different
-                        if (modalData.subscriptionPlan !== selectedVendor.subscriptionPlan) {
-                          await handleUpdatePlan(modalData.shopId, modalData.subscriptionPlan);
+                        const planChanged = modalData.subscriptionPlan !== selectedVendor.subscriptionPlan;
+                        const sponsorChanged = modalData.isSponsored !== selectedVendor.isSponsored;
+                        const statusChanged = modalData.status !== selectedVendor.status;
+
+                        // If both changed, use silent updates and show one final toast
+                        const isBulk = (planChanged && sponsorChanged) || statusChanged;
+
+                        if (planChanged) {
+                          await handleUpdatePlan(modalData.shopId, modalData.subscriptionPlan, isBulk);
                         }
-                        // Apply Sponsorship if different
-                        if (modalData.isSponsored !== selectedVendor.isSponsored) {
-                          await handleToggleSponsorship(modalData._id, modalData.shopId);
+                        if (sponsorChanged) {
+                          await handleToggleSponsorship(modalData._id, modalData.shopId, isBulk);
                         }
-                        toast.success("All changes saved successfully");
+                        
+                        if (statusChanged) {
+                          await api.patch(`/admin/users/${modalData._id}/status`, { status: modalData.status });
+                          if (!isBulk) toast.success(`✓ Account status set to ${modalData.status.toUpperCase()}`);
+                        }
+                        
+                        if (isBulk) {
+                          toast.success("✓ Vendor configuration updated successfully");
+                        }
+                        
                         setIsModified(false);
                       } catch (err) {
                         toast.error("Some changes failed to save");
@@ -743,14 +754,7 @@ const Users = ({ roleFilter }) => {
                   <Phone size={14} /> Contact Vendor
                 </button>
                 <button 
-                  onClick={() => {
-                    toast.warning("Permanently delete this account?", {
-                      action: {
-                        label: "Confirm Delete",
-                        onClick: () => handleDelete(selectedVendor._id)
-                      }
-                    });
-                  }}
+                  onClick={() => setIsSafeDeleteOpen(true)}
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontWeight: '900', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}
                 >
                   <Trash2 size={14} /> Delete Account
@@ -759,6 +763,16 @@ const Users = ({ roleFilter }) => {
             </div>
           </div>
         </div>
+      )}
+      {/* Safe Delete Confirmation Modal */}
+      {selectedVendor && (
+        <SafeDeleteModal 
+          isOpen={isSafeDeleteOpen}
+          onClose={() => setIsSafeDeleteOpen(false)}
+          onConfirm={() => handleDelete(selectedVendor._id)}
+          targetName={selectedVendor.shopName || selectedVendor.name}
+          targetType={roleFilter === 'vendor' ? 'vendor shop' : 'customer account'}
+        />
       )}
     </div>
   );

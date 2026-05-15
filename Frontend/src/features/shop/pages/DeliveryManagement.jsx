@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import api from '../../../config/api.js';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import SafeDeleteModal from '../../common/components/SafeDeleteModal';
 
 const DeliveryManagement = () => {
   const { getDeliveryPartners, createDeliveryPartner, updateDeliveryPartner, deleteDeliveryPartner, vendorShop, updateShop, user } = useStore();
@@ -18,6 +19,8 @@ const DeliveryManagement = () => {
   const [docFile, setDocFile] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
   const [viewingDocs, setViewingDocs] = useState(null);
+  const [isSafeDeleteOpen, setIsSafeDeleteOpen] = useState(false);
+  const [partnerToDelete, setPartnerToDelete] = useState(null);
   
   const [shopConfig, setShopConfig] = useState({
     deliveryAccessCode: '',
@@ -44,7 +47,11 @@ const DeliveryManagement = () => {
     password: '',
     phone: '',
     photoUrl: '',
-    documentUrl: ''
+    documentUrl: '',
+    accountName: '',
+    accountNumber: '',
+    ifscCode: '',
+    bankName: ''
   });
 
   useEffect(() => {
@@ -158,7 +165,10 @@ const DeliveryManagement = () => {
       // 0. Validation
       if (!formData.name.trim()) throw new Error('Driver name is required');
       if (!formData.phone || formData.phone.length !== 10) throw new Error('Mobile number must be exactly 10 digits');
-      if (!editingPartner && (!formData.password || formData.password.length < 4)) throw new Error('Password must be at least 4 characters');
+      const passwordRegex = /^(?=.*[0-9]).{7,}$/;
+      if (!editingPartner && (!formData.password || !passwordRegex.test(formData.password))) {
+        throw new Error('Security password must be at least 7 characters and include at least one number');
+      }
       if (!editingPartner && (!photoFile || !docFile)) throw new Error('Both Recent Photo and ID Document are mandatory for new drivers');
 
       let photoUrl = formData.photoUrl;
@@ -196,7 +206,11 @@ const DeliveryManagement = () => {
         password: formData.password || undefined,
         phone: formData.phone,
         photoUrl,
-        documentUrl
+        documentUrl,
+        accountName: formData.accountName,
+        accountNumber: formData.accountNumber,
+        ifscCode: formData.ifscCode,
+        bankName: formData.bankName
       };
 
       let res;
@@ -207,6 +221,10 @@ const DeliveryManagement = () => {
           password: payload.password,
           photoUrl: payload.photoUrl,
           documentUrl: payload.documentUrl,
+          accountName: payload.accountName,
+          accountNumber: payload.accountNumber,
+          ifscCode: payload.ifscCode,
+          bankName: payload.bankName,
           status: editingPartner.status
         });
       } else {
@@ -217,7 +235,10 @@ const DeliveryManagement = () => {
         toast.success(editingPartner ? 'Driver profile updated' : 'Driver successfully recruited');
         setIsModalOpen(false);
         setEditingPartner(null);
-        setFormData({ name: '', password: '', phone: '', photoUrl: '', documentUrl: '' });
+        setFormData({ 
+          name: '', password: '', phone: '', photoUrl: '', documentUrl: '',
+          accountName: '', accountNumber: '', ifscCode: '', bankName: ''
+        });
         setPhotoFile(null);
         setDocFile(null);
         fetchPartners(); // Refresh list
@@ -240,16 +261,19 @@ const DeliveryManagement = () => {
     }
   };
 
-  const handleDelete = (id) => {
-    toast.error(`Remove delivery boy?`, {
-      action: {
-        label: "Delete",
-        onClick: async () => {
-           const res = await deleteDeliveryPartner(id);
-           if (res.success) setPartners(prev => prev.filter(p => p._id !== id));
-        }
-      }
-    });
+  const handleDelete = (partner) => {
+    setPartnerToDelete(partner);
+    setIsSafeDeleteOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!partnerToDelete) return;
+    const res = await deleteDeliveryPartner(partnerToDelete._id);
+    if (res.success) {
+      setPartners(prev => prev.filter(p => p._id !== partnerToDelete._id));
+      setPartnerToDelete(null);
+      toast.success('Driver removed from fleet');
+    }
   };
 
   const handleShopConfigSave = async () => {
@@ -338,7 +362,10 @@ const DeliveryManagement = () => {
              <button
                onClick={() => {
                  setEditingPartner(null);
-                 setFormData({ name: '', password: '', phone: '', photoUrl: '', documentUrl: '' });
+                 setFormData({ 
+                   name: '', password: '', phone: '', photoUrl: '', documentUrl: '',
+                   accountName: '', accountNumber: '', ifscCode: '', bankName: ''
+                 });
                  setPhotoFile(null);
                  setDocFile(null);
                  setIsModalOpen(true);
@@ -465,7 +492,11 @@ const DeliveryManagement = () => {
                           phone: partner.phone, 
                           password: '',
                           photoUrl: partner.photoUrl || '',
-                          documentUrl: partner.documentUrl || ''
+                          documentUrl: partner.documentUrl || '',
+                          accountName: partner.accountName || '',
+                          accountNumber: partner.accountNumber || '',
+                          ifscCode: partner.ifscCode || '',
+                          bankName: partner.bankName || ''
                         });
                         setPhotoFile(null);
                         setDocFile(null);
@@ -503,14 +534,7 @@ const DeliveryManagement = () => {
                 </div>
                 
                 <button 
-                  onClick={() => {
-                    toast.warning("Remove this delivery partner?", {
-                      action: {
-                        label: "Confirm Delete",
-                        onClick: () => handleDelete(partner._id)
-                      }
-                    });
-                  }}
+                  onClick={() => handleDelete(partner)}
                   className="w-12 h-12 rounded-[20px] flex items-center justify-center text-gray-200 hover:text-rose-500 hover:bg-rose-50 transition-all"
                 >
                   <Trash2 size={20} />
@@ -597,6 +621,27 @@ const DeliveryManagement = () => {
                       <label htmlFor="doc-upload" className={`w-full h-14 rounded-2xl border-2 border-dashed flex items-center justify-center cursor-pointer transition-all ${docFile || formData.documentUrl ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-sky-300'}`}>
                         <span className="text-[10px] font-bold truncate px-4">{docFile ? docFile.name : formData.documentUrl ? 'Change ID' : 'PAN/Aadhaar'}</span>
                       </label>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6 bg-slate-50 rounded-[32px] border border-slate-100 space-y-4">
+                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 text-center">Settlement Account Details</h5>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                       <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4">Account Holder</label>
+                       <input placeholder="Full Name" className="w-full bg-white border border-gray-100 rounded-xl py-2.5 px-4 font-bold text-xs outline-none focus:border-sky-200" value={formData.accountName} onChange={e => setFormData({...formData, accountName: e.target.value})} />
+                    </div>
+                    <div className="space-y-1.5">
+                       <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4">Account Number</label>
+                       <input placeholder="00000000000" className="w-full bg-white border border-gray-100 rounded-xl py-2.5 px-4 font-bold text-xs outline-none focus:border-sky-200" value={formData.accountNumber} onChange={e => setFormData({...formData, accountNumber: e.target.value})} />
+                    </div>
+                    <div className="space-y-1.5">
+                       <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4">IFSC Code</label>
+                       <input placeholder="SBIN0001234" className="w-full bg-white border border-gray-100 rounded-xl py-2.5 px-4 font-bold text-xs outline-none focus:border-sky-200 uppercase" value={formData.ifscCode} onChange={e => setFormData({...formData, ifscCode: e.target.value.toUpperCase()})} />
+                    </div>
+                    <div className="space-y-1.5">
+                       <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4">Bank Name</label>
+                       <input placeholder="Bank Name" className="w-full bg-white border border-gray-100 rounded-xl py-2.5 px-4 font-bold text-xs outline-none focus:border-sky-200" value={formData.bankName} onChange={e => setFormData({...formData, bankName: e.target.value})} />
                     </div>
                   </div>
                 </div>
@@ -696,12 +741,48 @@ const DeliveryManagement = () => {
                           <p className="text-[9px] font-black text-sky-600 uppercase tracking-widest mb-2">Total Orders</p>
                           <p className="text-4xl font-black text-slate-900 tracking-tighter">{reportOrders.length}</p>
                        </div>
-                       <div className="bg-emerald-50 rounded-[32px] p-8 border border-emerald-100 shadow-sm">
-                          <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-2">Total Earned</p>
-                          <p className="text-4xl font-black text-slate-900 tracking-tighter">
-                            ₹{reportOrders.reduce((sum, o) => sum + (o.deliveryFee || 0) + (o.extraAmount || 0), 0).toLocaleString()}
-                          </p>
-                       </div>
+                       <div className="bg-emerald-50 rounded-[32px] p-8 border border-emerald-100 shadow-sm relative overflow-hidden group">
+                           <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-2">Net Payout (After Deductions)</p>
+                           <p className="text-4xl font-black text-slate-900 tracking-tighter">
+                             ₹{(reportOrders.reduce((sum, o) => sum + (o.deliveryFee || 0) + (o.extraAmount || 0), 0) - 100).toLocaleString()}
+                           </p>
+                           <div className="mt-4 pt-4 border-t border-emerald-100/50">
+                              <p className="text-[8px] font-black text-rose-500 uppercase flex items-center gap-1.5">
+                                 <XCircle size={10}/> Weekly System Deduction (₹100)
+                              </p>
+                           </div>
+                        </div>
+                    </div>
+
+                    {/* Settlement Details */}
+                    <div className="p-6 bg-slate-900 rounded-[32px] text-white">
+                        <div className="flex items-center gap-4 mb-6">
+                           <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-sky-400">
+                              <Shield size={24}/>
+                           </div>
+                           <div>
+                              <h4 className="text-[10px] font-black text-white/40 uppercase tracking-widest">Bank Settlement Account</h4>
+                              <p className="text-lg font-black uppercase tracking-tight">{selectedPartnerForReport.bankName || 'NOT PROVIDED'}</p>
+                           </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-8 opacity-80">
+                           <div className="space-y-1">
+                              <p className="text-[8px] font-black text-sky-400 uppercase">Account Holder</p>
+                              <p className="text-xs font-bold uppercase">{selectedPartnerForReport.accountName || '--'}</p>
+                           </div>
+                           <div className="space-y-1 text-right">
+                              <p className="text-[8px] font-black text-sky-400 uppercase">Account Number</p>
+                              <p className="text-xs font-bold tracking-widest">{selectedPartnerForReport.accountNumber || '--'}</p>
+                           </div>
+                           <div className="space-y-1">
+                              <p className="text-[8px] font-black text-sky-400 uppercase">IFSC CODE</p>
+                              <p className="text-xs font-bold tracking-widest uppercase">{selectedPartnerForReport.ifscCode || '--'}</p>
+                           </div>
+                           <div className="space-y-1 text-right">
+                              <p className="text-[8px] font-black text-sky-400 uppercase">Status</p>
+                              <p className="text-[9px] font-black text-emerald-400 uppercase">Verified for Transfer</p>
+                           </div>
+                        </div>
                     </div>
 
                     {/* Order List */}
@@ -749,6 +830,16 @@ const DeliveryManagement = () => {
             </div>
           </div>
         </div>
+      )}
+      {/* Safe Delete Confirmation Modal */}
+      {partnerToDelete && (
+        <SafeDeleteModal 
+          isOpen={isSafeDeleteOpen}
+          onClose={() => { setIsSafeDeleteOpen(false); setPartnerToDelete(null); }}
+          onConfirm={confirmDelete}
+          targetName={partnerToDelete.name}
+          targetType="delivery partner"
+        />
       )}
     </div>
   );

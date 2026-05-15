@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, MapPin, Loader2, Navigation, Check, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -19,28 +19,44 @@ import LeafletMap from '../../common/components/LeafletMap';
 const DeliveryLocationModal = ({ isOpen, onClose, initialCoords, onConfirm, shopLocation }) => {
   const [currentCoords, setCurrentCoords] = useState(initialCoords || defaultCenter);
   const [showSatellite, setShowSatellite] = useState(true);
+  const [address, setAddress] = useState('');
+  const [pincode, setPincode] = useState('');
+  const [fetching, setFetching] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && currentCoords) {
+      fetchAddress(currentCoords);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleConfirm = async () => {
-    const toastId = toast.loading('Getting address details...');
+  const fetchAddress = async (coords) => {
+    setFetching(true);
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${currentCoords.lat}&lon=${currentCoords.lng}&addressdetails=1&accept-language=en`);
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lng}&addressdetails=1&accept-language=en`);
       const data = await res.json();
-      const poiName = data.address?.shop || data.address?.amenity || data.address?.building || data.address?.office || data.address?.tourism;
-      const address = poiName && !data.display_name.startsWith(poiName) 
-        ? `${poiName}, ${data.display_name}` 
-        : data.display_name;
-      const pincode = data.address?.postcode || address.match(/\b\d{6}\b/)?.[0] || '';
-      
-      onConfirm({ ...currentCoords, address, pincode });
-      toast.dismiss(toastId);
-      onClose();
+      if (data) {
+        const poiName = data.address?.shop || data.address?.amenity || data.address?.building || data.address?.office || data.address?.tourism;
+        const subArea = data.address?.neighbourhood || data.address?.suburb || data.address?.hamlet || data.address?.village || data.address?.residential;
+        
+        let fullAddr = data.display_name;
+        if (poiName && !fullAddr.startsWith(poiName)) fullAddr = `${poiName}, ${fullAddr}`;
+        if (subArea && !fullAddr.includes(subArea)) fullAddr = `${subArea}, ${fullAddr}`;
+        
+        setAddress(fullAddr);
+        setPincode(data.address?.postcode?.split(' ')[0].replace(/\D/g, '').substring(0, 6) || data.display_name.match(/\b\d{6}\b/)?.[0] || '');
+      }
     } catch (err) {
-      onConfirm(currentCoords);
-      toast.error('Could not fetch address, but coordinates saved.', { id: toastId });
-      onClose();
+      console.error(err);
+    } finally {
+      setFetching(false);
     }
+  };
+
+  const handleConfirm = () => {
+    onConfirm({ ...currentCoords, address, pincode });
+    onClose();
   };
 
   const markers = [];
@@ -54,7 +70,7 @@ const DeliveryLocationModal = ({ isOpen, onClose, initialCoords, onConfirm, shop
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-0 md:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-white w-full h-full md:max-w-4xl md:h-[80vh] md:rounded-[40px] overflow-hidden flex flex-col shadow-2xl relative border border-white/20">
+      <div className="bg-white w-full h-full md:max-w-4xl md:h-[90vh] md:rounded-[40px] overflow-hidden flex flex-col shadow-2xl relative border border-white/20">
         
         {/* Header */}
         <div className="absolute top-4 left-4 right-4 z-[1000] flex flex-col md:flex-row items-center justify-between gap-3 pointer-events-none">
@@ -86,7 +102,9 @@ const DeliveryLocationModal = ({ isOpen, onClose, initialCoords, onConfirm, shop
                      const results = await res.json();
                      if (results && results.length > 0) {
                        const { lat, lon } = results[0];
-                       setCurrentCoords({ lat: parseFloat(lat), lng: parseFloat(lon) });
+                       const newCoords = { lat: parseFloat(lat), lng: parseFloat(lon) };
+                       setCurrentCoords(newCoords);
+                       fetchAddress(newCoords);
                        toast.success('Location found!', { id: toastId });
                      } else {
                        toast.error('Location not found', { id: toastId });
@@ -109,7 +127,8 @@ const DeliveryLocationModal = ({ isOpen, onClose, initialCoords, onConfirm, shop
             
             <button 
               onClick={handleConfirm}
-              className="px-6 h-12 bg-blue-600 text-white rounded-2xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-blue-700 transition-all active:scale-95 flex-[2] md:flex-none justify-center"
+              disabled={fetching}
+              className="px-6 h-12 bg-blue-600 text-white rounded-2xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-blue-700 transition-all active:scale-95 flex-[2] md:flex-none justify-center disabled:opacity-50"
             >
               Confirm <Check size={16} strokeWidth={3} />
             </button>
@@ -128,15 +147,20 @@ const DeliveryLocationModal = ({ isOpen, onClose, initialCoords, onConfirm, shop
           <LeafletMap 
             height="100%"
             userCoords={currentCoords}
-            onUserLocationChange={setCurrentCoords}
-            onLocationSelect={setCurrentCoords}
+            onUserLocationChange={(coords) => {
+              setCurrentCoords(coords);
+              fetchAddress(coords);
+            }}
+            onLocationSelect={(coords) => {
+              setCurrentCoords(coords);
+              fetchAddress(coords);
+            }}
             markers={markers}
             showSatellite={showSatellite}
             zoom={19}
             autoDetect={!initialCoords}
           />
           
-          {/* Small Detect Location Button */}
           <button 
             onClick={(e) => {
               e.stopPropagation();
@@ -144,7 +168,9 @@ const DeliveryLocationModal = ({ isOpen, onClose, initialCoords, onConfirm, shop
               const tid = toast.loading("Detecting...");
               navigator.geolocation.getCurrentPosition(
                 (pos) => {
-                  setCurrentCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                  const newCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                  setCurrentCoords(newCoords);
+                  fetchAddress(newCoords);
                   toast.success("Located!", { id: tid });
                 },
                 (err) => {
@@ -157,6 +183,26 @@ const DeliveryLocationModal = ({ isOpen, onClose, initialCoords, onConfirm, shop
           >
             <Navigation size={20} fill="currentColor" />
           </button>
+        </div>
+
+        {/* Editable Address Footer */}
+        <div className="bg-white p-6 border-t border-gray-100 animate-in slide-in-from-bottom duration-500">
+           <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                 {fetching ? <Loader2 className="animate-spin" size={12} /> : <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />}
+                 {fetching ? 'Fetching Details...' : 'Refine Delivery Address'}
+              </p>
+              <div className="flex items-center gap-2">
+                 <span className="text-[8px] font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full uppercase tracking-widest">Pin: {pincode || 'Detecting...'}</span>
+              </div>
+           </div>
+           <textarea 
+             value={address}
+             onChange={(e) => setAddress(e.target.value)}
+             placeholder="Click here to add area name (e.g. Krishnapark) or house details..."
+             className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold text-gray-900 focus:border-blue-400 focus:bg-white outline-none transition-all resize-none h-20"
+           />
+           <p className="text-[8px] text-gray-400 mt-2 font-medium">TIP: You can manually type your area name above if the map detects it incorrectly.</p>
         </div>
       </div>
     </div>
