@@ -16,7 +16,7 @@ export const StoreProvider = ({ children }) => {
   const [vendorShop, setVendorShop] = useState(null);
   const [currentShopId, setCurrentShopId] = useState(() => localStorage.getItem('currentShopId'));
   const [customerGstin, setCustomerGstin] = useState('');
-  const [isDeliveryMode, setIsDeliveryMode] = useState(false);
+  const [isDeliveryMode, setIsDeliveryMode] = useState(() => localStorage.getItem('isDeliveryMode') === 'true');
 
   const [cart, setCart] = useState(() => {
     try {
@@ -39,6 +39,10 @@ export const StoreProvider = ({ children }) => {
     if (currentShopId) localStorage.setItem('currentShopId', currentShopId);
     else localStorage.removeItem('currentShopId');
   }, [currentShopId]);
+
+  useEffect(() => {
+    localStorage.setItem('isDeliveryMode', isDeliveryMode);
+  }, [isDeliveryMode]);
 
   // -- Granular Data Fetching --
   const fetchShops = useCallback(async () => {
@@ -232,21 +236,27 @@ export const StoreProvider = ({ children }) => {
   // -- Create Product --
   const createProduct = async (productData, imageFiles) => {
     try {
-      let imageUrls = [];
       const filesToUpload = Array.isArray(imageFiles) ? imageFiles : (imageFiles ? [imageFiles] : []);
       
-      for (const file of filesToUpload) {
-        if (!file) continue;
+      // Upload images in parallel for better performance
+      const uploadPromises = filesToUpload.map(async (file) => {
+        if (!file) return null;
         const formData = new FormData();
         formData.append('image', file);
-        const { data: uploadData } = await api.post('/upload/image', formData, {
+        const { data } = await api.post('/upload/image', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
-        imageUrls.push(uploadData.url);
-      }
+        return data.url;
+      });
+
+      const imageUrls = (await Promise.all(uploadPromises)).filter(Boolean);
+
+      const sanitizedData = { ...productData };
+      delete sanitizedData._id;
+      delete sanitizedData.id;
 
       const { data } = await api.post('/products', {
-        ...productData,
+        ...sanitizedData,
         image: imageUrls[0] || productData.image || '',
         images: imageUrls.length > 0 ? imageUrls : (productData.images || []),
         price: parseFloat(productData.price) || 0,
@@ -269,20 +279,21 @@ export const StoreProvider = ({ children }) => {
   // -- Update Product --
   const updateProduct = async (productId, productData, imageFiles) => {
     try {
-      let existingImages = productData.images || (productData.image ? [productData.image] : []);
-      let newImageUrls = [];
+      const existingImages = productData.images || (productData.image ? [productData.image] : []);
       const filesToUpload = Array.isArray(imageFiles) ? imageFiles : (imageFiles ? [imageFiles] : []);
 
-      for (const file of filesToUpload) {
-        if (!file) continue;
+      // Upload new images in parallel
+      const uploadPromises = filesToUpload.map(async (file) => {
+        if (!file) return null;
         const formData = new FormData();
         formData.append('image', file);
-        const { data: uploadData } = await api.post('/upload/image', formData, {
+        const { data } = await api.post('/upload/image', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
-        newImageUrls.push(uploadData.url);
-      }
+        return data.url;
+      });
 
+      const newImageUrls = (await Promise.all(uploadPromises)).filter(Boolean);
       const finalImages = [...existingImages, ...newImageUrls];
 
       const { data } = await api.put(`/products/${productId}`, {

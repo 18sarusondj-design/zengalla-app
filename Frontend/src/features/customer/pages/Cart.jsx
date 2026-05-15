@@ -13,12 +13,16 @@ const Cart = () => {
   const {
     updateQuantity, removeFromCart, clearCart,
     setItemQuantity, cart: allCarts, setCurrentShopId,
-    shops, user: storeUser
+    shops, user: storeUser, fetchShops
   } = useStore();
   const { user: authUser } = useAuth();
   const user = authUser || storeUser;
   const navigate = useNavigate();
   const [weighingProduct, setWeighingProduct] = React.useState(null);
+
+  React.useEffect(() => {
+    fetchShops();
+  }, [fetchShops]);
   
   // Track discounts/coupons per shop
   const [shopDiscounts, setShopDiscounts] = React.useState({});

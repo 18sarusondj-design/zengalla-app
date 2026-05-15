@@ -133,7 +133,9 @@ export const getNearbyShops = async (req, res) => {
             $project: {
               razorpayKeySecret: 0
             }
-          }
+          },
+          { $skip: skip },
+          { $limit: parseInt(limit) }
         ];
         shops = await Shop.aggregate(pipeline);
       } else {
@@ -179,7 +181,7 @@ export const getNearbyShops = async (req, res) => {
 
     res.json({ 
       success: true, 
-      shops: shops.slice(skip, skip + parseInt(limit)) 
+      shops: hasCoords ? shops : shops.slice(skip, skip + parseInt(limit)) 
     });
   } catch (err) {
     console.error('getNearbyShops Critical Error:', err);
@@ -245,6 +247,40 @@ export const updateShop = async (req, res) => {
   try {
     const shop = await Shop.findOne({ _id: req.params.id, owner: req.user._id });
     if (!shop) return res.status(404).json({ error: 'Shop not found or unauthorized' });
+
+    // 🔒 Location Security Check: If pinCode or Location is changing, verify they match
+    const newPinCode = req.body.pinCode || req.body.pincode;
+    const newLocation = req.body.location;
+
+    if (newPinCode || newLocation) {
+      const lat = newLocation?.coordinates?.[1] || shop.location.coordinates[1];
+      const lng = newLocation?.coordinates?.[0] || shop.location.coordinates[0];
+      const pinToVerify = newPinCode || shop.pinCode;
+
+      try {
+        const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`, {
+          headers: { 'User-Agent': 'ZengallaRetailApp/1.0' }
+        });
+
+        if (geoRes.ok) {
+          const geoData = await geoRes.json();
+          if (geoData && geoData.address) {
+            const postalCode = geoData.address.postcode;
+            const officialPinCode = postalCode ? postalCode.split(' ')[0].replace(/\D/g, '').substring(0, 6) : null;
+            
+            // Allow update if it's within the same general area (first 3 digits) or matches exactly
+            if (officialPinCode && officialPinCode !== pinToVerify && pinToVerify.substring(0,3) !== officialPinCode.substring(0,3)) {
+              return res.status(400).json({ 
+                error: `Location Security Alert: The official Pin Code for this spot is ${officialPinCode}, but you entered ${pinToVerify}. Please use the correct Pin Code for your map location.` 
+              });
+            }
+          }
+        }
+      } catch (geoErr) {
+        console.warn("OSM verification skipped due to error:", geoErr.message);
+        // We don't block the update if the external API is down, to maintain availability
+      }
+    }
 
     // Sanitize update: don't overwrite secret with empty string if user didn't change it
     const updateData = { ...req.body };

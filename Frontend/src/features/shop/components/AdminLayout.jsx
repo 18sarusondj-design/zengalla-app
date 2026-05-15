@@ -258,7 +258,7 @@ const AdminLayout = () => {
 
               {!isDeliveryMode ? (
                 <>
-                  <NavItem to="/super-admin" exact icon={<LayoutDashboard size={20} />} label="Management Dashboard" />
+                  <NavItem to="/super-admin" exact icon={<LayoutDashboard size={20} />} label="Platform Growth" />
                   <div className="h-px bg-gray-100 my-2 mx-4" />
                   <p className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 mt-4">Security Groups</p>
                   <NavItem to="/super-admin/vendors" icon={<Users size={20} />} label="Vendors List" badge={adminStats.vendors} />
@@ -276,6 +276,7 @@ const AdminLayout = () => {
               ) : (
                 <>
                   <p className="px-5 text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-2 mt-4">Fleet Operations</p>
+                  <NavItem to="/super-admin" exact icon={<LayoutDashboard size={20} />} label="Platform Growth" />
                   <NavItem to="/super-admin/orders" icon={<ShoppingCart size={20} />} label="Global Orders" />
                   <NavItem to="/super-admin/delivery" icon={<Truck size={20} />} label="Delivery Fleet" />
                   <div className="h-px bg-gray-100 my-2 mx-4" />
@@ -340,7 +341,7 @@ const AdminLayout = () => {
                 )}
                 {isAdmin && (
                   <>
-                    <NavItem to="/super-admin" exact icon={<LayoutDashboard size={20} />} label="Management" onClick={() => setIsMobileMenuOpen(false)} />
+                    <NavItem to="/super-admin" exact icon={<LayoutDashboard size={20} />} label="Platform Growth" onClick={() => setIsMobileMenuOpen(false)} />
                     <NavItem to="/super-admin/orders" icon={<ShoppingCart size={20} />} label="Global Orders" onClick={() => setIsMobileMenuOpen(false)} />
                     <NavItem to="/super-admin/delivery" icon={<Truck size={20} />} label="Delivery Fleet" onClick={() => setIsMobileMenuOpen(false)} />
                     <NavItem to="/super-admin/vendors" icon={<Users size={20} />} label="Vendors" badge={adminStats.vendors} onClick={() => setIsMobileMenuOpen(false)} />

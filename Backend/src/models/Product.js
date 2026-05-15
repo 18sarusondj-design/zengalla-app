@@ -4,8 +4,6 @@ const batchSchema = new mongoose.Schema({
   batchNumber: { type: String, required: true },
   mfd: { type: Date },
   expiryDate: { type: Date, required: true },
-  purchasePrice: { type: Number, default: 0 },
-  sellingPrice: { type: Number, default: 0 },
   stock: { type: Number, default: 0 },
   supplierName: { type: String, default: '' },
   warehouseLocation: { type: String, default: '' },

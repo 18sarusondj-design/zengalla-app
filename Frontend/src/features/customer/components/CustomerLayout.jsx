@@ -134,7 +134,6 @@ const CustomerLayout = () => {
                 <p className="px-4 py-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Main Menu</p>
                 <SidebarItem to="/" icon={<Home size={20} />} label="Home" onClick={() => setIsSidebarOpen(false)} />
                 <SidebarItem to="/shops" icon={<Logo variant="icon" className="h-5 w-5 bg-transparent p-0" />} label="Discover Shops" onClick={() => setIsSidebarOpen(false)} />
-                <SidebarItem to="/my-shops" icon={<Clock size={20} />} label="Recently Visited" onClick={() => setIsSidebarOpen(false)} />
                 <SidebarItem to="/orders" icon={<ClipboardList size={20} />} label="My Orders" onClick={() => setIsSidebarOpen(false)} />
 
                 <div className="h-px bg-gray-100 my-2 mx-4" />
@@ -258,7 +257,6 @@ const CustomerLayout = () => {
                 // 👤 Full Navigation for Logged-in Users
                 <>
                   <NavItem to="/" icon={<Home size={22} />} label="Home" />
-                  <NavItem to="/my-shops" icon={<Clock size={22} />} label="Recent" />
                   <NavItem to="/shops" icon={<Store size={22} />} label="Shops" />
                   <NavItem to="/cart" icon={<ShoppingCart size={22} />} label="Cart" badge={totalCartItemCount > 0 ? Math.floor(totalCartItemCount) : null} />
                   <NavItem to="/orders" icon={<ClipboardList size={22} />} label="Orders" />

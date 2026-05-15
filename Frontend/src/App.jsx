@@ -32,7 +32,6 @@ const Checkout = lazy(() => import('./features/customer/pages/Checkout'));
 const OrderStatus = lazy(() => import('./features/customer/pages/OrderStatus'));
 const CustomerOrders = lazy(() => import('./features/customer/pages/Orders'));
 const Profile = lazy(() => import('./features/customer/pages/Profile'));
-const MyShops = lazy(() => import('./features/customer/pages/MyShops'));
 const ShopNotifications = lazy(() => import('./features/customer/pages/ShopNotifications'));
 const Dues = lazy(() => import('./features/customer/pages/Dues'));
 
@@ -124,7 +123,6 @@ function App() {
                 <Route path="orders" element={<CustomerOrders />} />
                 <Route path="order-status" element={<OrderStatus />} />
                 <Route path="profile" element={<Profile />} />
-                <Route path="my-shops" element={<MyShops />} />
                 <Route path="dues" element={<Dues />} />
                 <Route path="join" element={<Register />} />
               </Route>

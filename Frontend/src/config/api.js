@@ -7,7 +7,7 @@ const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostna
 const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 15000, // 15s timeout to prevent hanging requests
+  timeout: 60000, // Increased to 60s for handling image uploads on slower networks
 });
 
 // Configure retry logic

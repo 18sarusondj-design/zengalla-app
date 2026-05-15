@@ -116,7 +116,15 @@ const Orders = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [orderToDownload, setOrderToDownload] = useState(null);
   const [showFleetMap, setShowFleetMap] = useState(false);
+  
+  useEffect(() => {
+    if (showFleetMap) {
+      setHasCentered(false); // Trigger re-center when modal opens
+    }
+  }, [showFleetMap]);
   const [partners, setPartners] = useState([]);
+  const [mapCenter, setMapCenter] = useState({ lat: 15.3647, lng: 75.1240 }); // Default to Hubli, Karnataka
+  const [hasCentered, setHasCentered] = useState(false);
   const [selectedPartner, setSelectedPartner] = useState(null);
   const [orderToAssign, setOrderToAssign] = useState(null);
   const [deliveryFee, setDeliveryFee] = useState('');
@@ -129,7 +137,7 @@ const Orders = () => {
     libraries: LIBRARIES
   });
 
-  const [activeStatus, setActiveStatus] = useState('NEW');
+  const [activeStatus, setActiveStatus] = useState(user?.role === 'admin' ? 'PACKING' : 'NEW');
   const [pageStates, setPageStates] = useState({
     NEW: 1,
     PACKING: 1,
@@ -157,12 +165,20 @@ const Orders = () => {
   const fetchPartners = async () => {
     try {
       const data = await getDeliveryPartners();
-      // Only show partners who are actively online or have recent location activity
-      const onlinePartners = (data || []).filter(p => 
-        p.isOnline === true || p.isOnline === 'true' || p.isOnline === 1 || p.is_online === true ||
-        (p.currentLocation && (new Date() - new Date(p.currentLocation.lastUpdated)) < 300000) // Within 5 mins
-      );
-      setPartners(onlinePartners);
+      const allPartners = (data || []);
+      setPartners(allPartners);
+      
+      // Auto-center once if data arrives and we haven't centered yet
+      if (!hasCentered && (allPartners.length > 0 || vendorShop?.location)) {
+        const firstWithLoc = allPartners.find(p => p.location?.coordinates?.[0] !== 0);
+        if (firstWithLoc) {
+          setMapCenter({ lat: firstWithLoc.location.coordinates[1], lng: firstWithLoc.location.coordinates[0] });
+          setHasCentered(true);
+        } else if (vendorShop?.location) {
+          setMapCenter(vendorShop.location);
+          setHasCentered(true);
+        }
+      }
     } catch (err) {
       console.error("Failed to fetch partners");
     }
@@ -331,7 +347,7 @@ const Orders = () => {
     { id: 'PACKING', title: 'Packing', icon: <Clock size={18} />, color: 'text-amber-600', bg: 'bg-amber-50', activeBg: 'bg-amber-500', activeText: 'text-white' },
     { id: 'COMPLETED', title: 'Completed', icon: <CheckCircle size={18} />, color: 'text-emerald-600', bg: 'bg-emerald-50', activeBg: 'bg-emerald-600', activeText: 'text-white' },
     { id: 'CANCELLED', title: 'Cancelled', icon: <XCircle size={18} />, color: 'text-rose-600', bg: 'bg-rose-50', activeBg: 'bg-rose-600', activeText: 'text-white' },
-  ];
+  ].filter(s => !(user?.role === 'admin' && s.id === 'NEW'));
 
   // Filtering & Pagination Logic
   const filteredOrders = orders.filter(o => {
@@ -341,12 +357,15 @@ const Orders = () => {
 
     const isBill = o.orderType === 'IN_STORE_BILL' || o.order_type === 'IN_STORE_BILL';
     
-    // 🚚 FLOW: NEW tab includes NEW, ASSIGNED, and PACKING (Vendor accepted)
-    // PACKING tab includes READY (Packed) and OUT_FOR_DELIVERY
+    // 🛡️ SECURITY: Admin does not see NEW orders (waiting for vendor acceptance)
+    if (user?.role === 'admin' && o.status === 'NEW') return false;
+
+    // 🚚 FLOW: NEW tab includes NEW, ASSIGNED (Vendor sees these)
+    // PACKING tab includes PACKING (Vendor accepted), READY (Packed), and OUT_FOR_DELIVERY
     const statusMatch = activeStatus === 'NEW' 
-      ? ['NEW', 'ASSIGNED', 'PACKING'].includes(o.status) 
+      ? ['NEW', 'ASSIGNED'].includes(o.status) 
       : activeStatus === 'PACKING'
-        ? ['READY', 'OUT_FOR_DELIVERY'].includes(o.status)
+        ? ['PACKING', 'READY', 'OUT_FOR_DELIVERY'].includes(o.status)
         : o.status === activeStatus;
 
     if (!statusMatch) return false;
@@ -361,6 +380,7 @@ const Orders = () => {
     const isB2B = o.orderType === 'B2B_PROCUREMENT' || o.order_type === 'B2B_PROCUREMENT';
     if (user?.role === 'admin' && isB2B) return false;
     const isBill = o.orderType === 'IN_STORE_BILL' || o.order_type === 'IN_STORE_BILL';
+    if (user?.role === 'admin' && o.status === 'NEW') return false;
     return ['NEW', 'PACKING', 'READY', 'ASSIGNED', 'OUT_FOR_DELIVERY'].includes(o.status) && !isBill;
   }).length;
 
@@ -450,11 +470,14 @@ const Orders = () => {
                 if (user?.role === 'admin' && isB2B) return false;
                 
                 const isBill = o.orderType === 'IN_STORE_BILL' || o.order_type === 'IN_STORE_BILL';
+
+                // 🛡️ SECURITY: Admin does not see NEW orders
+                if (user?.role === 'admin' && o.status === 'NEW') return false;
                 
                 const match = status.id === 'NEW' 
-                  ? ['NEW', 'ASSIGNED', 'PACKING'].includes(o.status) 
+                  ? ['NEW', 'ASSIGNED'].includes(o.status) 
                   : status.id === 'PACKING'
-                    ? ['READY', 'OUT_FOR_DELIVERY'].includes(o.status)
+                    ? ['PACKING', 'READY', 'OUT_FOR_DELIVERY'].includes(o.status)
                     : o.status === status.id;
 
                 if (!match) return false;
@@ -992,50 +1015,75 @@ const Orders = () => {
                 <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Live Fleet Console</h3>
                 <p className="text-[10px] font-black text-sky-500 uppercase tracking-widest">Real-time partner location tracking</p>
               </div>
-              <button onClick={() => setShowFleetMap(false)} className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm hover:bg-gray-50 transition-all">
-                <XCircle size={24} className="text-gray-400" />
-              </button>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setHasCentered(false)}
+                  className="flex items-center gap-2 px-4 py-2 bg-sky-50 text-sky-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-sky-100 transition-all border border-sky-100"
+                >
+                  <MapPin size={14} />
+                  Re-center Fleet
+                </button>
+                <button onClick={() => setShowFleetMap(false)} className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm hover:bg-gray-50 transition-all">
+                  <XCircle size={24} className="text-gray-400" />
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 flex flex-col lg:flex-row">
               <div className="flex-1 relative bg-gray-100">
                 {isLoaded ? (
                   <GoogleMap
+                    key={showFleetMap ? 'visible' : 'hidden'}
                     mapContainerStyle={{ width: '100%', height: '100%' }}
-                    center={vendorShop?.location || { lat: 20.5937, lng: 78.9629 }}
+                    center={mapCenter}
+                    onLoad={(map) => {
+                      window.mapInstance = map;
+                      // Force a resize calculation after a short delay
+                      setTimeout(() => {
+                        window.google.maps.event.trigger(map, 'resize');
+                      }, 100);
+                    }}
+                    onDragEnd={() => {
+                      if (window.mapInstance) {
+                        const newCenter = window.mapInstance.getCenter();
+                        setMapCenter({ lat: newCenter.lat(), lng: newCenter.lng() });
+                      }
+                    }}
                     zoom={14}
                     options={{
+                      mapTypeId: 'roadmap',
                       styles: [
-                        { "featureType": "all", "elementType": "labels.text.fill", "stylers": [{ "saturation": 36 }, { "color": "#000000" }, { "lightness": 40 }] },
-                        { "featureType": "all", "elementType": "labels.text.stroke", "stylers": [{ "visibility": "on" }, { "color": "#000000" }, { "lightness": 16 }] },
-                        { "featureType": "administrative", "elementType": "geometry.fill", "stylers": [{ "color": "#000000" }, { "lightness": 20 }] },
-                        { "featureType": "landscape", "elementType": "geometry", "stylers": [{ "color": "#000000" }, { "lightness": 20 }] }
+                        { "featureType": "administrative", "elementType": "geometry", "stylers": [{ "visibility": "off" }] },
+                        { "featureType": "poi", "stylers": [{ "visibility": "off" }] },
+                        { "featureType": "road", "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] },
+                        { "featureType": "transit", "stylers": [{ "visibility": "off" }] }
                       ],
-                      disableDefaultUI: true,
-                      zoomControl: true
+                      disableDefaultUI: false,
+                      zoomControl: true,
+                      mapTypeControl: true,
+                      streetViewControl: true,
+                      fullscreenControl: true
                     }}
                   >
                     {vendorShop?.location && (
                       <Marker
                         position={vendorShop.location}
-                        icon={{
-                          url: "https://cdn-icons-png.flaticon.com/512/619/619153.png",
-                          scaledSize: new window.google.maps.Size(40, 40)
-                        }}
-                        title="Shop Location"
+                        icon="https://cdn-icons-png.flaticon.com/512/619/619153.png"
                       />
                     )}
 
-                    {partners.map(partner => partner.currentLocation && (
-                      <Marker
-                        key={partner.id}
-                        position={partner.currentLocation}
-                        onClick={() => setSelectedPartner(partner)}
-                        icon={{
-                          url: "https://cdn-icons-png.flaticon.com/512/2972/2972185.png",
-                          scaledSize: new window.google.maps.Size(45, 45)
-                        }}
-                      />
+                    {partners.map(p => (
+                      p.location?.coordinates?.[0] !== 0 && (
+                        <Marker
+                          key={p._id}
+                          position={{ lat: p.location.coordinates[1], lng: p.location.coordinates[0] }}
+                          title={p.name}
+                          icon={{
+                            url: "https://cdn-icons-png.flaticon.com/512/2972/2972185.png",
+                            scaledSize: new window.google.maps.Size(40, 40)
+                          }}
+                        />
+                      )
                     ))}
 
                     {selectedPartner && (
@@ -1070,34 +1118,34 @@ const Orders = () => {
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">No active partners found</p>
                     </div>
                   )}
-                  {partners.map(partner => (
+                  {partners.map(p => (
                     <div
-                      key={partner.id}
-                      onClick={() => partner.currentLocation && setSelectedPartner(partner)}
-                      className={`p-4 rounded-3xl border transition-all cursor-pointer ${selectedPartner?.id === partner.id ? 'bg-gray-900 border-gray-900 text-white shadow-xl scale-[1.02]' : 'bg-white border-gray-100 hover:border-sky-500 shadow-sm'}`}
+                      key={p._id}
+                      onClick={() => p.location?.coordinates?.[0] !== 0 && setMapCenter({ lat: p.location.coordinates[1], lng: p.location.coordinates[0] })}
+                      className={`p-4 rounded-3xl border transition-all cursor-pointer ${mapCenter.lat === p.location?.coordinates?.[1] ? 'bg-gray-900 border-gray-900 text-white shadow-xl scale-[1.02]' : 'bg-white border-gray-100 hover:border-sky-500 shadow-sm'}`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm ${selectedPartner?.id === partner.id ? 'bg-sky-500 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                          {partner.name?.charAt(0)}
+                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm ${mapCenter.lat === p.location?.coordinates?.[1] ? 'bg-sky-500 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                          {p.name?.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className={`font-black uppercase text-xs tracking-tight ${selectedPartner?.id === partner.id ? 'text-white' : 'text-gray-900'}`}>{partner.name}</p>
+                          <p className={`font-black uppercase text-xs tracking-tight ${mapCenter.lat === p.location?.coordinates?.[1] ? 'text-white' : 'text-gray-900'}`}>{p.name}</p>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <span className={`w-1.5 h-1.5 rounded-full ${partner.currentLocation ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`} />
+                            <span className={`w-1.5 h-1.5 rounded-full ${(p.isOnline || p.is_online) ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`} />
                             <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">
-                              {partner.currentLocation ? 'Active' : 'Offline'}
+                              {(p.isOnline || p.is_online) ? 'Live Tracking' : 'Offline'}
                             </span>
                           </div>
                         </div>
                       </div>
-                      {partner.currentLocation && (
+                      {p.location?.coordinates?.[0] !== 0 && (
                         <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
                           <div className="flex flex-col">
-                            <span className="text-[7px] uppercase font-black opacity-50 mb-0.5">Last Sync</span>
-                            <span className="text-[9px] font-black">{new Date(partner.currentLocation.lastUpdated).toLocaleTimeString()}</span>
+                            <span className="text-[7px] uppercase font-black opacity-50 mb-0.5">Location ID</span>
+                            <span className="text-[9px] font-black truncate max-w-[100px]">{p.location.coordinates[1].toFixed(4)}, {p.location.coordinates[0].toFixed(4)}</span>
                           </div>
                           <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-                            <Smartphone size={14} className="text-sky-500" />
+                            <Smartphone size={14} className={ (p.isOnline || p.is_online) ? "text-emerald-400" : "text-gray-400"} />
                           </div>
                         </div>
                       )}
@@ -1328,10 +1376,6 @@ function OrderCard({ order, updateOrderStatus, updateOrderPayment, currentStatus
       actionLabel = 'Ready';
       nextStatus = 'READY';
       btnClass = 'bg-emerald-600 shadow-emerald-900/20';
-    } else if (order.status === 'READY') {
-      actionLabel = 'Picked';
-      nextStatus = 'OUT_FOR_DELIVERY';
-      btnClass = 'bg-indigo-600 shadow-indigo-900/20';
     }
   }
 
@@ -1360,7 +1404,7 @@ function OrderCard({ order, updateOrderStatus, updateOrderPayment, currentStatus
             order.status === 'CANCELLED' ? 'bg-rose-50 text-rose-600 border-rose-100' :
             'bg-amber-50 text-amber-600 border-amber-100 animate-pulse'
           }`}>
-            {order.status}
+            {order.status === 'READY' ? 'READY TO PICK' : order.status?.replace(/_/g, ' ')}
           </span>
         </div>
         <div className="text-right">

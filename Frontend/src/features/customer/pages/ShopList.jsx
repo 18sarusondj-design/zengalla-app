@@ -103,7 +103,11 @@ const ShopList = () => {
       // Try to fetch nearby shops if coords available
       if (userCoords) {
         try {
-          data = await fetchNearbyShops(userCoords.lat, userCoords.lng, 10, query); 
+          // Use a massive radius (10000km) to show ALL shops sorted by distance
+          data = await fetchNearbyShops(userCoords.lat, userCoords.lng, 10000, query); 
+          if (!data || data.length === 0) {
+            data = contextShops;
+          }
         } catch (err) {
           console.warn("Nearby fetch failed, using fallback:", err);
           data = contextShops;
@@ -174,16 +178,28 @@ const ShopList = () => {
       });
 
       enriched.sort((a, b) => {
-        // 1. Sponsored first
+        const userPincode = user?.pincode || '';
+        const aMatchesPin = a.pinCode === userPincode;
+        const bMatchesPin = b.pinCode === userPincode;
+
+        // 1. Prioritize Sponsored Shops in the user's Pincode
+        if (aMatchesPin && a.isSponsored && !(bMatchesPin && b.isSponsored)) return -1;
+        if (bMatchesPin && b.isSponsored && !(aMatchesPin && a.isSponsored)) return 1;
+
+        // 2. Prioritize Shops in the user's Pincode (even if not sponsored)
+        if (aMatchesPin && !bMatchesPin) return -1;
+        if (bMatchesPin && !aMatchesPin) return 1;
+
+        // 3. Sponsored first (for other locations)
         if (a.isSponsored && !b.isSponsored) return -1;
         if (!a.isSponsored && b.isSponsored) return 1;
         
-        // 2. Best Rating next
+        // 4. Best Rating next
         const ratingA = Number(a.dynamicRating) || 0;
         const ratingB = Number(b.dynamicRating) || 0;
         if (ratingB !== ratingA) return ratingB - ratingA;
 
-        // 3. Distance (Proximity)
+        // 5. Distance (Proximity)
         if (userCoords) {
           if (a.distance === null) return 1;
           if (b.distance === null) return -1;
@@ -210,7 +226,16 @@ const ShopList = () => {
     }
   }, [userCoords]);
 
-  const featuredShops = shopsWithDistance.filter(s => s.isSponsored);
+  const userPincode = user?.pincode || '';
+  const featuredShops = shopsWithDistance
+    .filter(s => s.isSponsored)
+    .sort((a, b) => {
+      const aMatches = a.pinCode === userPincode;
+      const bMatches = b.pinCode === userPincode;
+      if (aMatches && !bMatches) return -1;
+      if (!aMatches && bMatches) return 1;
+      return 0;
+    });
 
   // Regular shops should show everything to maintain UI stability
   const regularShops = shopsWithDistance;

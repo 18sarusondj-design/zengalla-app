@@ -70,7 +70,7 @@ const Inventory = () => {
   const [newProduct, setNewProduct] = useState(initialProductState);
   const [showBatches, setShowBatches] = useState(false);
   const [newBatch, setNewBatch] = useState({
-    batchNumber: '', mfd: '', expiryDate: '', purchasePrice: '', sellingPrice: '', stock: '', supplierName: '', warehouseLocation: ''
+    batchNumber: '', mfd: '', expiryDate: '', stock: '', supplierName: '', warehouseLocation: ''
   });
   const [imageFile, setImageFile] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -799,6 +799,7 @@ const Inventory = () => {
                       setNewProduct(prev => ({
                         ...prev,
                         id: undefined,
+                        _id: undefined,
                         price: '',
                         mrp: '',
                         stockQuantity: '',
@@ -806,7 +807,8 @@ const Inventory = () => {
                         wholesalePrice: '',
                         businessPrice: '',
                         weightPerUnit: '',
-                        minimumOrderQuantity: 1
+                        minimumOrderQuantity: 1,
+                        batches: []
                       }));
                       toast.info("Branding retained. Please enter new price and stock.");
                     }}
@@ -863,14 +865,24 @@ const Inventory = () => {
                   <div className="grid grid-cols-2 gap-2 bg-gray-50 p-1 rounded-xl">
                     <button
                       type="button"
-                      onClick={() => setNewProduct({ ...newProduct, sellingType: 'weight' })}
+                      onClick={() => setNewProduct({ 
+                        ...newProduct, 
+                        sellingType: 'weight',
+                        minimumOrderQuantity: newProduct.sellingType === 'weight' ? newProduct.minimumOrderQuantity : 1.0,
+                        lowStockThreshold: newProduct.sellingType === 'weight' ? newProduct.lowStockThreshold : 1.0
+                      })}
                       className={`py-2 rounded-lg text-[7px] font-black uppercase tracking-widest transition-all ${newProduct.sellingType === 'weight' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
                     >
                       KG / Weight Based
                     </button>
                     <button
                       type="button"
-                      onClick={() => setNewProduct({ ...newProduct, sellingType: 'piece' })}
+                      onClick={() => setNewProduct({ 
+                        ...newProduct, 
+                        sellingType: 'piece',
+                        minimumOrderQuantity: newProduct.sellingType === 'piece' ? newProduct.minimumOrderQuantity : 1,
+                        lowStockThreshold: newProduct.sellingType === 'piece' ? newProduct.lowStockThreshold : 5
+                      })}
                       className={`py-2 rounded-lg text-[7px] font-black uppercase tracking-widest transition-all ${newProduct.sellingType === 'piece' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
                     >
                       Packet Based
@@ -997,25 +1009,31 @@ const Inventory = () => {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="p-4 bg-amber-50/60 border border-amber-200/60 rounded-2xl space-y-2">
-                      <label className="block text-[10px] font-black text-amber-600 uppercase tracking-[0.2em]">Min Order Qty</label>
+                      <label className="block text-[10px] font-black text-amber-600 uppercase tracking-[0.2em]">
+                        Min Order Qty {newProduct.sellingType === 'weight' ? '(KG)' : '(PKT)'}
+                      </label>
                       <input
                         type="number"
+                        step={newProduct.sellingType === 'weight' ? '0.01' : '1'}
                         className="w-full bg-white border border-transparent focus:border-amber-500/20 rounded-lg py-2 px-3 text-xs font-black text-gray-800 outline-none"
                         value={newProduct.minimumOrderQuantity}
-                        onChange={e => setNewProduct({ ...newProduct, minimumOrderQuantity: Math.max(1, parseInt(e.target.value) || 1) })}
-                        min="1"
+                        onChange={e => setNewProduct({ ...newProduct, minimumOrderQuantity: Math.max(newProduct.sellingType === 'weight' ? 0.01 : 1, parseFloat(e.target.value) || 0) })}
+                        min={newProduct.sellingType === 'weight' ? '0.01' : '1'}
                       />
                     </div>
-                    <div className="p-4 bg-rose-50/60 border border-rose-200/60 rounded-2xl space-y-2">
-                      <label className="block text-[10px] font-black text-rose-600 uppercase tracking-[0.2em]">Low Stock Alert</label>
-                      <input
-                        type="number"
-                        className="w-full bg-white border border-transparent focus:border-rose-500/20 rounded-lg py-2 px-3 text-xs font-black text-gray-800 outline-none"
-                        value={newProduct.lowStockThreshold}
-                        onChange={e => setNewProduct({ ...newProduct, lowStockThreshold: Math.max(0, parseInt(e.target.value) || 0) })}
-                        min="0"
-                      />
-                    </div>
+                     <div className="p-4 bg-rose-50/60 border border-rose-200/60 rounded-2xl space-y-2">
+                       <label className="block text-[10px] font-black text-rose-600 uppercase tracking-[0.2em]">
+                         Low Stock Alert {newProduct.sellingType === 'weight' ? '(KG)' : '(PKT)'}
+                       </label>
+                       <input
+                         type="number"
+                         step={newProduct.sellingType === 'weight' ? '0.01' : '1'}
+                         className="w-full bg-white border border-transparent focus:border-rose-500/20 rounded-lg py-2 px-3 text-xs font-black text-gray-800 outline-none"
+                         value={newProduct.lowStockThreshold}
+                         onChange={e => setNewProduct({ ...newProduct, lowStockThreshold: Math.max(0, parseFloat(e.target.value) || 0) })}
+                         min="0"
+                       />
+                     </div>
                   </div>
 
                   <div className={`border-t border-gray-100 pt-2 ${modalMode === 'STOCK' ? 'ring-4 ring-emerald-500/20 rounded-2xl p-2 bg-emerald-50/30' : ''}`}>
@@ -1033,7 +1051,7 @@ const Inventory = () => {
 
                     {(showBatches || modalMode === 'STOCK') && (
                       <div className="mt-3 space-y-3 p-1 animate-in slide-in-from-top-2 duration-200">
-                        <div className={`grid ${newProduct.sellingType === 'weight' ? 'grid-cols-1' : 'grid-cols-2'} gap-2`}>
+                        <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1">
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Batch No.</label>
                             <input
@@ -1043,38 +1061,18 @@ const Inventory = () => {
                               onChange={e => setNewBatch({ ...newBatch, batchNumber: e.target.value })}
                             />
                           </div>
-                          {newProduct.sellingType !== 'weight' && (
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Expiry Date</label>
-                              <input
-                                type="date"
-                                className="w-full bg-white border-2 border-gray-200 focus:border-sky-500/40 rounded-xl py-2 px-3 text-[10px] font-black uppercase outline-none shadow-sm"
-                                value={newBatch.expiryDate}
-                                onChange={e => setNewBatch({ ...newBatch, expiryDate: e.target.value })}
-                              />
-                            </div>
-                          )}
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Expiry Date</label>
+                            <input
+                              type="date"
+                              className="w-full bg-white border-2 border-gray-200 focus:border-sky-500/40 rounded-xl py-2 px-3 text-[10px] font-black uppercase outline-none shadow-sm"
+                              value={newBatch.expiryDate}
+                              onChange={e => setNewBatch({ ...newBatch, expiryDate: e.target.value })}
+                            />
+                          </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Cost</label>
-                            <input
-                              type="number"
-                              className="w-full bg-white border-2 border-gray-200 focus:border-sky-500/40 rounded-xl py-2 px-2 text-[10px] font-black outline-none shadow-sm"
-                              value={newBatch.purchasePrice}
-                              onChange={e => setNewBatch({ ...newBatch, purchasePrice: e.target.value })}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Price</label>
-                            <input
-                              type="number"
-                              className="w-full bg-white border-2 border-gray-200 focus:border-sky-500/40 rounded-xl py-2 px-2 text-[10px] font-black outline-none shadow-sm"
-                              value={newBatch.sellingPrice}
-                              onChange={e => setNewBatch({ ...newBatch, sellingPrice: e.target.value })}
-                            />
-                          </div>
+                        <div className="grid grid-cols-1 gap-2">
                           <div className="space-y-1">
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Qty</label>
                             <input
@@ -1093,7 +1091,8 @@ const Inventory = () => {
                             const updatedBatches = [...(newProduct.batches || []), { ...newBatch }];
                             const newTotalStock = updatedBatches.reduce((sum, b) => sum + (parseFloat(b.stock) || 0), 0);
                             setNewProduct({ ...newProduct, batches: updatedBatches, stockQuantity: newTotalStock });
-                            setNewBatch({ batchNumber: '', expiryDate: '', purchasePrice: '', sellingPrice: '', stock: '' });
+                             setNewBatch({ batchNumber: '', expiryDate: '', stock: '' });
+
                             toast.success("Batch added to queue");
                           }}
                           className="w-full h-10 bg-sky-50 text-sky-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-sky-100 flex items-center justify-center gap-2 border border-sky-100"
@@ -1112,7 +1111,7 @@ const Inventory = () => {
                                     <tr className="border-b border-sky-100">
                                       <th className="px-3 py-2.5 text-[9px] font-black text-sky-700 uppercase tracking-widest">Batch</th>
                                       <th className="px-3 py-2.5 text-[9px] font-black text-sky-700 uppercase tracking-widest">Qty</th>
-                                      {newProduct.sellingType !== 'weight' && <th className="px-3 py-2.5 text-[9px] font-black text-sky-700 uppercase tracking-widest">Exp</th>}
+                                      <th className="px-3 py-2.5 text-[9px] font-black text-sky-700 uppercase tracking-widest">Exp</th>
                                       <th className="px-3 py-2.5 text-[9px] font-black text-sky-700 uppercase tracking-widest"></th>
                                     </tr>
                                   </thead>
@@ -1121,11 +1120,13 @@ const Inventory = () => {
                                       <tr key={idx} className="border-b border-gray-50 last:border-0 hover:bg-sky-50 transition-colors">
                                         <td className="px-3 py-2 text-[11px] font-black text-gray-800 truncate max-w-[60px]">#{batch.batchNumber}</td>
                                         <td className="px-3 py-2 text-[11px] font-black text-sky-600">{batch.stock}</td>
-                                        {newProduct.sellingType !== 'weight' && (
                                           <td className="px-3 py-2 text-[10px] font-bold text-gray-500">
-                                            {batch.expiryDate ? batch.expiryDate.split('-').slice(1).join('/') : <span className="text-[8px] text-sky-400/60 uppercase">No Expiry</span>}
+                                            {batch.expiryDate ? (
+                                              batch.expiryDate.includes('T') 
+                                                ? batch.expiryDate.split('T')[0].split('-').reverse().join('/')
+                                                : batch.expiryDate.split('-').reverse().join('/')
+                                            ) : <span className="text-[8px] text-sky-400/60 uppercase">No Expiry</span>}
                                           </td>
-                                        )}
                                         <td className="px-3 py-2 text-right">
                                           <button 
                                             type="button"
