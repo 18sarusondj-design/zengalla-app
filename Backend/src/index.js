@@ -72,13 +72,22 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/grocery_shop';
 
+// Mask URI for safe logging (hides password)
+const maskedUri = MONGODB_URI.replace(/:([^@]+)@/, ':****@');
+console.log(`📡 Attempting to connect to MongoDB: ${maskedUri}`);
+
 mongoose.connect(MONGODB_URI)
   .then(() => {
-    console.log('✅ MongoDB connected');
+    console.log('✅ MongoDB connected successfully');
     app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server running on http://0.0.0.0:${PORT}`));
   })
   .catch((err) => {
-    console.error('❌ MongoDB connection failed:', err.message);
+    console.error('❌ MongoDB connection failed!');
+    console.error('Error Name:', err.name);
+    console.error('Error Message:', err.message);
+    if (err.message.includes('authentication failed')) {
+      console.error('👉 Tip: Check your MONGO_URI credentials and authSource.');
+    }
     process.exit(1);
   });
 
