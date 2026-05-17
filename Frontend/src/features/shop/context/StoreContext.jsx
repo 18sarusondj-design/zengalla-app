@@ -12,7 +12,7 @@ export const StoreProvider = ({ children }) => {
   const [products, setProducts] = useState([]);
   const [shops, setShops] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [vendorShop, setVendorShop] = useState(null);
   const [currentShopId, setCurrentShopId] = useState(() => localStorage.getItem('currentShopId'));
   const [customerGstin, setCustomerGstin] = useState('');
@@ -57,7 +57,7 @@ export const StoreProvider = ({ children }) => {
   const fetchVendorData = useCallback(async () => {
     if (!user || (user.role !== 'vendor' && user.role !== 'staff')) return;
     try {
-      const shopRes = await api.get('/shops/my');
+      const shopRes = await api.get(`/shops/my?_t=${Date.now()}`);
       const vShop = shopRes.data?.shop || null;
       setVendorShop(vShop);
 
@@ -120,37 +120,92 @@ export const StoreProvider = ({ children }) => {
   // Pages will now call fetchData() or specific fetchers as needed.
 
 
-  // -- Real-time Order Notification for Admin --
-  useEffect(() => {
-    if (user?.role !== 'admin' || !token) return;
+  const alertAudioRef = useRef(null);
 
-    const pollOrders = async () => {
+  // -- Real-time Order Alerts & Polling --
+  useEffect(() => {
+    if (!token || (user?.role !== 'admin' && user?.role !== 'vendor')) {
+      if (alertAudioRef.current) {
+        alertAudioRef.current.pause();
+        alertAudioRef.current = null;
+      }
+      return;
+    }
+
+    const pollAndAlert = async () => {
       try {
-        const { data } = await api.get('/orders');
-        if (data.orders) {
-          if (prevOrderCountRef.current > 0 && data.orders.length > prevOrderCountRef.current) {
-            toast.success("📦 New Order Received!", {
-              description: "A new customer order has been placed on the platform.",
+        let shouldAlert = false;
+        let currentOrders = [];
+
+        if (user.role === 'admin') {
+          const { data } = await api.get('/orders?limit=50');
+          currentOrders = data.orders || [];
+          setOrders(currentOrders);
+          
+          // Admin alert: NEW delivery orders without partner assigned
+          shouldAlert = currentOrders.some(o => 
+            o.status === 'NEW' && 
+            o.orderType === 'DELIVERY' && 
+            !o.deliveryPartnerId
+          );
+        } else if (user.role === 'vendor' && vendorShop?._id) {
+          const { data } = await api.get(`/orders?shopId=${vendorShop._id}&limit=50`);
+          currentOrders = data.orders || [];
+          setOrders(currentOrders);
+
+          // Vendor alert: Any NEW orders waiting for acceptance
+          shouldAlert = currentOrders.some(o => o.status === 'NEW');
+        }
+
+        // Sound Logic
+        if (shouldAlert) {
+          if (!alertAudioRef.current) {
+            // Distinct notification bell
+            alertAudioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+            alertAudioRef.current.loop = true;
+          }
+          
+          // Browser may block until first interaction
+          alertAudioRef.current.play().catch(() => {
+            // Silently fail if blocked; user interaction will enable it later
+          });
+
+          // Show toast if new order just arrived
+          if (prevOrderCountRef.current > 0 && currentOrders.length > prevOrderCountRef.current) {
+            toast.info("🔔 Unprocessed Orders Detected!", {
+              description: user.role === 'admin' ? "New delivery orders need partner assignment." : "New orders are waiting for your acceptance.",
               duration: 5000
             });
-            // Play a subtle sound if possible or just rely on toast
           }
-          setOrders(data.orders);
-          prevOrderCountRef.current = data.orders.length;
+        } else {
+          if (alertAudioRef.current) {
+            alertAudioRef.current.pause();
+            alertAudioRef.current.currentTime = 0;
+          }
         }
+
+        prevOrderCountRef.current = currentOrders.length;
       } catch (err) {
-        console.error("Order polling failed:", err);
+        console.debug("Order alert polling skipped:", err.message);
       }
     };
 
-    const interval = setInterval(pollOrders, 20000); // Poll every 20 seconds
-    return () => clearInterval(interval);
-  }, [user?.role, token]);
+    const interval = setInterval(pollAndAlert, 12000); // Check every 12 seconds
+    pollAndAlert(); // Initial run
+
+    return () => {
+      clearInterval(interval);
+      if (alertAudioRef.current) {
+        alertAudioRef.current.pause();
+        alertAudioRef.current = null;
+      }
+    };
+  }, [user?.role, token, vendorShop?._id]);
 
   // -- Vendor Shop Fetch --
   const fetchVendorShop = useCallback(async () => {
     try {
-      const { data } = await api.get('/shops/my');
+      const { data } = await api.get(`/shops/my?_t=${Date.now()}`);
       setVendorShop(data.shop || null);
       return data.shop;
     } catch (err) {
@@ -180,20 +235,95 @@ export const StoreProvider = ({ children }) => {
       console.warn('updateShop: Authentication check failed. User:', user);
       return { success: false, error: `Authentication failed (ID missing). Please try again in a moment.` };
     }
+    
     try {
+      // 0. Robust Sanitization of Location Data (GeoJSON [lng, lat] format)
+      const sanitizedData = { ...shopData };
+      
+      // Critical: Remove MongoDB IDs to prevent "Immutable Field" errors during update
+      delete sanitizedData._id;
+      delete sanitizedData.id;
+      delete sanitizedData.__v;
+
+      if (sanitizedData.location) {
+        let coords = sanitizedData.location.coordinates;
+        
+        // Handle various formats (object {lat,lng}, array of objects, or raw array)
+        if (coords) {
+          let lng, lat;
+          if (Array.isArray(coords)) {
+            // If it's an array of objects [ {lat, lng} ], extract the first one
+            const first = coords[0];
+            if (first && typeof first === 'object' && !Array.isArray(first)) {
+               lng = first.lng || first.longitude;
+               lat = first.lat || first.latitude;
+            } else if (typeof first === 'number') {
+               // Already a raw array [lng, lat]
+               lng = coords[0];
+               lat = coords[1];
+            }
+          } else if (typeof coords === 'object') {
+            lng = coords.lng || coords.longitude;
+            lat = coords.lat || coords.latitude;
+          }
+
+          sanitizedData.location = {
+            ...sanitizedData.location,
+            type: 'Point',
+            coordinates: [
+              Number(lng || 75.1240),
+              Number(lat || 15.3647)
+            ]
+          };
+        }
+      }
+
+      // 1. Try to determine if we should POST or PUT
+      let currentShopId = vendorShop?._id;
+      
+      // If we don't have it in state, try to fetch it first to be safe
+      if (!currentShopId) {
+        try {
+          const { data } = await api.get('/shops/my');
+          if (data.shop) {
+            currentShopId = data.shop._id;
+            setVendorShop(data.shop);
+          }
+        } catch (fetchErr) {
+          // Silent catch
+        }
+      }
+
       let data;
-      if (vendorShop?._id) {
-        const res = await api.put(`/shops/${vendorShop._id}`, shopData);
+      
+      if (currentShopId) {
+        const res = await api.put(`/shops/${currentShopId}`, sanitizedData);
         data = res.data;
       } else {
-        const res = await api.post('/shops', shopData);
-        data = res.data;
+        try {
+          const res = await api.post('/shops', sanitizedData);
+          data = res.data;
+        } catch (postErr) {
+          // If we get a 409 Conflict, it means the shop exists on server but not in our state
+          if (postErr.response?.status === 409) {
+            const { data: myData } = await api.get(`/shops/my?_t=${Date.now()}`);
+            if (myData.shop) {
+              setVendorShop(myData.shop);
+              const retryRes = await api.put(`/shops/${myData.shop._id}`, sanitizedData);
+              data = retryRes.data;
+            } else {
+              throw postErr;
+            }
+          } else {
+            throw postErr;
+          }
+        }
       }
+
       if (data.shop) setVendorShop(data.shop);
       return { success: true, data: data.shop };
     } catch (err) {
-      console.error('updateShop error:', err.message);
-      return { success: false, error: err.message };
+      return { success: false, error: err.response?.data?.error || err.message };
     }
   }, [vendorShop?._id, user?._id, user?.id]);
 
@@ -475,7 +605,13 @@ export const StoreProvider = ({ children }) => {
 
   const createStaff = async (staffData) => {
     try {
-      const { data } = await api.post('/auth/register', { ...staffData, role: 'staff', shopId: vendorShop?._id });
+      const email = staffData.email || `${staffData.phone}@staff.zengalla.com`;
+      const { data } = await api.post('/auth/register', { 
+        ...staffData, 
+        email,
+        role: 'staff', 
+        shopId: vendorShop?._id 
+      });
       return { success: true, staff: data.user };
     } catch (err) {
       toast.error(err.message);
@@ -512,7 +648,13 @@ export const StoreProvider = ({ children }) => {
 
   const createDeliveryPartner = async (partnerData) => {
     try {
-      const { data } = await api.post('/auth/register', { ...partnerData, role: 'delivery', shopId: vendorShop?._id });
+      const email = partnerData.email || `${partnerData.phone}@delivery.zengalla.com`;
+      const { data } = await api.post('/auth/register', { 
+        ...partnerData, 
+        email,
+        role: 'delivery', 
+        shopId: vendorShop?._id 
+      });
       return { success: true, partner: data.user };
     } catch (err) {
       toast.error(err.message);

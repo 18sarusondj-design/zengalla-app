@@ -431,9 +431,18 @@ const Inventory = () => {
                       <tr key={p._id || p.id} className="hover:bg-sky-50/30 transition-colors group">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-gray-50 border border-gray-100 overflow-hidden flex-shrink-0 group-hover:shadow-md transition-all">
-                              {p.imageUrl || p.image ? (
-                                <img src={p.imageUrl || p.image} alt={p.name} className="w-full h-full object-cover" />
+                            <div className="w-12 h-12 rounded-2xl bg-gray-50 border border-gray-100 overflow-hidden flex-shrink-0 group-hover:shadow-md transition-all relative">
+                              {p.imageUrl || p.image || (p.images && p.images[0]) ? (
+                                <img 
+                                  src={p.imageUrl || p.image || p.images[0]} 
+                                  alt={p.name} 
+                                  className="w-full h-full object-cover transition-all" 
+                                  style={{
+                                    objectPosition: p.imageSettings?.[0]?.position || '50% 50%',
+                                    transform: `scale(${(p.imageSettings?.[0]?.zoom || 100) / 100})`,
+                                    transformOrigin: p.imageSettings?.[0]?.position || '50% 50%'
+                                  }}
+                                />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center text-gray-300">
                                   <Zap size={20} />

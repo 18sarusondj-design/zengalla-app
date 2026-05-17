@@ -612,7 +612,7 @@ const Checkout = () => {
             {/* Left Side: Forms & Addresses (Scrollable) */}
           <div className="flex-1 lg:w-2/3 pr-2 flex flex-col gap-8 lg:overflow-y-auto lg:pr-6 no-scrollbar">
               
-              {activeShop && activeShop.is_active && activeShop.hasHomeDelivery !== false && (activeShop.freeDeliveryThreshold > 0 || activeShop.freeDeliveryThreshold === undefined || activeShop.freeDeliveryThreshold === null) && (
+              {activeShop && activeShop.isActive && activeShop.hasHomeDelivery !== false && (activeShop.freeDeliveryThreshold > 0 || activeShop.freeDeliveryThreshold === undefined || activeShop.freeDeliveryThreshold === null) && (
                 <div 
                   onClick={() => navigate(`/shop/${currentShopId}`)}
                   className="animate-in slide-in-from-top-4 duration-500 cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all"
@@ -940,26 +940,28 @@ const Checkout = () => {
                 </div>
               )}
 
-              {/* UPI QR Option */}
-              <div 
-                onClick={() => {
-                  setPaymentMethod('UPI_QR');
-                  setPaymentGateway('UPI_QR');
-                  setShowQRModal(true);
-                }}
-                className={`p-5 border-2 rounded-3xl flex items-center justify-between transition-all cursor-pointer ${paymentMethod === 'UPI_QR' ? 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-500/5' : 'border-gray-100 hover:border-emerald-500/50'}`}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-2xl ${paymentMethod === 'UPI_QR' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-gray-100 text-gray-400'}`}>
-                    <Scan size={24}/>
+              {/* UPI QR Option - Only show if shop has UPI configured */}
+              {activeShop?.bankDetails?.upiId && (
+                <div 
+                  onClick={() => {
+                    setPaymentMethod('UPI_QR');
+                    setPaymentGateway('UPI_QR');
+                    setShowQRModal(true);
+                  }}
+                  className={`p-5 border-2 rounded-3xl flex items-center justify-between transition-all cursor-pointer ${paymentMethod === 'UPI_QR' ? 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-500/5' : 'border-gray-100 hover:border-emerald-500/50'}`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-2xl ${paymentMethod === 'UPI_QR' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-gray-100 text-gray-400'}`}>
+                      <Scan size={24}/>
+                    </div>
+                    <div>
+                      <h3 className={`font-black text-lg uppercase tracking-tight ${paymentMethod === 'UPI_QR' ? 'text-emerald-500' : 'text-gray-900'}`}>UPI QR Scanner</h3>
+                      <p className="text-[11px] text-gray-500 mt-1 font-bold italic leading-tight">Scan & Pay with any UPI app</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className={`font-black text-lg uppercase tracking-tight ${paymentMethod === 'UPI_QR' ? 'text-emerald-500' : 'text-gray-900'}`}>UPI QR Scanner</h3>
-                    <p className="text-[11px] text-gray-500 mt-1 font-bold italic leading-tight">Scan & Pay with any UPI app</p>
-                  </div>
+                  {paymentMethod === 'UPI_QR' && <CheckCircle2 className="text-emerald-500" size={28} />}
                 </div>
-                {paymentMethod === 'UPI_QR' && <CheckCircle2 className="text-emerald-500" size={28} />}
-              </div>
+              )}
             </div>
             <div className="flex justify-end mt-2">
               <button 
@@ -1157,7 +1159,7 @@ const Checkout = () => {
             </div>
 
             {/* Shop Offline Warning (Desktop) */}
-            {activeShop && (activeShop.is_active === false || activeShop.isOpen === false) && (
+            {activeShop && (activeShop.isActive === false) && (
               <div className="p-6 bg-rose-50 border border-rose-100 rounded-[28px] flex items-center gap-4">
                 <div className="w-12 h-12 bg-rose-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-rose-200">
                   <Clock size={24} />

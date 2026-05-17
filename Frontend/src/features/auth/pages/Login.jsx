@@ -21,10 +21,14 @@ const Login = () => {
         if (user.status === 'active') {
           navigate('/vendor/dashboard', { replace: true });
         } else {
-          navigate('/vendor/pending', { replace: true });
+          navigate('/vendor-pending', { replace: true });
         }
+      } else if (user.role === 'staff') {
+        navigate('/vendor/dashboard', { replace: true });
+      } else if (user.role === 'delivery') {
+        navigate('/delivery/dashboard', { replace: true });
       } else if (user.role === 'admin') {
-        navigate('/admin/dashboard', { replace: true });
+        navigate('/super-admin', { replace: true });
       } else {
         navigate(from, { replace: true });
       }
@@ -39,18 +43,6 @@ const Login = () => {
     try {
       const result = await login(email, password);
       if (result.success) {
-        if (result.user?.role === 'vendor') {
-          logout(true); // Silent logout
-          toast.error('Vendors must use the Business Portal to login.', { 
-            id: toastId,
-            duration: 5000,
-            action: {
-              label: "Portal Login",
-              onClick: () => navigate('/vendor-login')
-            }
-          });
-          return;
-        }
         toast.success('Successfully logged in!', { id: toastId });
       } else {
         throw new Error(result.error);
@@ -70,14 +62,6 @@ const Login = () => {
           alt="Branding"
         />
         
-        {/* Delivery Entry Icon */}
-        <Link 
-          to="/delivery-login"
-          className="absolute top-8 left-8 z-20 w-12 h-12 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl flex items-center justify-center text-white hover:bg-sky-500 hover:border-sky-400 transition-all duration-300 shadow-2xl group"
-          title="Delivery Login"
-        >
-          <Truck size={22} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
-        </Link>
         <div className="absolute inset-0 bg-gradient-to-tr from-gray-900 via-gray-900/40 to-transparent flex flex-col justify-end p-16">
           <div className="animate-fade-in-up">
             <div className="w-20 h-20 flex items-center justify-center mb-8 transform -rotate-3">
@@ -102,14 +86,6 @@ const Login = () => {
             alt="Branding Mobile"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-sky-900/70 via-sky-900/40 to-slate-50" />
-          
-          {/* Mobile Delivery Entry Icon */}
-          <Link 
-            to="/delivery-login"
-            className="absolute top-6 left-6 z-20 w-10 h-10 bg-white/20 backdrop-blur-md border border-white/30 rounded-xl flex items-center justify-center text-white active:scale-95 transition-all shadow-lg"
-          >
-            <Truck size={18} strokeWidth={2.5} />
-          </Link>
           <div className="absolute bottom-8 left-8 right-8">
             <div className="flex items-center gap-4">
               <Logo className="h-14" variant="full" white />
@@ -182,7 +158,7 @@ const Login = () => {
                 </button>
                 
                 <p className="text-center text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">
-                  No account? <Link to="/register" className="text-sky-600 font-black hover:underline underline-offset-4 decoration-2">Get Started</Link>
+                  No account? <Link to="/register" state={{ from }} className="text-sky-600 font-black hover:underline underline-offset-4 decoration-2">Get Started</Link>
                 </p>
               </form>
 
@@ -209,16 +185,16 @@ const Login = () => {
                    
                    <div className="grid grid-cols-2 gap-2 relative z-10">
                      <Link 
-                       to="/vendor-login"
+                       to="/register"
                        className="h-9 bg-slate-800 text-white border border-slate-700 rounded-xl flex items-center justify-center text-[7px] font-black uppercase tracking-widest hover:bg-slate-700 hover:border-sky-500 transition-all active:scale-95"
                      >
-                       Portal Login
+                       Create User Account
                      </Link>
                      <Link 
                        to="/vendor-signup"
                        className="h-9 bg-sky-600 text-white rounded-xl flex items-center justify-center text-[7px] font-black uppercase tracking-widest hover:bg-sky-700 transition-all shadow-lg shadow-sky-900/20 active:scale-95"
                      >
-                       Register Node
+                       Register Your Shop
                      </Link>
                    </div>
                 </div>

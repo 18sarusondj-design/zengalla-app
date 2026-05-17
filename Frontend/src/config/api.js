@@ -4,6 +4,20 @@ import axiosRetry from 'axios-retry';
 
 const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000/api`;
 
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
@@ -100,8 +114,52 @@ api.interceptors.response.use(
     }
 
     const msg = error.response?.data?.error || error.message;
-    if (error.response?.status === 401) {
+
+    if (error.response?.status === 401 && !config._retry) {
+      if (!config.url.includes('/auth/refresh') && !config.url.includes('/auth/login')) {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (refreshToken) {
+          if (isRefreshing) {
+            return new Promise(function(resolve, reject) {
+              failedQueue.push({ resolve, reject });
+            }).then(token => {
+              config.headers.Authorization = 'Bearer ' + token;
+              return api(config);
+            }).catch(err => {
+              return Promise.reject(err);
+            });
+          }
+
+          config._retry = true;
+          isRefreshing = true;
+
+          return new Promise(function (resolve, reject) {
+            axios.post(API_URL + '/auth/refresh', { refreshToken })
+              .then(({ data }) => {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('refreshToken', data.refreshToken);
+                config.headers.Authorization = 'Bearer ' + data.token;
+                processQueue(null, data.token);
+                resolve(api(config));
+              })
+              .catch((err) => {
+                processQueue(err, null);
+                localStorage.removeItem('token');
+                localStorage.removeItem('refreshToken');
+                if (!window.location.pathname.includes('/login')) {
+                  window.location.href = '/login';
+                }
+                reject(err);
+              })
+              .finally(() => {
+                isRefreshing = false;
+              });
+          });
+        }
+      }
+      
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       // Only redirect if not already on login page
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login';

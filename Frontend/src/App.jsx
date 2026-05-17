@@ -17,10 +17,7 @@ const Login = lazy(() => import('./features/auth/pages/Login'));
 const Register = lazy(() => import('./features/auth/pages/Register'));
 const ForgotPassword = lazy(() => import('./features/auth/pages/ForgotPassword'));
 const VendorSignup = lazy(() => import('./features/auth/pages/VendorSignup'));
-const VendorLogin = lazy(() => import('./features/auth/pages/VendorLogin'));
 const VendorPending = lazy(() => import('./features/auth/pages/VendorPending'));
-const StaffLogin = lazy(() => import('./features/auth/pages/StaffLogin'));
-const DeliveryLogin = lazy(() => import('./features/auth/pages/DeliveryLogin'));
 
 // Lazy Loaded Pages (Customer)
 const Landing = lazy(() => import('./features/customer/pages/Landing'));
@@ -104,11 +101,8 @@ function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/vendor-signup" element={<VendorSignup />} />
-              <Route path="/vendor-login" element={<VendorLogin />} />
-              <Route path="/staff-login" element={<StaffLogin />} />
-              <Route path="/delivery-login" element={<DeliveryLogin />} />
-              <Route path="/delivery/dashboard" element={<ProtectedRoute requireRole="delivery"><DeliveryDashboard /></ProtectedRoute>} />
               <Route path="/vendor-pending" element={<ProtectedRoute requireRole="vendor" allowPending={true}><VendorPending /></ProtectedRoute>} />
+              <Route path="/delivery/dashboard" element={<ProtectedRoute requireRole="delivery"><DeliveryDashboard /></ProtectedRoute>} />
               <Route path="/vendor-dashboard-redirect" element={<VendorDashboardRedirect />} />
 
               {/* Customer */}
@@ -167,7 +161,7 @@ function App() {
 const VendorDashboardRedirect = () => {
   const { user, loading } = useAuth();
   if (loading) return null;
-  if (!user) return <Navigate to="/vendor-login" />;
+  if (!user) return <Navigate to="/login" />;
   if (user.role === 'delivery') return <Navigate to="/delivery/dashboard" />;
   if (user.role === 'vendor' && user.status === 'pending') return <Navigate to="/vendor-pending" />;
   if (user.role === 'staff') return <Navigate to="/vendor/dashboard/billing" />;

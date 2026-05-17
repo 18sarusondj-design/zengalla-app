@@ -665,14 +665,19 @@ const ShopMenu = () => {
                   }`}
                 >
                   {/* Image */}
-                  <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
-                    <img
-                      src={product.image || product.imageUrl || null}
-                      alt={product.name || ''}
-                      referrerPolicy="no-referrer"
-                      loading="lazy"
-                      className={`w-full h-full object-cover transition-transform duration-500 ${!outOfStock && 'group-hover:scale-105'}`}
-                    />
+                    <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+                      <img
+                        src={product.image || product.imageUrl || (product.images && product.images[0]) || null}
+                        alt={product.name || ''}
+                        referrerPolicy="no-referrer"
+                        loading="lazy"
+                        className={`w-full h-full object-cover transition-transform duration-500 ${!outOfStock && 'group-hover:scale-105'}`}
+                        style={{
+                          objectPosition: product.imageSettings?.[0]?.position || '50% 50%',
+                          transform: `scale(${(product.imageSettings?.[0]?.zoom || 100) / 100})`,
+                          transformOrigin: product.imageSettings?.[0]?.position || '50% 50%'
+                        }}
+                      />
 
                     {/* Shadow overlay for price visibility */}
                     <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />

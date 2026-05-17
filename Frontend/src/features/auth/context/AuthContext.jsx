@@ -7,6 +7,7 @@ const AuthContext = createContext({});
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const [refreshToken, setRefreshToken] = useState(() => localStorage.getItem('refreshToken'));
   const [loading, setLoading] = useState(true);
 
   // Load user on mount if token exists
@@ -26,7 +27,9 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       // Token expired or invalid — clear it
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       setToken(null);
+      setRefreshToken(null);
       setUser(null);
     } finally {
       if (!silent) setLoading(false);
@@ -37,7 +40,9 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data } = await api.post('/auth/login', { email, password });
       localStorage.setItem('token', data.token);
+      localStorage.setItem('refreshToken', data.refreshToken);
       setToken(data.token);
+      setRefreshToken(data.refreshToken);
       setUser(data.user);
       return { success: true, user: data.user };
     } catch (err) {
@@ -59,7 +64,9 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data } = await api.post('/auth/verify-otp', { email, otp });
       localStorage.setItem('token', data.token);
+      localStorage.setItem('refreshToken', data.refreshToken);
       setToken(data.token);
+      setRefreshToken(data.refreshToken);
       setUser(data.user);
       return { success: true };
     } catch (err) {
@@ -67,9 +74,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = (silent = false) => {
+  const logout = async (silent = false) => {
+    if (token) {
+      try {
+        await api.post('/auth/logout');
+      } catch (err) {
+        // Ignore logout error if token is already invalid
+      }
+    }
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     setToken(null);
+    setRefreshToken(null);
     setUser(null);
     if (!silent) toast.info('Logged out successfully');
   };
@@ -112,10 +128,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   const value = useMemo(() => ({
-    user, token, loading,
+    user, token, refreshToken, loading,
     login, register, logout, updateProfile, resetPassword, finalizePasswordReset, refreshUser, verifyOtp, changePassword,
-    session: token ? { access_token: token } : null,
-  }), [user, token, loading]);
+    session: token ? { access_token: token, refresh_token: refreshToken } : null,
+  }), [user, token, refreshToken, loading]);
 
   return (
     <AuthContext.Provider value={value}>

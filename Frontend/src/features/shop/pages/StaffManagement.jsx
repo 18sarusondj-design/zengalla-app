@@ -3,6 +3,7 @@ import { useStore } from '../../shop/context/StoreContext';
 import { UserPlus, Shield, Smartphone, Key, Trash2, CheckCircle2, XCircle, Loader2, User, UserCheck, Users, Lock, ChevronRight, Check, Eye, EyeOff, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { getPasswordStrength } from '../../../utils/passwordStrength';
+import { Mail } from 'lucide-react';
 
 
 const StaffManagement = () => {
@@ -356,6 +357,16 @@ const StaffManagement = () => {
                   <div className="relative group">
                     <Smartphone className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-indigo-500 transition-colors" size={18} />
                     <input required maxLength="10" placeholder="10 Digit Login ID" className="w-full bg-gray-50 border-2 border-transparent rounded-[24px] py-4 md:py-5 pl-14 pr-6 font-bold text-sm focus:border-indigo-100 focus:bg-white focus:ring-4 ring-indigo-50/50 transition-all outline-none" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                  </div>
+                </div>
+
+                <div className="space-y-2 opacity-80">
+                  <label className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] ml-5 flex items-center gap-2">
+                    <Mail size={12} /> Generated Login Email
+                  </label>
+                  <div className="relative group">
+                    <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-indigo-400 transition-colors" size={18} />
+                    <input readOnly placeholder="Enter phone to generate email" className="w-full bg-indigo-50/50 border-2 border-indigo-100 rounded-[24px] py-4 md:py-5 pl-14 pr-6 font-bold text-sm text-indigo-700 outline-none cursor-not-allowed" value={formData.phone ? `${formData.phone}@staff.zengalla.com` : ''} />
                   </div>
                 </div>
 

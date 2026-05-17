@@ -15,12 +15,14 @@ const Register = () => {
     name: '', email: '', password: '', phone: ''
   });
   const [isPassValid, setIsPassValid] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from || '/';
 
   useEffect(() => {
     setIsPassValid(/^(?=.*[0-9]).{7,}$/.test(formData.password));
   }, [formData.password]);
 
-  const navigate = useNavigate();
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -45,7 +47,7 @@ const Register = () => {
           setStep(2);
         } else {
           toast.success('Account created successfully! Welcome to Zengalla.', { id: toastId });
-          navigate('/login');
+          navigate('/login', { state: { from } });
         }
       } else {
         throw new Error(result.error || 'Registration failed');
@@ -68,7 +70,7 @@ const Register = () => {
       const result = await verifyOtp(formData.email, otp);
       if (result.success) {
         toast.success('Email verified successfully! You can now log in.', { id: toastId });
-        navigate('/login');
+        navigate('/login', { state: { from } });
       } else {
         throw new Error(result.error || 'Verification failed');
       }

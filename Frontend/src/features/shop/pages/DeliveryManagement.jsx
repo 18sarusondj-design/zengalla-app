@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../../shop/context/StoreContext';
-import { UserPlus, Shield, Smartphone, Key, Trash2, UserCheck, Lock, Loader2, User, XCircle, Check, Eye, EyeOff, Save, Truck, Package, Clock, Download } from 'lucide-react';
+import { useAuth } from '../../auth/context/AuthContext';
+import { UserPlus, Shield, Smartphone, Key, Trash2, UserCheck, Lock, Loader2, User, XCircle, Check, Eye, EyeOff, Save, Truck, Package, Clock, Download, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../../config/api.js';
 import jsPDF from 'jspdf';
@@ -8,7 +9,8 @@ import autoTable from 'jspdf-autotable';
 import SafeDeleteModal from '../../common/components/SafeDeleteModal';
 
 const DeliveryManagement = () => {
-  const { getDeliveryPartners, createDeliveryPartner, updateDeliveryPartner, deleteDeliveryPartner, vendorShop, updateShop, user } = useStore();
+  const { getDeliveryPartners, createDeliveryPartner, updateDeliveryPartner, deleteDeliveryPartner, vendorShop, updateShop } = useStore();
+  const { user } = useAuth();
   const [partners, setPartners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -576,6 +578,16 @@ const DeliveryManagement = () => {
                   </div>
                 </div>
 
+                <div className="space-y-2 opacity-80">
+                  <label className="text-[10px] font-black text-sky-500 uppercase tracking-[0.2em] ml-5 flex items-center gap-2">
+                    <Mail size={12} /> Generated Login Email
+                  </label>
+                  <div className="relative group">
+                    <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-sky-400 transition-colors" size={18} />
+                    <input readOnly placeholder="Enter phone to generate email" className="w-full bg-sky-50/50 border-2 border-sky-100 rounded-[24px] py-4 md:py-5 pl-14 pr-6 font-bold text-sm text-sky-700 outline-none cursor-not-allowed" value={formData.phone ? `${formData.phone}@delivery.zengalla.com` : ''} />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-5">Access Password</label>
                   <div className="relative group">
@@ -624,27 +636,29 @@ const DeliveryManagement = () => {
                     </div>
                   </div>
                 </div>
-                <div className="p-6 bg-slate-50 rounded-[32px] border border-slate-100 space-y-4">
-                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 text-center">Settlement Account Details</h5>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                       <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4">Account Holder</label>
-                       <input placeholder="Full Name" className="w-full bg-white border border-gray-100 rounded-xl py-2.5 px-4 font-bold text-xs outline-none focus:border-sky-200" value={formData.accountName} onChange={e => setFormData({...formData, accountName: e.target.value})} />
-                    </div>
-                    <div className="space-y-1.5">
-                       <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4">Account Number</label>
-                       <input placeholder="00000000000" className="w-full bg-white border border-gray-100 rounded-xl py-2.5 px-4 font-bold text-xs outline-none focus:border-sky-200" value={formData.accountNumber} onChange={e => setFormData({...formData, accountNumber: e.target.value})} />
-                    </div>
-                    <div className="space-y-1.5">
-                       <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4">IFSC Code</label>
-                       <input placeholder="SBIN0001234" className="w-full bg-white border border-gray-100 rounded-xl py-2.5 px-4 font-bold text-xs outline-none focus:border-sky-200 uppercase" value={formData.ifscCode} onChange={e => setFormData({...formData, ifscCode: e.target.value.toUpperCase()})} />
-                    </div>
-                    <div className="space-y-1.5">
-                       <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4">Bank Name</label>
-                       <input placeholder="Bank Name" className="w-full bg-white border border-gray-100 rounded-xl py-2.5 px-4 font-bold text-xs outline-none focus:border-sky-200" value={formData.bankName} onChange={e => setFormData({...formData, bankName: e.target.value})} />
+                {user?.role !== 'admin' && (
+                  <div className="p-6 bg-slate-50 rounded-[32px] border border-slate-100 space-y-4">
+                    <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 text-center">Settlement Account Details</h5>
+                    <div className="grid grid-cols-2 gap-4 opacity-75">
+                      <div className="space-y-1.5">
+                         <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4">Account Holder</label>
+                         <input readOnly placeholder="Not Provided" className="w-full bg-gray-100 border border-gray-200 rounded-xl py-2.5 px-4 font-bold text-xs outline-none text-gray-500 cursor-not-allowed" value={formData.accountName} />
+                      </div>
+                      <div className="space-y-1.5">
+                         <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4">Account Number</label>
+                         <input readOnly placeholder="Not Provided" className="w-full bg-gray-100 border border-gray-200 rounded-xl py-2.5 px-4 font-bold text-xs outline-none text-gray-500 cursor-not-allowed" value={formData.accountNumber} />
+                      </div>
+                      <div className="space-y-1.5">
+                         <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4">IFSC Code</label>
+                         <input readOnly placeholder="Not Provided" className="w-full bg-gray-100 border border-gray-200 rounded-xl py-2.5 px-4 font-bold text-xs outline-none text-gray-500 cursor-not-allowed uppercase" value={formData.ifscCode} />
+                      </div>
+                      <div className="space-y-1.5">
+                         <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4">Bank Name</label>
+                         <input readOnly placeholder="Not Provided" className="w-full bg-gray-100 border border-gray-200 rounded-xl py-2.5 px-4 font-bold text-xs outline-none text-gray-500 cursor-not-allowed" value={formData.bankName} />
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
 
               <button 

@@ -278,62 +278,6 @@ const Profile = () => {
                   <p className="text-[10px] text-rose-500 mt-1.5 font-bold">Min 8 chars with letters, numbers or symbols</p>
                 )}
               </div>
-              <div className="flex items-center justify-between bg-gray-50 rounded-2xl px-4 py-3.5">
-                <div>
-                  <p className="text-sm font-black text-gray-900">Delivery Mode</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Enable home delivery options</p>
-                </div>
-                <button type="button"
-                  onClick={() => setFormData({ ...formData, deliveryModeEnabled: !formData.deliveryModeEnabled })}
-                  className={`w-12 h-6 rounded-full transition-all relative ${formData.deliveryModeEnabled ? 'bg-sky-500' : 'bg-gray-300'}`}>
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">My Home Location</label>
-                <div className="rounded-2xl overflow-hidden border-2 border-gray-100">
-                  <LeafletMap 
-                    height="200px"
-                    userCoords={formData.location}
-                    onUserLocationChange={async (coords) => {
-                      setFormData(prev => ({ ...prev, location: coords }));
-                      try {
-                        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lng}&addressdetails=1&accept-language=en`);
-                        const data = await res.json();
-                        if (data) {
-                          const poiName = data.address?.shop || data.address?.amenity || data.address?.building || data.address?.office || data.address?.tourism;
-                          const fullAddress = poiName && !data.display_name.startsWith(poiName) 
-                            ? `${poiName}, ${data.display_name}` 
-                            : data.display_name;
-
-                          setFormData(prev => ({ 
-                            ...prev, 
-                            address: fullAddress,
-                            pincode: data.address?.postcode?.split(' ')[0].replace(/\D/g, '').substring(0, 6) || data.display_name.match(/\b\d{6}\b/)?.[0] || prev.pincode
-                          }));
-                        }
-                      } catch (err) { console.error(err); }
-                    }}
-                    autoDetect={!formData.location}
-                    showSatellite={true}
-                    zoom={18}
-                  />
-                </div>
-                <div className="grid grid-cols-1 gap-4 mt-3">
-                  <div>
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Detected Pin Code</label>
-                    <input type="text" maxLength="6" value={formData.pincode}
-                      onChange={e => setFormData({ ...formData, pincode: e.target.value.replace(/\D/g, '') })}
-                      className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold text-gray-900 focus:border-sky-400 focus:bg-white outline-none transition-all" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Full Delivery Address</label>
-                    <textarea rows="2" value={formData.address}
-                      onChange={e => setFormData({ ...formData, address: e.target.value })}
-                      className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold text-gray-900 focus:border-sky-400 focus:bg-white outline-none transition-all resize-none" />
-                  </div>
-                </div>
-              </div>
 
               <button type="submit" disabled={loading || !isPassValid}
                 className="w-full flex justify-center items-center gap-2 bg-sky-500 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-sky-500/25 hover:scale-[1.01] disabled:opacity-50 disabled:scale-100 transition-all hover:bg-sky-600">

@@ -3,11 +3,27 @@ import Shop from '../models/Shop.js';
 import jwt from 'jsonwebtoken';
 import { sendOTP } from '../utils/mailer.js';
 
-const signToken = (user) => jwt.sign(
-  { id: user._id, role: user.role },
-  process.env.JWT_SECRET,
-  { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-);
+const isValidPassword = (password) => {
+  // Min 8 chars, at least 1 uppercase, 1 lowercase, 1 number
+  const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+  return regex.test(password);
+};
+
+const generateTokens = (user) => {
+  const accessToken = jwt.sign(
+    { id: user._id, role: user.role, tokenVersion: user.tokenVersion },
+    process.env.JWT_SECRET,
+    { expiresIn: '15m' }
+  );
+
+  const refreshToken = jwt.sign(
+    { id: user._id, role: user.role, tokenVersion: user.tokenVersion },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+
+  return { accessToken, refreshToken };
+};
 
 // POST /api/auth/register
 export const register = async (req, res) => {
@@ -15,10 +31,39 @@ export const register = async (req, res) => {
     const { 
       name, email, password, phone, role = 'customer', shopId,
       shop_address, shop_lat, shop_lng, pinCode,
-      photoUrl, documentUrl
+      photoUrl, documentUrl, accountName, accountNumber, ifscCode, bankName
     } = req.body;
     
     if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required' });
+    
+    if (!isValidPassword(password)) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, and a number.' });
+    }
+
+    if (role === 'admin') {
+      return res.status(403).json({ error: 'Admin registration via API is strictly forbidden' });
+    }
+
+    if (['staff', 'delivery'].includes(role)) {
+      let requestingUser = null;
+      if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+        const token = req.headers.authorization.split(' ')[1];
+        try {
+          requestingUser = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (err) {
+          return res.status(401).json({ error: 'Invalid or expired authorization token' });
+        }
+      } else {
+        return res.status(401).json({ error: 'Authorization token required for internal role creation' });
+      }
+
+      if (role === 'staff' && requestingUser.role !== 'vendor') {
+        return res.status(403).json({ error: 'Only vendors can create staff accounts' });
+      }
+      if (role === 'delivery' && requestingUser.role !== 'admin') {
+        return res.status(403).json({ error: 'Only administrators can create delivery accounts' });
+      }
+    }
 
     let user = await User.findOne({ email: email.toLowerCase() });
     
@@ -89,7 +134,11 @@ export const register = async (req, res) => {
       otpExpires: isInternal ? null : otpExpires,
       isVerified: isInternal,
       photoUrl: photoUrl || '',
-      documentUrl: documentUrl || ''
+      documentUrl: documentUrl || '',
+      accountName: accountName || '',
+      accountNumber: accountNumber || '',
+      ifscCode: ifscCode || '',
+      bankName: bankName || ''
     });
 
     // If vendor, create the initial shop record
@@ -97,11 +146,12 @@ export const register = async (req, res) => {
       const shop = await Shop.create({
         owner: user._id,
         name: name,
+        phone: phone || '',
         address: shop_address || '',
         pinCode: pinCode || '000000',
         location: {
           type: 'Point',
-          coordinates: [shop_lng || 0, shop_lat || 0],
+          coordinates: [Number(shop_lng) || 75.1240, Number(shop_lat) || 15.3647],
           address: shop_address || ''
         },
         isActive: true,
@@ -151,8 +201,8 @@ export const verifyOTP = async (req, res) => {
     user.otpExpires = null;
     await user.save();
 
-    const token = signToken(user);
-    res.json({ success: true, token, user });
+    const { accessToken, refreshToken } = generateTokens(user);
+    res.json({ success: true, token: accessToken, refreshToken, user });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -174,9 +224,9 @@ export const login = async (req, res) => {
     const isMatch = await user.comparePassword(password);
     if (!isMatch) return res.status(401).json({ error: 'Invalid email or password' });
 
-    const token = signToken(user);
+    const { accessToken, refreshToken } = generateTokens(user);
     const safeUser = user.toJSON();
-    res.json({ success: true, token, user: safeUser });
+    res.json({ success: true, token: accessToken, refreshToken, user: safeUser });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -218,9 +268,14 @@ export const resetPassword = async (req, res) => {
 
     if (!user) return res.status(400).json({ error: 'Invalid or expired reset code' });
 
+    if (!isValidPassword(password)) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, and a number.' });
+    }
+
     user.password = password;
     user.otp = null;
     user.otpExpires = null;
+    user.tokenVersion += 1;
     await user.save();
 
     res.json({ success: true, message: 'Password reset successfully. You can now log in.' });
@@ -244,7 +299,7 @@ export const getMe = async (req, res) => {
 // PUT /api/auth/me
 export const updateMe = async (req, res) => {
   try {
-    const { name, phone, deliveryModeEnabled, addresses, location, address, pincode } = req.body;
+    const { name, phone, deliveryModeEnabled, addresses, location, address, pincode, accountName, accountNumber, ifscCode, bankName } = req.body;
     const update = {};
     if (name !== undefined) update.name = name;
     if (phone !== undefined) update.phone = phone;
@@ -253,6 +308,10 @@ export const updateMe = async (req, res) => {
     if (location !== undefined) update.location = location;
     if (address !== undefined) update.address = address;
     if (pincode !== undefined) update.pincode = pincode;
+    if (accountName !== undefined) update.accountName = accountName;
+    if (accountNumber !== undefined) update.accountNumber = accountNumber;
+    if (ifscCode !== undefined) update.ifscCode = ifscCode;
+    if (bankName !== undefined) update.bankName = bankName;
 
     const user = await User.findByIdAndUpdate(req.user._id, update, { new: true });
     res.json({ success: true, user });
@@ -265,9 +324,12 @@ export const updateMe = async (req, res) => {
 export const updatePassword = async (req, res) => {
   try {
     const { password } = req.body;
-    if (!password) return res.status(400).json({ error: 'New password required' });
+    if (!isValidPassword(password)) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, and a number.' });
+    }
     const user = await User.findById(req.user._id).select('+password');
     user.password = password;
+    user.tokenVersion += 1;
     await user.save();
     res.json({ success: true, message: 'Password updated' });
   } catch (err) {
@@ -323,7 +385,12 @@ export const changePassword = async (req, res) => {
     const isMatch = await user.comparePassword(oldPassword);
     if (!isMatch) return res.status(401).json({ error: 'Current password incorrect' });
 
+    if (!isValidPassword(newPassword)) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters long and include an uppercase letter, a lowercase letter, and a number.' });
+    }
+
     user.password = newPassword;
+    user.tokenVersion += 1;
     await user.save();
 
     res.json({ success: true, message: 'Password updated successfully' });
@@ -331,3 +398,45 @@ export const changePassword = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// POST /api/auth/refresh
+export const refresh = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.status(401).json({ error: 'Refresh token required' });
+
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({ error: 'Invalid or expired refresh token' });
+    }
+
+    const user = await User.findById(decoded.id);
+    if (!user) return res.status(401).json({ error: 'User not found' });
+
+    if (user.tokenVersion !== decoded.tokenVersion) {
+      return res.status(401).json({ error: 'Refresh token revoked' });
+    }
+
+    const { accessToken: newAccessToken, refreshToken: newRefreshToken } = generateTokens(user);
+    res.json({ success: true, token: newAccessToken, refreshToken: newRefreshToken });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /api/auth/logout
+export const logout = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (user) {
+      user.tokenVersion += 1;
+      await user.save();
+    }
+    res.json({ success: true, message: 'Logged out from all devices successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+

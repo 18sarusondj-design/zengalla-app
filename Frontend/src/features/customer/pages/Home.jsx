@@ -196,8 +196,17 @@ const Home = () => {
                   const inCart = cart.find(item => (item.product?._id || item.product?.id || '').toString() === productId);
                 return (
                   <div key={productId} className="min-w-[124px] bg-white dark:bg-slate-900 rounded-2xl p-3 border border-gray-100 dark:border-slate-800 shadow-sm snap-start flex flex-col items-center text-center">
-                    <div className="w-16 h-16 bg-gray-50 dark:bg-slate-800 rounded-xl overflow-hidden mb-2">
-                       <img src={product.imageUrl || null} alt={product.name} className="w-full h-full object-cover"/>
+                    <div className="w-16 h-16 bg-gray-50 dark:bg-slate-800 rounded-xl overflow-hidden mb-2 relative">
+                       <img 
+                        src={product.imageUrl || (product.images && product.images[0]) || null} 
+                        alt={product.name} 
+                        className="w-full h-full object-cover transition-all"
+                        style={{
+                          objectPosition: product.imageSettings?.[0]?.position || '50% 50%',
+                          transform: `scale(${(product.imageSettings?.[0]?.zoom || 100) / 100})`,
+                          transformOrigin: product.imageSettings?.[0]?.position || '50% 50%'
+                        }}
+                       />
                     </div>
                     <h3 className="text-[10px] font-black text-gray-900 dark:text-white uppercase leading-none line-clamp-1 mb-1">{product.name}</h3>
                     <p className="text-xs font-bold text-sky-600 mb-2">₹{product.price}</p>
@@ -262,10 +271,15 @@ const Home = () => {
                     {/* Image Area */}
                     <div className="w-24 h-24 md:w-full md:aspect-square bg-gray-50 dark:bg-slate-800 rounded-2xl md:rounded-3xl mb-0 md:mb-4 overflow-hidden relative shrink-0">
                       <img 
-                        src={product.imageUrl} 
+                        src={product.imageUrl || (product.images && product.images[0])} 
                         alt={product.name} 
                         loading="lazy"
                         className={`w-full h-full object-cover transition-transform group-hover:scale-110 duration-700 ${!inStock ? 'grayscale opacity-50' : ''}`} 
+                        style={{
+                          objectPosition: product.imageSettings?.[0]?.position || '50% 50%',
+                          transform: `scale(${(product.imageSettings?.[0]?.zoom || 100) / 100})`,
+                          transformOrigin: product.imageSettings?.[0]?.position || '50% 50%'
+                        }}
                       />
                       {!inStock && (
                         <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center">

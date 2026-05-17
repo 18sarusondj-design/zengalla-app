@@ -2,59 +2,61 @@ import React, { useState, useEffect } from 'react';
 import { AlertTriangle, X, Clock } from 'lucide-react';
 import api from '../../../config/api';
 
+import { useAuth } from '../../auth/context/AuthContext';
+
 const SystemUpdateBanner = () => {
+    const { user } = useAuth();
     const [settings, setSettings] = useState(null);
     const [visible, setVisible] = useState(false);
+    const [isDismissed, setIsDismissed] = useState(false);
 
     useEffect(() => {
         const checkMaintenance = async () => {
             try {
-                // Only show if not dismissed in this session
-                const isDismissed = sessionStorage.getItem('system-update-dismissed');
+                // If dismissed in current app mount, don't show
                 if (isDismissed) return;
 
-                // Caching: Only check every 10 minutes to save API calls
-                const lastCheck = sessionStorage.getItem('maintenance-last-check');
-                const cachedData = sessionStorage.getItem('maintenance-data');
-                
-                if (lastCheck && cachedData && (Date.now() - parseInt(lastCheck) < 600000)) {
-                    const data = JSON.parse(cachedData);
-                    if (data?.settings?.isActive) {
-                        const s = data.settings;
-                        if (s.scheduledTime && new Date(s.scheduledTime) > new Date()) {
-                            setSettings(s);
-                            setVisible(true);
-                        }
-                    }
-                    return;
-                }
+                // Don't show to superadmin
+                if (user?.role === 'admin') return;
 
-                // Use a short timeout for this non-critical check
+                // Fetch fresh settings to ensure immediate visibility after admin commits
                 const response = await api.get('/system/maintenance', { timeout: 5000 });
                 
-                sessionStorage.setItem('maintenance-last-check', Date.now().toString());
-                sessionStorage.setItem('maintenance-data', JSON.stringify(response.data));
-
                 if (response.data?.settings?.isActive) {
                     const s = response.data.settings;
+
+                    // PERSISTENCE CHECK: If this specific update (by updatedAt) was already acknowledged, don't show
+                    const acknowledgedAt = localStorage.getItem('acknowledgedUpdateAt');
+                    if (acknowledgedAt === s.updatedAt) return;
+
+                    const scheduledDate = new Date(s.scheduledTime);
+                    const now = new Date();
                     
-                    // Check if the scheduled time is in the future
-                    if (s.scheduledTime && new Date(s.scheduledTime) > new Date()) {
+                    // Time difference in days
+                    const diffTime = scheduledDate.getTime() - now.getTime();
+                    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                    
+                    // Show if:
+                    // 1. Scheduled time is in the future
+                    // 2. It's within 3 days (approx 72 hours) from now
+                    if (scheduledDate > now && diffDays <= 3) {
                         setSettings(s);
                         setVisible(true);
                     }
                 }
             } catch (err) {
-                // Silently fail for maintenance check to not disturb user experience
                 console.debug("Maintenance check skipped:", err.message);
             }
         };
 
         checkMaintenance();
-    }, []);
+    }, [isDismissed, user]);
 
     const dismiss = () => {
-        sessionStorage.setItem('system-update-dismissed', 'true');
+        if (settings?.updatedAt) {
+            localStorage.setItem('acknowledgedUpdateAt', settings.updatedAt);
+        }
+        setIsDismissed(true);
         setVisible(false);
     };
 
@@ -75,8 +77,18 @@ const SystemUpdateBanner = () => {
                         <Clock size={14} /> Scheduled Maintenance
                     </p>
 
-                    <div className="bg-slate-50 p-6 rounded-3xl border border-gray-100 mb-8">
-                        <p className="text-xs font-bold text-gray-600 leading-relaxed uppercase tracking-tight">
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-gray-100 mb-8 space-y-4">
+                        <div className="flex flex-col items-center gap-1">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Scheduled For</p>
+                            <p className="text-sm font-black text-gray-900 uppercase tracking-tight">
+                                {new Date(settings.scheduledTime).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
+                            </p>
+                            <p className="text-xs font-bold text-sky-600 uppercase">
+                                at {new Date(settings.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                        </div>
+                        <div className="h-px bg-gray-200 w-full" />
+                        <p className="text-[11px] font-bold text-gray-600 leading-relaxed uppercase tracking-tight text-center">
                             {settings.message}
                         </p>
                     </div>

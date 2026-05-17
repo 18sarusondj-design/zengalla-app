@@ -357,9 +357,14 @@ const Billing = () => {
                   >
                     <div className="aspect-square bg-white rounded-xl mb-2 overflow-hidden border border-gray-100/50 relative">
                       <img 
-                        src={p.imageUrl || p.image || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=200'} 
+                        src={p.imageUrl || p.image || (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=200'} 
                         alt={p.name}
                         className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                        style={{
+                          objectPosition: p.imageSettings?.[0]?.position || '50% 50%',
+                          transform: `scale(${(p.imageSettings?.[0]?.zoom || 100) / 100})`,
+                          transformOrigin: p.imageSettings?.[0]?.position || '50% 50%'
+                        }}
                       />
                       <div className="absolute top-1.5 right-1.5 bg-white/90 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[7px] font-black text-sky-600 shadow-sm border border-sky-100">
                         ₹{p.price}
@@ -406,7 +411,16 @@ const Billing = () => {
               billItems.map(item => (
                 <div key={item._id} className="bg-gray-50/50 rounded-2xl p-4 flex items-center gap-4 group hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-gray-100">
                   <div className="w-12 h-12 bg-white rounded-xl overflow-hidden border border-gray-100 flex-shrink-0">
-                    <img src={item.imageUrl || item.image} alt="" className="w-full h-full object-cover" />
+                    <img 
+                      src={item.imageUrl || item.image || (item.images && item.images[0])} 
+                      alt="" 
+                      className="w-full h-full object-cover" 
+                      style={{
+                        objectPosition: item.imageSettings?.[0]?.position || '50% 50%',
+                        transform: `scale(${(item.imageSettings?.[0]?.zoom || 100) / 100})`,
+                        transformOrigin: item.imageSettings?.[0]?.position || '50% 50%'
+                      }}
+                    />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-tight truncate leading-none mb-1">{item.name}</h4>

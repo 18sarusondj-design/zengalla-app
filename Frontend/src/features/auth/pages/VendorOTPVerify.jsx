@@ -27,7 +27,7 @@ const VendorOTPVerify = () => {
       if (error) throw error;
 
       toast.success('Email Verified! You can now log in.');
-      setTimeout(() => navigate('/vendor-login'), 1500);
+      setTimeout(() => navigate('/login'), 1500);
     } catch (err) {
       toast.error(err.message || 'Verification failed');
     } finally {

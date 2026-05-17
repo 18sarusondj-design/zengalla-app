@@ -177,10 +177,10 @@ const AdminLayout = () => {
                 {!isAdmin && (isVendor || isStaff) && (
                   <button
                     onClick={toggleShopStatus}
-                    className={`mt-2 flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all active:scale-95 w-fit ${(vendorShop?.isOpen ?? vendorShop?.is_active) ? 'bg-sky-50 text-sky-600 border-sky-100 shadow-sm shadow-sky-50' : 'bg-red-50 text-red-500 border-red-100 shadow-sm shadow-red-50'}`}
+                    className={`mt-2 flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all active:scale-95 w-fit ${vendorShop?.isActive ? 'bg-sky-50 text-sky-600 border-sky-100 shadow-sm shadow-sky-50' : 'bg-red-50 text-red-500 border-red-100 shadow-sm shadow-red-50'}`}
                   >
-                    <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${(vendorShop?.isOpen ?? vendorShop?.is_active) ? 'bg-sky-500' : 'bg-red-500'}`} />
-                    <span className="text-[7px] font-black uppercase tracking-widest whitespace-nowrap">{(vendorShop?.isOpen ?? vendorShop?.is_active) ? 'ONLINE' : 'OFFLINE'}</span>
+                    <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${vendorShop?.isActive ? 'bg-sky-500' : 'bg-red-500'}`} />
+                    <span className="text-[7px] font-black uppercase tracking-widest whitespace-nowrap">{vendorShop?.isActive ? 'ONLINE' : 'OFFLINE'}</span>
                   </button>
                 )}
               </div>

@@ -3,6 +3,8 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
+import mongoSanitize from 'express-mongo-sanitize';
 
 import authRoutes from './routes/auth.js';
 import productRoutes from './routes/products.js';
@@ -21,6 +23,9 @@ const app = express();
 
 // Middleware
 app.use(cors());
+app.use(helmet()); // Secure HTTP headers
+app.use(mongoSanitize()); // Prevent NoSQL injection
+
 // Global Rate Limiting
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -30,15 +35,24 @@ const globalLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Auth Rate Limiting (Stricter)
+// Auth Rate Limiting (Stricter - prevents brute force)
 const authLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 50, // 50 attempts per minute
-  message: { error: 'Too many login attempts, please wait 1 minute.' }
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 5, // Lock after 5 failed/rapid attempts
+  message: { error: 'Too many login attempts, please wait 5 minutes.' }
+});
+
+// OTP Rate Limiting (Prevents OTP spam)
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 3, // Max 3 OTP requests per 15 mins
+  message: { error: 'Too many OTP requests, please wait 15 minutes.' }
 });
 
 app.use('/api', globalLimiter);
-app.use('/api/auth', authLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/forgot-password', otpLimiter);
+app.use('/api/auth/verify-otp', otpLimiter);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));

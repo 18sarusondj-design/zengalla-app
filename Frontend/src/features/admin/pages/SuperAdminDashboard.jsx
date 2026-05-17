@@ -72,12 +72,7 @@ const SuperAdminDashboard = () => {
        
        setSubmittingSchedule(true);
        try {
-          const formattedMessage = scheduleData.message.replace('[time]', new Date(scheduleData.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-          
-          await api.patch('/admin/system-settings', {
-             ...scheduleData,
-             message: formattedMessage
-          });
+          await api.patch('/admin/system-settings', scheduleData);
           
           toast.success("Update scheduled successfully");
           setShowScheduleModal(false);
@@ -350,7 +345,26 @@ const SuperAdminDashboard = () => {
                               value={scheduleData.message}
                               onChange={e => setScheduleData({...scheduleData, message: e.target.value})}
                            />
+                           <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest mt-1 ml-2">Tip: You can use "[time]" as a placeholder.</p>
                         </div>
+
+                        {/* Preview Section */}
+                        {scheduleData.scheduledTime && (
+                           <div className="p-4 bg-sky-50 rounded-2xl border border-sky-100 animate-in fade-in zoom-in-95">
+                              <p className="text-[8px] font-black text-sky-600 uppercase tracking-widest mb-3 text-center">Banner Preview</p>
+                              <div className="flex flex-col items-center gap-1 mb-3">
+                                 <p className="text-[10px] font-black text-gray-900 uppercase tracking-tight">
+                                    {new Date(scheduleData.scheduledTime).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
+                                 </p>
+                                 <p className="text-[9px] font-bold text-sky-600 uppercase">
+                                    at {new Date(scheduleData.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                 </p>
+                              </div>
+                              <p className="text-[9px] font-bold text-gray-600 text-center uppercase tracking-tight leading-relaxed">
+                                 {scheduleData.message.replace('[time]', new Date(scheduleData.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}
+                              </p>
+                           </div>
+                        )}
 
                         <button 
                            type="submit"

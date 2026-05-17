@@ -20,9 +20,10 @@ const LIBRARIES = ['places', 'geometry'];
 import LeafletMap from '../../common/components/LeafletMap';
 
 const VendorProfile = () => {
+  const { user, token } = useAuth();
   const {
-    user, token, orders, fetchOrders, getCustomers,
-    toggleShopStatus, vendorShop, fetchVendorShop, updateShop,
+    orders, fetchOrders, getCustomers,
+    toggleShopStatus, vendorShop, fetchVendorShop, updateShop, fetchData,
     loading: globalLoading
   } = useStore();
   const navigate = useNavigate();
@@ -121,6 +122,8 @@ const VendorProfile = () => {
           ? `${poiName}, ${data.display_name}`
           : data.display_name;
 
+        const pin = data.address?.postcode?.split(' ')[0].replace(/\D/g, '').substring(0, 6);
+
         setFormData(prev => ({
           ...prev,
           pinCode: pin || prev.pinCode,
@@ -137,7 +140,7 @@ const VendorProfile = () => {
             const pinData = await pinRes.json();
             if (pinData?.[0]?.PostOffice?.[0]) {
               const detectedArea = pinData[0].PostOffice[0].District;
-              const specificArea = pinData[0].PostOffice.find(po => address.toUpperCase().includes(po.Name.toUpperCase()))?.Name;
+              const specificArea = pinData[0].PostOffice.find(po => fullAddress.toUpperCase().includes(po.Name.toUpperCase()))?.Name;
 
               setFormData(prev => ({
                 ...prev,
@@ -167,6 +170,8 @@ const VendorProfile = () => {
     const loadInitialData = async () => {
       if (!token) return;
 
+      if (fetchData) await fetchData();
+
       if (!vendorShop) {
         await fetchVendorShop();
       }
@@ -176,10 +181,12 @@ const VendorProfile = () => {
     };
 
     loadInitialData();
-  }, [token]); // Run on mount/auth change
+  }, [token]);
 
   useEffect(() => {
-    if (vendorShop) {
+    // Only populate form if we have shop data AND the form name is still empty (initial load)
+    // Or if we specifically want to sync (like after a successful update)
+    if (vendorShop && !formData.name) {
       const coords = vendorShop.location?.coordinates;
       let lat = 15.3647;
       let lng = 75.1240;
@@ -195,6 +202,14 @@ const VendorProfile = () => {
       setFormData(prev => ({
         ...prev,
         ...vendorShop,
+        // Ensure identification fields are handled correctly
+        gstin: vendorShop.gstin || '',
+        fssai: vendorShop.fssai || '',
+        pinCode: vendorShop.pinCode || '',
+        areaName: vendorShop.areaName || '',
+        // Fallback to user account info if shop info is missing
+        name: vendorShop.name || prev.name || user?.name || '',
+        phone: vendorShop.phone || prev.phone || user?.phone || '',
         coupons: vendorShop.coupons || prev.coupons || [],
         location: {
           address: vendorShop.address || vendorShop.location?.address || prev.location.address,
@@ -202,7 +217,7 @@ const VendorProfile = () => {
         }
       }));
     }
-  }, [vendorShop]);
+  }, [vendorShop, user]);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
@@ -263,15 +278,37 @@ const VendorProfile = () => {
   };
 
   const handleToggleStatus = async () => {
+    if (!vendorShop?._id) {
+      toast.error("Shop data loading... please wait.");
+      return;
+    }
     setIsTogglingStatus(true);
-    await toggleShopStatus();
-    setIsTogglingStatus(false);
+    try {
+      const res = await toggleShopStatus();
+      if (!res.success) {
+        toast.error(res.error || "Failed to toggle status");
+      }
+    } catch (err) {
+      toast.error("Connection error. Please try again.");
+      console.error('Toggle failed:', err);
+    } finally {
+      setIsTogglingStatus(false);
+    }
   };
 
-  const handleUpdate = async (e, label = 'Profile') => {
+  const handleUpdate = async (e, forceLabel) => {
     e?.preventDefault();
+    
+    // If called via form submit, the second arg is not provided. We determine it via activeTab.
+    const label = forceLabel && typeof forceLabel === 'string' ? forceLabel : activeTab;
+
     if (!formData.name.trim()) {
       toast.error('Please enter a Shop Name first');
+      return;
+    }
+    // Only enforce PIN code validation if we are in the location tab
+    if (label === 'location' && (!formData.pinCode || formData.pinCode.length < 6)) {
+      toast.error('Please enter a valid 6-digit PIN Code for your location');
       return;
     }
     if (formData.bankDetails?.upiId && !formData.bankDetails.upiId.includes('@')) {
@@ -280,26 +317,59 @@ const VendorProfile = () => {
     }
     try {
       setIsUpdating(true);
+      // 1. UPI ID Validation (if provided)
+      if (formData.bankDetails?.upiId) {
+        const upiRegex = /^[\w.-]+@[\w.-]+$/;
+        if (!upiRegex.test(formData.bankDetails.upiId)) {
+          return toast.error("Please enter a valid UPI ID (e.g. name@upi)");
+        }
+      }
 
-      // Transform coordinates for GeoJSON [lng, lat]
-      const payload = {
-        ...formData,
-        location: {
-          ...formData.location,
-          type: 'Point',
-          coordinates: [
-            Number(formData.location.coordinates.lng || 75.1240),
-            Number(formData.location.coordinates.lat || 15.3647)
-          ]
-        },
-        // Ensure top-level fields required by backend are present
-        address: formData.location.address,
-        pinCode: formData.pinCode
-      };
+      let payload = {};
+
+      if (label === 'details' || label === 'Details') {
+        payload = {
+          name: formData.name,
+          phone: formData.phone,
+          gstin: formData.gstin,
+          fssai: formData.fssai,
+          imageUrl: formData.imageUrl,
+          bannerUrl: formData.bannerUrl
+        };
+      } else if (label === 'scheduling' || label === 'Schedule') {
+        payload = { operatingHours: formData.operatingHours };
+      } else if (label === 'location' || label === 'Location') {
+        payload = {
+          pinCode: formData.pinCode,
+          areaName: formData.areaName,
+          address: formData.location.address,
+          location: {
+            ...formData.location,
+            type: 'Point',
+            coordinates: [
+              Number(formData.location.coordinates.lng || 75.1240),
+              Number(formData.location.coordinates.lat || 15.3647)
+            ]
+          }
+        };
+      } else if (label === 'wholesale' || label === 'Wholesale Settings') {
+        payload = { isWholesale: formData.isWholesale };
+      } else if (label === 'credit' || label === 'Credit Settings') {
+        payload = { isPayLater: formData.isPayLater };
+      } else if (label === 'payments' || label === 'Payment Settings') {
+        payload = { bankDetails: formData.bankDetails };
+      } else {
+        // Fallback for any other updates like 'Profile'
+        payload = { ...formData };
+      }
 
       const res = await updateShop(payload);
       if (res.success) {
         toast.success(`${label} updated successfully!`);
+        // Update local state with the returned shop to ensure consistency
+        if (res.data) {
+          setFormData(prev => ({ ...prev, ...res.data }));
+        }
       } else {
         toast.error(res.error || "Update failed");
       }
@@ -466,20 +536,22 @@ const VendorProfile = () => {
 
               {/* Quick Actions at the Top */}
               <div className="px-1 py-0.5 space-y-0.5 flex-shrink-0">
-                <div className="w-full flex items-center justify-between gap-2 p-2 rounded-xl bg-sky-600/10 border border-sky-600/20 group transition-all">
+                <div
+                  role="button"
+                  onClick={handleToggleStatus}
+                  className={`w-full flex items-center justify-between gap-2 p-2 rounded-xl border transition-all active:scale-[0.98] cursor-pointer ${vendorShop?.isActive ? 'bg-sky-600/10 border-sky-600/20 shadow-sm shadow-sky-100' : 'bg-gray-100 border-gray-200'} ${isTogglingStatus ? 'opacity-50 pointer-events-none' : ''}`}
+                >
                   <div className="flex items-center gap-2">
-                    <div className={`p-1 rounded-lg border ${vendorShop?.is_active ? 'bg-sky-100 text-sky-600 border-sky-200' : 'bg-red-50 text-red-500 border-red-100'}`}>
-                      <Power size={14} strokeWidth={2.5} />
+                    <div className={`p-1 rounded-lg border transition-colors ${vendorShop?.isActive ? 'bg-sky-100 text-sky-600 border-sky-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
+                      {isTogglingStatus ? <Loader2 size={14} className="animate-spin" /> : <Power size={14} strokeWidth={2.5} />}
                     </div>
                     <span className="font-black text-[9px] uppercase tracking-wider text-gray-700">Live Status</span>
                   </div>
-                  <button
-                    onClick={(e) => { e.preventDefault(); handleToggleStatus(); }}
-                    disabled={isTogglingStatus}
+                  <div
                     className={`relative w-10 min-w-[40px] h-5 rounded-full transition-all flex items-center px-1 ${vendorShop?.isActive ? 'bg-sky-500 justify-end shadow-lg shadow-sky-100' : 'bg-gray-300 justify-start'}`}
                   >
-                    <div className={`w-3.5 h-3.5 bg-white rounded-full transition-all shadow-sm ${isTogglingStatus ? 'animate-pulse scale-75' : ''}`} />
-                  </button>
+                    <div className={`w-3.5 h-3.5 bg-white rounded-full transition-all shadow-sm ${isTogglingStatus ? 'scale-75' : ''}`} />
+                  </div>
                 </div>
               </div>
 
@@ -548,38 +620,26 @@ const VendorProfile = () => {
                           className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 focus:bg-white rounded-xl p-3 text-[11px] font-bold text-gray-800 transition-all outline-none"
                         />
                       </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">GSTIN (Optional)</label>
                         <input
                           type="text" placeholder="29AAAAA0000A1Z5"
                           value={formData.gstin}
-                          onChange={(e) => setFormData({ ...formData, gstin: e.target.value })}
+                          onChange={(e) => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
                           className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 focus:bg-white rounded-xl p-3 text-[11px] font-bold text-gray-800 transition-all outline-none"
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">Pin Code</label>
+                        <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">FSSAI Number (Optional)</label>
                         <input
-                          type="text" maxLength="6"
-                          value={formData.pinCode}
-                          onChange={(e) => setFormData({ ...formData, pinCode: e.target.value.replace(/\D/g, '') })}
+                          type="text" placeholder="12345678901234"
+                          value={formData.fssai}
+                          onChange={(e) => setFormData({ ...formData, fssai: e.target.value.replace(/\D/g, '') })}
                           className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 focus:bg-white rounded-xl p-3 text-[11px] font-bold text-gray-800 transition-all outline-none"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">Full Store Address</label>
-                      <textarea
-                        rows="2"
-                        value={formData.location?.address}
-                        onChange={(e) => setFormData({ ...formData, location: { ...formData.location, address: e.target.value } })}
-                        className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 focus:bg-white rounded-2xl p-4 text-xs font-bold text-gray-800 transition-all outline-none resize-none"
-                      />
-                    </div>
                     <SectionSaveButton label="Details" />
                   </div>
                 )}
@@ -661,6 +721,27 @@ const VendorProfile = () => {
                             <span className="font-black text-[10px] uppercase tracking-widest text-gray-800">Tap to Adjust Point</span>
                           </div>
                         </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">PIN Code</label>
+                        <input
+                          type="text" maxLength="6" placeholder="580020"
+                          value={formData.pinCode}
+                          onChange={(e) => setFormData({ ...formData, pinCode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                          className="w-full bg-white/80 border-2 border-blue-50 focus:border-blue-400 rounded-xl p-3 text-[11px] font-bold text-gray-800 transition-all outline-none"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">Area Name</label>
+                        <input
+                          type="text" placeholder="DHARWAD"
+                          value={formData.areaName}
+                          onChange={(e) => setFormData({ ...formData, areaName: e.target.value.toUpperCase() })}
+                          className="w-full bg-white/80 border-2 border-blue-50 focus:border-blue-400 rounded-xl p-3 text-[11px] font-bold text-gray-800 transition-all outline-none"
+                        />
                       </div>
                     </div>
 

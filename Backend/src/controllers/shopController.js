@@ -198,6 +198,12 @@ export const getNearbyShops = async (req, res) => {
 export const getMyShop = async (req, res) => {
   try {
     const shop = await Shop.findOne({ owner: req.user._id }).select('-razorpayKeySecret').lean();
+    
+    // Prevent browser caching so vendor always sees the latest updates after reload
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     if (!shop) return res.json({ success: true, shop: null });
 
     // Add a flag so frontend knows if secret is already set
@@ -252,15 +258,24 @@ export const updateShop = async (req, res) => {
     const newPinCode = req.body.pinCode || req.body.pincode;
     const newLocation = req.body.location;
 
-    if (newPinCode || newLocation) {
-      const lat = newLocation?.coordinates?.[1] || shop.location.coordinates[1];
-      const lng = newLocation?.coordinates?.[0] || shop.location.coordinates[0];
+    const isPinChanged = newPinCode && newPinCode !== shop.pinCode;
+    const isLocationChanged = newLocation && JSON.stringify(newLocation.coordinates) !== JSON.stringify(shop.location?.coordinates);
+
+    // Only perform security check if a PIN or location actually changed
+    if (isPinChanged || isLocationChanged) {
+      const lat = newLocation?.coordinates?.[1] || shop.location?.coordinates?.[1];
+      const lng = newLocation?.coordinates?.[0] || shop.location?.coordinates?.[0];
       const pinToVerify = newPinCode || shop.pinCode;
 
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
         const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`, {
-          headers: { 'User-Agent': 'ZengallaRetailApp/1.0' }
+          headers: { 'User-Agent': 'ZengallaRetailApp/1.0' },
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
 
         if (geoRes.ok) {
           const geoData = await geoRes.json();
@@ -268,17 +283,15 @@ export const updateShop = async (req, res) => {
             const postalCode = geoData.address.postcode;
             const officialPinCode = postalCode ? postalCode.split(' ')[0].replace(/\D/g, '').substring(0, 6) : null;
             
-            // Allow update if it's within the same general area (first 3 digits) or matches exactly
+            // Log warning but don't block if it's a vendor updating their own shop
             if (officialPinCode && officialPinCode !== pinToVerify && pinToVerify.substring(0,3) !== officialPinCode.substring(0,3)) {
-              return res.status(400).json({ 
-                error: `Location Security Alert: The official Pin Code for this spot is ${officialPinCode}, but you entered ${pinToVerify}. Please use the correct Pin Code for your map location.` 
-              });
+              console.warn(`Location Security Warning: Detected PIN ${officialPinCode} does not match provided PIN ${pinToVerify} for shop ${shop._id}`);
+              // We no longer return 400 here to allow the vendor to save their business details
             }
           }
         }
       } catch (geoErr) {
         console.warn("OSM verification skipped due to error:", geoErr.message);
-        // We don't block the update if the external API is down, to maintain availability
       }
     }
 
@@ -287,6 +300,10 @@ export const updateShop = async (req, res) => {
     if (!updateData.razorpayKeySecret) {
       delete updateData.razorpayKeySecret;
     }
+
+    // Force uppercase for identification fields
+    if (updateData.gstin) updateData.gstin = updateData.gstin.toUpperCase();
+    if (updateData.fssai) updateData.fssai = updateData.fssai.toUpperCase();
     
     // Explicitly handle coupons to ensure they are NOT lost and are sanitized
     if (req.body.coupons && Array.isArray(req.body.coupons)) {
@@ -314,15 +331,15 @@ export const updateShop = async (req, res) => {
 export const toggleShopStatus = async (req, res) => {
   try {
     const shop = await Shop.findOne({ _id: req.params.id, owner: req.user._id });
-    if (!shop) return res.status(404).json({ error: 'Shop not found' });
-    shop.isActive = !shop.isActive;
-    await shop.save();
-    
-    // Don't leak secret even in toggle
-    const sanitizedShop = shop.toObject();
-    delete sanitizedShop.razorpayKeySecret;
-    
-    res.json({ success: true, isActive: shop.isActive, shop: sanitizedShop });
+    if (!shop) return res.status(404).json({ error: 'Shop not found or unauthorized' });
+
+    const updated = await Shop.findOneAndUpdate(
+      { _id: req.params.id, owner: req.user._id },
+      { $set: { isActive: !shop.isActive } },
+      { new: true }
+    ).select('-razorpayKeySecret');
+
+    res.json({ success: true, isActive: updated.isActive, shop: updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -415,10 +432,14 @@ export const updateShopUserStatus = async (req, res) => {
     if (!userToUpdate) return res.status(404).json({ error: 'User not found in your shop' });
 
     userToUpdate.status = req.body.status || userToUpdate.status;
-    if (req.body.name) userToUpdate.name = req.body.name;
-    if (req.body.phone) userToUpdate.phone = req.body.phone;
-    if (req.body.photoUrl) userToUpdate.photoUrl = req.body.photoUrl;
-    if (req.body.documentUrl) userToUpdate.documentUrl = req.body.documentUrl;
+    if (req.body.name !== undefined) userToUpdate.name = req.body.name;
+    if (req.body.phone !== undefined) userToUpdate.phone = req.body.phone;
+    if (req.body.photoUrl !== undefined) userToUpdate.photoUrl = req.body.photoUrl;
+    if (req.body.documentUrl !== undefined) userToUpdate.documentUrl = req.body.documentUrl;
+    if (req.body.accountName !== undefined) userToUpdate.accountName = req.body.accountName;
+    if (req.body.accountNumber !== undefined) userToUpdate.accountNumber = req.body.accountNumber;
+    if (req.body.ifscCode !== undefined) userToUpdate.ifscCode = req.body.ifscCode;
+    if (req.body.bankName !== undefined) userToUpdate.bankName = req.body.bankName;
     
     await userToUpdate.save();
 

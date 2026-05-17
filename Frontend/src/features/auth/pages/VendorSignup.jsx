@@ -142,7 +142,7 @@ const VendorSignup = () => {
       const result = await verifyOtp(formData.email, otp);
       if (result.success) {
         toast.success('Email verified! Your shop is now pending admin approval.', { id: toastId });
-        navigate('/vendor-login');
+        navigate('/login');
       } else {
         throw new Error(result.error);
       }
@@ -490,7 +490,7 @@ const VendorSignup = () => {
 
 
             <p className="text-center text-[9px] text-gray-400 font-bold uppercase tracking-widest">
-              Existing Store? <Link to="/vendor-login" className="text-sky-600 underline underline-offset-4 font-black">Login Business Account</Link>
+              Existing Store? <Link to="/login" className="text-sky-600 underline underline-offset-4 font-black">Login Business Account</Link>
             </p>
           </div>
           <p className="mt-4 text-center text-[7px] text-gray-300 font-medium uppercase tracking-[0.2em]">Zengalla Digital Infrastructure v2.4.0</p>

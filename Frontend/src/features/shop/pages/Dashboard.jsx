@@ -325,13 +325,13 @@ const Dashboard = () => {
               <button
                 onClick={toggleShopStatus}
                 disabled={isTogglingStatus}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-[16px] font-black text-[10px] uppercase tracking-widest border transition-all shadow-lg shadow-gray-200/50 active:scale-95 disabled:opacity-50 ${shop.is_active
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-[16px] font-black text-[10px] uppercase tracking-widest border transition-all shadow-lg shadow-gray-200/50 active:scale-95 disabled:opacity-50 ${shop.isActive
                   ? 'bg-sky-600 text-white border-sky-500 hover:bg-sky-700'
                   : 'bg-rose-600 text-white border-rose-500 hover:bg-rose-700'
                   }`}
               >
-                {isTogglingStatus ? <Loader2 className="animate-spin" size={16} /> : shop.is_active ? <CheckCircle2 size={16} /> : <X size={16} />}
-                {shop.is_active ? 'Store OPEN' : 'Store CLOSED'}
+                {isTogglingStatus ? <Loader2 className="animate-spin" size={16} /> : shop.isActive ? <CheckCircle2 size={16} /> : <X size={16} />}
+                {shop.isActive ? 'Store OPEN' : 'Store CLOSED'}
               </button>
             )}
 

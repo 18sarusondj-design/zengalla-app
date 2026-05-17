@@ -48,7 +48,7 @@ const Footer = ({ onReportClick, navigate }) => {
             <ul className="grid grid-cols-2 sm:grid-cols-1 gap-x-2 gap-y-2">
               {['Join', 'Login', 'Delivery'].map(link => (
                 <li key={link}>
-                  <button onClick={() => navigate(link === 'Join' ? '/vendor-signup' : link === 'Login' ? '/vendor-login' : '/delivery-login')} className="text-[9px] font-black text-white/70 hover:text-white uppercase tracking-widest transition-colors flex items-center gap-1.5">
+                  <button onClick={() => navigate(link === 'Join' ? '/vendor-signup' : '/login')} className="text-[9px] font-black text-white/70 hover:text-white uppercase tracking-widest transition-colors flex items-center gap-1.5">
                     <div className="w-1 h-1 bg-sky-400 rounded-full" />
                     {link}
                   </button>

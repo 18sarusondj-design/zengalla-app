@@ -34,6 +34,11 @@ const userSchema = new mongoose.Schema({
     coordinates: { type: [Number], default: [0, 0] }
   },
   isOnline: { type: Boolean, default: false },
+  tokenVersion: { type: Number, default: 0 },
+  accountName: { type: String, default: '' },
+  accountNumber: { type: String, default: '' },
+  ifscCode: { type: String, default: '' },
+  bankName: { type: String, default: '' },
 }, { timestamps: true });
 
 

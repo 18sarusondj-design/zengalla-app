@@ -38,6 +38,15 @@ const DeliveryDashboard = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
 
+  // Bank Profile State
+  const [bankDetails, setBankDetails] = useState({
+    accountName: user?.accountName || '',
+    accountNumber: user?.accountNumber || '',
+    ifscCode: user?.ifscCode || '',
+    bankName: user?.bankName || ''
+  });
+  const { updateProfile } = useAuth();
+
   // Sound Alert System
   const startLongAlert = (type = 'assigned') => {
     if (alertAudio) return; // Already playing
@@ -223,6 +232,18 @@ const DeliveryDashboard = () => {
     setActionLoading(false);
   };
 
+  const handleUpdateBankDetails = async (e) => {
+    e.preventDefault();
+    setActionLoading(true);
+    const res = await updateProfile(bankDetails);
+    if (res.success) {
+      toast.success("Bank details updated successfully");
+    } else {
+      toast.error(res.error || "Failed to update bank details");
+    }
+    setActionLoading(false);
+  };
+
   const totalEarnings = historyOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
   const todayEarnings = historyOrders
     .filter(o => new Date(o.updatedAt).toDateString() === new Date().toDateString())
@@ -270,7 +291,7 @@ const DeliveryDashboard = () => {
           </button>
 
           <button
-            onClick={() => { logout(); window.location.href = '/delivery-login'; }}
+            onClick={() => { logout(); window.location.href = '/login'; }}
             className="w-9 h-9 sm:w-11 sm:h-11 bg-white rounded-xl sm:rounded-2xl flex items-center justify-center text-gray-300 hover:text-rose-500 transition-all border border-gray-100"
           >
             <LogOut size={16} />
@@ -521,9 +542,73 @@ const DeliveryDashboard = () => {
                     <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
                     <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Account Active</span>
                  </div>
-               </div>
+                 </div>
 
-               <form onSubmit={handleChangePassword} className="space-y-6 relative z-10">
+                 {/* Settlement Account Section */}
+                 <form onSubmit={handleUpdateBankDetails} className="space-y-6 relative z-10 mb-10 pb-8 border-b border-gray-100">
+                   <div className="flex items-center gap-3 px-2 mb-2">
+                      <div className="w-1 h-3 bg-sky-500 rounded-full" />
+                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Settlement Account Details</h4>
+                   </div>
+
+                   <div className="space-y-4">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <div className="relative">
+                          <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4 mb-1 block">Account Holder</label>
+                          <input 
+                            type="text" required
+                            placeholder="Full Name"
+                            className="w-full px-5 h-14 bg-gray-50 border-2 border-transparent focus:border-sky-500/20 focus:bg-white rounded-[20px] text-xs font-bold transition-all"
+                            value={bankDetails.accountName}
+                            onChange={e => setBankDetails({...bankDetails, accountName: e.target.value})}
+                          />
+                       </div>
+
+                       <div className="relative">
+                          <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4 mb-1 block">Account Number</label>
+                          <input 
+                            type="text" required
+                            placeholder="00000000000"
+                            className="w-full px-5 h-14 bg-gray-50 border-2 border-transparent focus:border-sky-500/20 focus:bg-white rounded-[20px] text-xs font-bold transition-all"
+                            value={bankDetails.accountNumber}
+                            onChange={e => setBankDetails({...bankDetails, accountNumber: e.target.value})}
+                          />
+                       </div>
+
+                       <div className="relative">
+                          <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4 mb-1 block">IFSC Code</label>
+                          <input 
+                            type="text" required
+                            placeholder="SBIN0001234"
+                            className="w-full px-5 h-14 bg-gray-50 border-2 border-transparent focus:border-sky-500/20 focus:bg-white rounded-[20px] text-xs font-bold transition-all uppercase"
+                            value={bankDetails.ifscCode}
+                            onChange={e => setBankDetails({...bankDetails, ifscCode: e.target.value.toUpperCase()})}
+                          />
+                       </div>
+
+                       <div className="relative">
+                          <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4 mb-1 block">Bank Name</label>
+                          <input 
+                            type="text" required
+                            placeholder="Bank Name"
+                            className="w-full px-5 h-14 bg-gray-50 border-2 border-transparent focus:border-sky-500/20 focus:bg-white rounded-[20px] text-xs font-bold transition-all"
+                            value={bankDetails.bankName}
+                            onChange={e => setBankDetails({...bankDetails, bankName: e.target.value})}
+                          />
+                       </div>
+                     </div>
+                   </div>
+
+                   <button 
+                     type="submit"
+                     disabled={actionLoading}
+                     className="w-full h-14 bg-emerald-600 text-white rounded-[20px] font-black uppercase text-[10px] tracking-[0.3em] shadow-lg shadow-emerald-200 active:scale-95 transition-all flex items-center justify-center gap-3"
+                   >
+                     {actionLoading ? <Loader2 className="animate-spin" size={16} /> : "Save Bank Details"}
+                   </button>
+                 </form>
+
+                 <form onSubmit={handleChangePassword} className="space-y-6 relative z-10">
                  <div className="flex items-center gap-3 px-2 mb-2">
                     <div className="w-1 h-3 bg-sky-500 rounded-full" />
                     <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Security Update</h4>
