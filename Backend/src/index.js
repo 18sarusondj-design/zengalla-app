@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import 'dotenv/config'; // Loads environment variables
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
