@@ -93,12 +93,13 @@ const Dashboard = () => {
 
   // Polling every 30s to refresh orders (replaces Supabase realtime)
   useEffect(() => {
-    if (!user?.id) return;
+    const userId = user?._id || user?.id;
+    if (!userId) return;
     const interval = setInterval(() => {
       window.dispatchEvent(new CustomEvent('orders-updated'));
     }, 30000);
     return () => clearInterval(interval);
-  }, [user?.id]);
+  }, [user]);
 
   useEffect(() => {
     const fetchShop = async () => {
@@ -109,7 +110,8 @@ const Dashboard = () => {
         console.error('Failed to fetch shop details:', err);
       }
     };
-    if (user?.id) {
+    const userId = user?._id || user?.id;
+    if (userId) {
       fetchShop();
       fetchVendorData();
     }

@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Bell, ChevronLeft, Gift, Clock, Info, Copy, Check, Store, Trash2, Coins, Sparkles } from 'lucide-react';
 import api from '../../../config/api.js';
+import { useAuth } from '../../auth/context/AuthContext';
+import { useStore } from '../../shop/context/StoreContext';
+import { toast } from 'sonner';
 
 const ShopNotifications = () => {
   const { shopId } = useParams();
@@ -25,7 +28,7 @@ const ShopNotifications = () => {
 
   useEffect(() => {
     fetchShopData();
-  }, [shopId, user?.id]);
+  }, [shopId, user]);
 
   useEffect(() => {
     localStorage.setItem(`dismissedAlerts_${shopId}`, JSON.stringify(dismissedIds));

@@ -59,7 +59,8 @@ const Profile = () => {
   }, [token, user]);
 
   const fetchCredits = async () => {
-    if (!user?.id) return;
+    const userId = user?._id || user?.id;
+    if (!userId) return;
     try {
       refreshUser();
       const { data } = await api.get('/orders/my');
