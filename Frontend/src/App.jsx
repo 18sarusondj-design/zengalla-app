@@ -112,7 +112,7 @@ function App() {
 
               {/* Customer */}
               <Route path="/" element={<CustomerLayout />}>
-                <Route index element={<Landing />} />
+                <Route index element={<ShopList />} />
                 <Route path="shops" element={<ShopList />} />
                 <Route path="shop/:shopId" element={<ShopMenu />} />
                 <Route path="shop/:shopId/banner/:bannerId" element={<BannerProducts />} />
