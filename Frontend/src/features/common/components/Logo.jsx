@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const Logo = ({ className = "h-8", variant = "icon", white = false, color = null }) => {
   const isSky = color === 'sky';
@@ -9,7 +10,7 @@ const Logo = ({ className = "h-8", variant = "icon", white = false, color = null
   const accentColor = (white || isSky) ? '#ffffff' : '#ffffff'; // White 'Z' on blue background, or white 'Z' on white/sky
 
   return (
-    <div className={`flex items-center gap-2 bg-transparent shrink-0 ${className} select-none`}>
+    <Link to="/" className={`flex items-center gap-2 bg-transparent shrink-0 ${className} select-none cursor-pointer hover:opacity-90 transition-opacity`}>
       {/* Premium Hexagon Icon */}
       <div className="relative h-full aspect-square flex items-center justify-center shrink-0">
         <svg 
@@ -55,7 +56,7 @@ const Logo = ({ className = "h-8", variant = "icon", white = false, color = null
           </span>
         </div>
       )}
-    </div>
+    </Link>
   );
 };
 

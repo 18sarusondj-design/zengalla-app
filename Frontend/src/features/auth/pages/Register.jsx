@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../auth/context/AuthContext';
 import { Store, Mail, Lock, Phone, User, CheckCircle2, ArrowRight, Loader2, ShieldCheck, Smartphone, Eye, EyeOff, X, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
@@ -82,7 +82,7 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex font-sans relative">
+    <div className="h-screen lg:min-h-screen bg-white flex font-sans relative overflow-hidden">
       {/* Left Side: Brand Imagery */}
       <div className="hidden lg:flex lg:w-2/5 relative overflow-hidden">
         <img 
@@ -104,37 +104,37 @@ const Register = () => {
       </div>
 
       {/* Right Side: Registration Form */}
-      <div className="flex-1 flex flex-col relative bg-slate-50">
+      <div className="flex-1 flex flex-col relative bg-slate-50 h-full overflow-hidden">
         
         {/* Mobile Hero Banner */}
-        <div className="lg:hidden relative h-52 flex-shrink-0 overflow-hidden">
+        <div className="lg:hidden relative h-28 flex-shrink-0 overflow-hidden">
           <img 
             src="/brand_login.png" 
             className="absolute inset-0 w-full h-full object-cover"
             alt="Registration Branding Mobile"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-gray-900/80 via-gray-900/50 to-slate-50" />
-          <div className="absolute bottom-6 left-6 right-6">
+          <div className="absolute bottom-3 left-6 right-6">
             <div className="flex items-center gap-3">
-              <Logo className="h-12" variant="full" white />
+              <Logo className="h-8" variant="icon" white />
               <div>
-                <h2 className="text-2xl font-black text-white tracking-tighter uppercase leading-none">ZenGalla</h2>
-                <p className="text-[9px] font-black text-white/70 uppercase tracking-widest">Digital Marketplace</p>
+                <h2 className="text-xl font-black text-white tracking-tighter uppercase leading-none">ZenGalla</h2>
+                <p className="text-[8px] font-black text-white/70 uppercase tracking-widest mt-1">Digital Marketplace</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col items-center justify-center flex-1 py-12 px-6">
+        <div className="flex flex-col items-center justify-center flex-1 py-4 px-4 sm:px-6 overflow-y-auto">
           <div className="w-full max-w-[480px]">
-            <div className="flex flex-col items-center text-center mb-4">
-              <div className="h-14 w-14 bg-sky-500 rounded-2xl flex items-center justify-center shadow-xl shadow-sky-100 border border-sky-400 mb-4">
-                <Logo className="h-10" variant="icon" white />
+            <div className="flex flex-col items-center text-center mb-2 lg:mb-4">
+              <div className="h-10 w-10 bg-sky-500 rounded-xl flex items-center justify-center shadow-xl shadow-sky-100 border border-sky-400 mb-2">
+                <Logo className="h-6" variant="icon" white />
               </div>
-              <h1 className="text-2xl font-black text-gray-900 tracking-tighter uppercase leading-none">Get Started</h1>
+              <h1 className="text-xl font-black text-gray-900 tracking-tighter uppercase leading-none">Get Started</h1>
             </div>
 
-            <div className="bg-white py-4 px-8 sm:px-10 shadow-[0_30px_100px_-20px_rgba(0,0,0,0.1)] rounded-[40px] border border-gray-100 flex flex-col gap-3 relative overflow-hidden group">
+            <div className="bg-white py-3 px-5 sm:px-10 shadow-[0_30px_100px_-20px_rgba(0,0,0,0.1)] rounded-[32px] border border-gray-100 flex flex-col gap-3 relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none scale-[2.5] group-hover:rotate-12 transition-transform duration-1000">
                 <Logo variant="icon" className="w-32 h-32" />
               </div>
@@ -196,7 +196,7 @@ const Register = () => {
                   <button
                     type="submit"
                     disabled={loading || !isPassValid}
-                    className="w-full h-14 bg-gray-900 text-white rounded-[24px] shadow-2xl shadow-gray-200 hover:bg-sky-600 transition-all duration-500 flex items-center justify-center gap-3 font-black uppercase tracking-widest text-[10px] active:scale-95 disabled:opacity-50 group hover:shadow-sky-200"
+                    className="w-full h-12 lg:h-14 bg-gray-900 text-white rounded-[20px] lg:rounded-[24px] shadow-2xl shadow-gray-200 hover:bg-sky-600 transition-all duration-500 flex items-center justify-center gap-3 font-black uppercase tracking-widest text-[9px] lg:text-[10px] active:scale-95 disabled:opacity-50 group hover:shadow-sky-200"
                   >
                     {loading ? <Loader2 className="animate-spin" size={20} /> : (
                       <>Complete Setup <ArrowRight size={16} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" /></>
@@ -225,7 +225,7 @@ const Register = () => {
                   <button
                     type="submit"
                     disabled={loading || otp.length < 4}
-                    className="w-full h-14 bg-sky-600 text-white rounded-[24px] shadow-2xl shadow-sky-200 hover:bg-gray-900 transition-all duration-500 flex items-center justify-center gap-3 font-black uppercase tracking-widest text-[10px] active:scale-95 disabled:opacity-50 group hover:shadow-gray-200"
+                    className="w-full h-12 lg:h-14 bg-sky-600 text-white rounded-[20px] lg:rounded-[24px] shadow-2xl shadow-sky-200 hover:bg-gray-900 transition-all duration-500 flex items-center justify-center gap-3 font-black uppercase tracking-widest text-[9px] lg:text-[10px] active:scale-95 disabled:opacity-50 group hover:shadow-gray-200"
                   >
                     {loading ? <Loader2 className="animate-spin" size={20} /> : (
                       <>Verify & Login <CheckCircle2 size={16} strokeWidth={3} className="group-hover:scale-110 transition-transform" /></>
@@ -241,7 +241,7 @@ const Register = () => {
               </div>
             </div>
 
-            <p className="mt-4 text-center text-[8px] text-gray-300 font-medium uppercase tracking-[0.2em]">
+            <p className="mt-3 text-center text-[8px] text-gray-300 font-medium uppercase tracking-[0.2em]">
               Powered by Zengalla Infrastructure
             </p>
           </div>
@@ -253,7 +253,7 @@ const Register = () => {
 
 const FormInput = ({ label, icon, type, placeholder, value, onChange, rightElement, maxLength }) => (
   <div className="group/input">
-    <label className="block text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4 mb-1.5 group-focus-within/input:text-sky-600 transition-colors">
+    <label className="block text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4 mb-1 lg:mb-1.5 group-focus-within/input:text-sky-600 transition-colors">
       {label}
     </label>
     <div className="relative">
@@ -263,7 +263,7 @@ const FormInput = ({ label, icon, type, placeholder, value, onChange, rightEleme
       <input
         type={type} required
         maxLength={maxLength}
-        className={`block w-full pl-10 ${rightElement ? 'pr-12' : 'pr-4'} py-3 border-2 border-gray-50 rounded-2xl bg-gray-50/50 text-[10px] font-bold text-gray-800 focus:outline-none focus:border-sky-500/30 focus:bg-white transition-all shadow-inner`}
+        className={`block w-full pl-10 ${rightElement ? 'pr-12' : 'pr-4'} py-2.5 lg:py-3 border-2 border-gray-50 rounded-xl lg:rounded-2xl bg-gray-50/50 text-[10px] font-bold text-gray-800 focus:outline-none focus:border-sky-500/30 focus:bg-white transition-all shadow-inner`}
         placeholder={placeholder}
         value={value}
         onChange={e => onChange(e.target.value)}

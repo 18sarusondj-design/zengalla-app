@@ -292,7 +292,7 @@ const VendorSignup = () => {
       </div>
 
       {/* Right Side: Signup Form */}
-      <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 relative bg-slate-50 overflow-y-auto custom-scrollbar-visible">
+      <div className="flex-1 flex flex-col items-center justify-start lg:justify-center p-4 md:p-8 relative bg-slate-50 overflow-y-auto custom-scrollbar-visible">
         <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden lg:hidden">
           <img 
             src="/brand_login.png" 
@@ -302,17 +302,17 @@ const VendorSignup = () => {
           <div className="absolute inset-0 bg-gradient-to-b from-white/80 via-white/40 to-white/90" />
         </div>
 
-        <div className="w-full max-w-5xl flex flex-col justify-center">
-          <div className="bg-white py-8 px-8 sm:px-12 shadow-[0_40px_120px_-20px_rgba(0,0,0,0.15)] rounded-[48px] border border-gray-100 flex flex-col gap-6 animate-fade-in-up relative">
+        <div className="w-full max-w-5xl flex flex-col justify-start">
+          <div className="bg-white py-6 px-5 sm:py-8 sm:px-12 shadow-[0_40px_120px_-20px_rgba(0,0,0,0.15)] rounded-[32px] sm:rounded-[48px] border border-gray-100 flex flex-col gap-4 sm:gap-6 animate-fade-in-up relative">
             
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-5">
-                <div className="h-14 w-14 bg-sky-500 rounded-2xl flex items-center justify-center shadow-xl shadow-sky-100 border border-sky-400">
-                  <Logo className="h-10" variant="icon" white />
+            <div className="flex items-center justify-between mb-1 sm:mb-2">
+              <div className="flex items-center gap-3 sm:gap-5">
+                <div className="h-10 w-10 sm:h-14 sm:w-14 bg-sky-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-xl shadow-sky-100 border border-sky-400">
+                  <Logo className="h-6 sm:h-10" variant="icon" white />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black text-gray-900 tracking-tighter uppercase leading-none">New Shop Details</h2>
-                  <p className="mt-1 text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none text-emerald-500">Business Verification Hub</p>
+                  <h2 className="text-lg sm:text-2xl font-black text-gray-900 tracking-tighter uppercase leading-none">New Shop Details</h2>
+                  <p className="mt-1 text-[7px] sm:text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none text-emerald-500">Business Verification Hub</p>
                 </div>
               </div>
             </div>
@@ -502,17 +502,17 @@ const VendorSignup = () => {
 
 const FormInput = ({ label, icon, type, placeholder, value, onChange, rightElement, maxLength }) => (
   <div className="group/input">
-    <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-2 transition-colors group-focus-within/input:text-sky-600">
+    <label className="block text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-1 sm:mb-2 transition-colors group-focus-within/input:text-sky-600">
       {label}
     </label>
     <div className="relative">
-      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-300 group-focus-within/input:text-sky-500 transition-colors">
+      <div className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none text-gray-300 group-focus-within/input:text-sky-500 transition-colors">
         {React.cloneElement(icon, { strokeWidth: 2.5 })}
       </div>
       <input
         type={type} required
         maxLength={maxLength}
-        className={`block w-full pl-12 ${rightElement ? 'pr-12' : 'pr-4'} py-3 border-2 border-gray-50 rounded-2xl bg-gray-50/50 text-xs font-bold text-gray-800 focus:outline-none focus:border-sky-500/30 focus:bg-white transition-all placeholder:text-gray-300 shadow-inner`}
+        className={`block w-full pl-10 sm:pl-12 ${rightElement ? 'pr-12' : 'pr-4'} py-2.5 sm:py-3 border-2 border-gray-50 rounded-xl sm:rounded-2xl bg-gray-50/50 text-[10px] sm:text-xs font-bold text-gray-800 focus:outline-none focus:border-sky-500/30 focus:bg-white transition-all placeholder:text-gray-300 shadow-inner`}
         placeholder={placeholder}
         value={value}
         onChange={e => onChange(e.target.value)}
