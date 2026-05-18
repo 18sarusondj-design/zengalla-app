@@ -16,7 +16,6 @@ const B2BPartners = () => {
   const { vendorShop, fetchVendorShop } = useStore();
   const [partners, setPartners] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [editingPartner, setEditingPartner] = useState(null);
@@ -147,9 +146,7 @@ const B2BPartners = () => {
       p.phone?.includes(searchQuery) ||
       p.gstin?.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesFilter = filterType === 'All' || p.buyerType === filterType;
-    
-    return matchesSearch && matchesFilter;
+    return matchesSearch;
   });
 
   return (
@@ -197,31 +194,12 @@ const B2BPartners = () => {
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex items-center gap-4 group hover:border-rose-500 transition-all">
-              <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center group-hover:bg-rose-500 group-hover:text-white transition-all">
-                <IndianRupee size={28} />
-              </div>
-              <div>
-                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Credit Exposure</p>
-                 <p className="text-2xl font-black text-slate-900 leading-none">₹{partners.reduce((acc, p) => acc + (p.creditLimit || 0), 0).toLocaleString()}</p>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex items-center gap-4 group hover:border-amber-500 transition-all">
-              <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-all">
-                <Clock size={28} />
-              </div>
-              <div>
-                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Credit Users</p>
-                 <p className="text-2xl font-black text-slate-900 leading-none">{partners.filter(p => p.paymentTerms !== 'Instant').length}</p>
-              </div>
-            </div>
           </div>
 
           {/* Right Side: Partners List */}
           <div className="flex-1 flex flex-col gap-6 min-h-0 md:overflow-hidden">
-                {/* Filters */}
-            <div className="bg-white p-4 rounded-[32px] border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4">
+            {/* Filters */}
+            <div className="bg-white p-4 rounded-[32px] border border-slate-100 shadow-sm">
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input 
@@ -232,17 +210,6 @@ const B2BPartners = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <div className="flex gap-2">
-                {['All', 'Retailer', 'Wholesaler', 'Restaurant'].map((type) => (
-                  <button 
-                    key={type}
-                    onClick={() => setFilterType(type)}
-                    className={`px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${filterType === type ? 'bg-sky-600 text-white shadow-lg shadow-sky-100' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
             </div>
 
             <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
@@ -252,7 +219,7 @@ const B2BPartners = () => {
                         <tr className="bg-slate-50/50 border-b border-slate-100">
                            <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Partner Detail</th>
                            <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Identification</th>
-                           <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Commercials</th>
+                           <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Buyer Type</th>
                            <th className="px-8 py-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Actions</th>
                         </tr>
                      </thead>
@@ -284,12 +251,9 @@ const B2BPartners = () => {
                                  </div>
                               </td>
                               <td className="px-8 py-6">
-                                 <div className="space-y-1">
-                                    <div className="flex items-center gap-2 text-slate-900 font-bold text-[11px] uppercase tracking-widest">
-                                       <IndianRupee size={12} className="text-rose-500" /> ₹{partner.creditLimit?.toLocaleString()} Limit
-                                    </div>
-                                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{partner.buyerType} • {partner.paymentTerms}</div>
-                                 </div>
+                                 <span className="px-3 py-1.5 bg-sky-50 text-sky-700 rounded-lg text-[9px] font-black uppercase tracking-widest border border-sky-100/50">
+                                    {partner.buyerType}
+                                 </span>
                               </td>
                               <td className="px-8 py-6 text-right">
                                  <div className="flex items-center justify-end gap-2">
@@ -429,9 +393,9 @@ const B2BPartners = () => {
                       </div>
 
                       <h3 className="text-[10px] font-black text-sky-600 uppercase tracking-[0.3em] flex items-center gap-2 pt-4">
-                        <CreditCard size={14} /> Commercial Terms
+                        <Briefcase size={14} /> Commercial Terms
                       </h3>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-4">
                         <div className="relative">
                           <label className="text-[9px] font-black text-slate-300 uppercase tracking-widest absolute -top-2 left-4 bg-white px-2">Buyer Type</label>
                           <select 
@@ -443,19 +407,6 @@ const B2BPartners = () => {
                             <option value="Wholesaler">Wholesaler</option>
                             <option value="Distributor">Distributor</option>
                             <option value="Restaurant">Restaurant</option>
-                          </select>
-                        </div>
-                        <div className="relative">
-                          <label className="text-[9px] font-black text-slate-300 uppercase tracking-widest absolute -top-2 left-4 bg-white px-2">Payment Terms</label>
-                          <select 
-                            name="paymentTerms"
-                            className="w-full bg-white border-2 border-slate-100 rounded-2xl py-4 px-6 text-sm font-bold text-slate-900 focus:border-sky-500 outline-none transition-all appearance-none"
-                            value={formData.paymentTerms} onChange={handleInputChange}
-                          >
-                            <option value="Instant">Instant</option>
-                            <option value="7 Days">7 Days</option>
-                            <option value="15 Days">15 Days</option>
-                            <option value="30 Days">30 Days</option>
                           </select>
                         </div>
                       </div>

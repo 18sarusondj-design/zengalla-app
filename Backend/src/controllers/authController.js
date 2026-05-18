@@ -215,14 +215,14 @@ export const login = async (req, res) => {
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
 
     const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
-    if (!user) return res.status(401).json({ error: 'Invalid email or password' });
+    if (!user) return res.status(401).json({ error: 'Email not registered' });
 
     if (!user.isVerified && user.role !== 'staff' && user.role !== 'delivery') {
       return res.status(403).json({ error: 'Please verify your email before logging in' });
     }
 
     const isMatch = await user.comparePassword(password);
-    if (!isMatch) return res.status(401).json({ error: 'Invalid email or password' });
+    if (!isMatch) return res.status(401).json({ error: 'Incorrect password' });
 
     const { accessToken, refreshToken } = generateTokens(user);
     const safeUser = user.toJSON();

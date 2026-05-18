@@ -32,7 +32,9 @@ export const getUsers = async (req, res) => {
             planStartedAt: s.planStartedAt,
             planExpiresAt: s.planExpiresAt,
             sponsorship: s.sponsorshipType || 'none',
-            isSponsored: s.isSponsored || false
+            isSponsored: s.isSponsored || false,
+            bannersEnabled: s.bannersEnabled || false,
+            bannersEnabledAt: s.bannersEnabledAt || null
           }; 
         }
       });
@@ -58,7 +60,9 @@ export const getUsers = async (req, res) => {
           planExpiresAt: shopData?.planExpiresAt || null,
           daysRemaining,
           sponsorshipType: shopData?.sponsorship || 'none',
-          isSponsored: shopData?.isSponsored || false
+          isSponsored: shopData?.isSponsored || false,
+          bannersEnabled: shopData?.bannersEnabled || false,
+          bannersEnabledAt: shopData?.bannersEnabledAt || null
         };
       });
       
@@ -368,6 +372,26 @@ export const deleteDeliveryPartner = async (req, res) => {
   try {
     await User.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'Delivery partner deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+// PATCH /api/admin/shops/:id/banners-access
+export const toggleShopBannersAccess = async (req, res) => {
+  try {
+    const shop = await Shop.findById(req.params.id);
+    if (!shop) return res.status(404).json({ error: 'Shop not found' });
+
+    shop.bannersEnabled = !shop.bannersEnabled;
+    shop.bannersEnabledAt = shop.bannersEnabled ? new Date() : null;
+    await shop.save();
+
+    const sanitizedShop = shop.toObject();
+    delete sanitizedShop.razorpayKeySecret;
+
+    res.json({ success: true, shop: sanitizedShop });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

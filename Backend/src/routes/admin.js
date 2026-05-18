@@ -3,7 +3,7 @@ import {
   getUsers, updateUserStatus, updateUserRole, deleteUser, 
   getStats, getReports, replyToReport, getAllShops, toggleSponsorship,
   deleteReport, updateShopPlan, getSystemSettings, updateSystemSettings,
-  getAllDeliveryPartners
+  getAllDeliveryPartners, toggleShopBannersAccess
 } from '../controllers/adminController.js';
 
 import { authenticate, requireRole } from '../middleware/auth.js';
@@ -22,6 +22,7 @@ router.patch('/users/:id/status', updateUserStatus);
 router.patch('/users/:id/role', updateUserRole);
 router.patch('/shops/:id/sponsor', toggleSponsorship);
 router.patch('/shops/:id/plan', updateShopPlan);
+router.patch('/shops/:id/banners-access', toggleShopBannersAccess);
 router.delete('/users/:id', deleteUser);
 router.delete('/reports/:id', deleteReport);
 

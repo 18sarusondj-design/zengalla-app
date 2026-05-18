@@ -250,6 +250,27 @@ const Users = ({ roleFilter }) => {
       }
     };
 
+    const handleToggleBannersAccess = async (userId, shopId, silent = false) => {
+      if (!shopId) {
+        toast.error("No shop associated with this vendor");
+        return;
+      }
+      setIsProcessing(userId);
+      try {
+        const { data } = await api.patch(`/admin/shops/${shopId}/banners-access`);
+        if (data.success) {
+          if (!silent) toast.success(data.shop.bannersEnabled ? "✓ Offer Banners Access Granted!" : "Banners Access Suspended");
+          // Update modal in real-time
+          setSelectedVendor(prev => prev ? { ...prev, bannersEnabled: data.shop.bannersEnabled, bannersEnabledAt: data.shop.bannersEnabledAt } : null);
+          fetchUsers();
+        }
+      } catch (err) {
+        toast.error(err.response?.data?.error || err.message);
+      } finally {
+        setIsProcessing(null);
+      }
+    };
+
   const [groupByPinCode, setGroupByPinCode] = useState(roleFilter === 'vendor');
 
   const filteredUsers = showExpiringSoon 
@@ -694,6 +715,39 @@ const Users = ({ roleFilter }) => {
                 </div>
               </div>
 
+              {/* Offer Banners Access */}
+              <div style={{ marginBottom: '24px' }}>
+                <p style={{ fontSize: '9px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.3em', marginBottom: '12px' }}>Marketing Features</p>
+                <div style={{ background: '#f8fafc', borderRadius: '20px', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: modalData.bannersEnabled ? '#0ea5e9' : '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Zap size={22} color={modalData.bannersEnabled ? 'white' : '#9ca3af'} />
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '13px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.03em', color: '#111827', margin: 0 }}>Offer Banners Access</p>
+                      <p style={{ fontSize: '9px', fontWeight: '700', color: modalData.bannersEnabled ? '#0ea5e9' : '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '3px 0 0' }}>
+                        Status: {modalData.bannersEnabled ? '✓ Enabled' : 'Disabled'}
+                      </p>
+                      {modalData.bannersEnabled && modalData.bannersEnabledAt && (
+                        <p style={{ fontSize: '7px', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', margin: '3px 0 0' }}>
+                          Granted: {new Date(modalData.bannersEnabledAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => { setModalData(prev => ({ ...prev, bannersEnabled: !prev.bannersEnabled, bannersEnabledAt: !prev.bannersEnabled ? new Date().toISOString() : null })); setIsModified(true); }}
+                    style={{ 
+                      padding: '10px 20px', borderRadius: '12px', border: 'none', cursor: 'pointer',
+                      background: modalData.bannersEnabled ? '#ef4444' : '#0ea5e9',
+                      color: 'white', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em'
+                    }}
+                  >
+                    {modalData.bannersEnabled ? 'Disable Access' : 'Enable Access'}
+                  </button>
+                </div>
+              </div>
+
               {/* SAVE BUTTON (Only if modified) */}
               {isModified && (
                 <div style={{ marginBottom: '24px', animation: 'fadeIn 0.3s' }}>
@@ -704,15 +758,18 @@ const Users = ({ roleFilter }) => {
                         const planChanged = modalData.subscriptionPlan !== selectedVendor.subscriptionPlan;
                         const sponsorChanged = modalData.isSponsored !== selectedVendor.isSponsored;
                         const statusChanged = modalData.status !== selectedVendor.status;
-
-                        // If both changed, use silent updates and show one final toast
-                        const isBulk = (planChanged && sponsorChanged) || statusChanged;
+                        const bannersAccessChanged = modalData.bannersEnabled !== selectedVendor.bannersEnabled;
+                        
+                        const isBulk = (planChanged && sponsorChanged) || statusChanged || bannersAccessChanged;
 
                         if (planChanged) {
                           await handleUpdatePlan(modalData.shopId, modalData.subscriptionPlan, isBulk);
                         }
                         if (sponsorChanged) {
                           await handleToggleSponsorship(modalData._id, modalData.shopId, isBulk);
+                        }
+                        if (bannersAccessChanged) {
+                          await handleToggleBannersAccess(modalData._id, modalData.shopId, isBulk);
                         }
                         
                         if (statusChanged) {
