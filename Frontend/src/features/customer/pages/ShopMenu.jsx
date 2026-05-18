@@ -52,6 +52,10 @@ const ShopMenu = () => {
   const { cart: allCarts, addToCart, removeFromCart, updateQuantity, setItemQuantity, cartTotal, orders, deleteProduct, deleteCategory, setCurrentShopId, customerGstin } = useStore();
   const cart = allCarts[shopId] || [];
   const { user } = useAuth();
+
+  // -- Promotional Banners State --
+  const [banners, setBanners] = useState([]);
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -74,10 +78,30 @@ const ShopMenu = () => {
     }
   }, [showSuccess]);
 
+  const fetchShopBanners = async () => {
+    try {
+      const { data } = await api.get(`/banners/shop/${shopId}`);
+      if (data?.success) {
+        setBanners(data.banners || []);
+      }
+    } catch (err) {
+      console.debug("Failed to fetch banners:", err.message);
+    }
+  };
+
   useEffect(() => {
     fetchShopProducts();
     fetchShopCoupons();
+    fetchShopBanners();
   }, [shopId]);
+
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentBannerIndex(prev => (prev + 1) % banners.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [banners]);
 
   useEffect(() => {
     if (shopId) {
@@ -524,6 +548,101 @@ const ShopMenu = () => {
 
       {/* Menu Sections */}
       <div className="mt-4 px-5 space-y-4 pb-10 w-full max-w-[1600px] mx-auto">
+
+        {/* Promotional Banners Carousel */}
+        {banners.length > 0 && (
+          <div className="relative overflow-hidden w-full bg-white border border-gray-150 rounded-[32px] shadow-sm p-2 mb-6 group/carousel select-none">
+            <div className="relative h-48 md:h-64 rounded-[26px] overflow-hidden bg-gradient-to-r from-sky-900 to-indigo-900 text-white flex items-center justify-between">
+              {/* Slides container */}
+              <div 
+                className="absolute inset-0 flex transition-transform duration-700 ease-out"
+                style={{ transform: `translateX(-${currentBannerIndex * 100}%)` }}
+              >
+                {banners.map((banner, index) => (
+                  <div 
+                    key={banner._id} 
+                    onClick={() => navigate(`/shop/${shopId}/banner/${banner._id}`)}
+                    className="w-full h-full shrink-0 flex items-center justify-between relative cursor-pointer group"
+                  >
+                    {/* Background Image / Pattern */}
+                    {banner.image ? (
+                      <>
+                        <img 
+                          src={banner.image} 
+                          alt={banner.title} 
+                          className="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform duration-700" 
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
+                      </>
+                    ) : (
+                      <div className="absolute inset-0 opacity-15 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-sky-400 via-indigo-900 to-black" />
+                    )}
+
+                    {/* Banner Message Content */}
+                    <div className="relative z-10 px-8 md:px-16 py-6 max-w-lg md:max-w-2xl space-y-2 md:space-y-4">
+                      <span className="inline-block px-3 py-1 bg-sky-500/90 text-white text-[9px] font-black uppercase tracking-widest rounded-full">
+                        {banner.type}
+                      </span>
+                      <h2 className="text-xl md:text-3xl font-black tracking-tight leading-tight uppercase line-clamp-2 drop-shadow-md">
+                        {banner.title}
+                      </h2>
+                      {banner.subtitle && (
+                        <p className="text-xs md:text-sm font-semibold text-gray-200 line-clamp-1 drop-shadow text-left">
+                          {banner.subtitle}
+                        </p>
+                      )}
+                      
+                      <button className="h-9 px-4 mt-2 bg-white text-gray-900 hover:bg-sky-50 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md flex items-center gap-2 w-fit">
+                        <span>View Offer Items</span>
+                        <ArrowRight size={12} strokeWidth={3} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Navigation Arrows */}
+              {banners.length > 1 && (
+                <>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentBannerIndex(prev => (prev - 1 + banners.length) % banners.length);
+                    }}
+                    className="absolute left-4 z-20 w-10 h-10 rounded-xl bg-black/45 text-white hover:bg-black/60 transition-all flex items-center justify-center backdrop-blur-sm opacity-0 group-hover/carousel:opacity-100"
+                  >
+                    <ChevronLeft size={20} strokeWidth={2.5} />
+                  </button>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentBannerIndex(prev => (prev + 1) % banners.length);
+                    }}
+                    className="absolute right-4 z-20 w-10 h-10 rounded-xl bg-black/45 text-white hover:bg-black/60 transition-all flex items-center justify-center backdrop-blur-sm opacity-0 group-hover/carousel:opacity-100"
+                  >
+                    <ChevronRight size={20} strokeWidth={2.5} />
+                  </button>
+                </>
+              )}
+
+              {/* Indicators Dots */}
+              {banners.length > 1 && (
+                <div className="absolute bottom-4 left-0 right-0 z-20 flex justify-center gap-1.5">
+                  {banners.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentBannerIndex(idx);
+                      }}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${currentBannerIndex === idx ? 'w-6 bg-white' : 'w-1.5 bg-white/40'}`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xs font-black text-gray-900 uppercase tracking-[0.25em]">Exclusive Menu</h3>

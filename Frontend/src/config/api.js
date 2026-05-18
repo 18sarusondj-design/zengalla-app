@@ -116,7 +116,7 @@ api.interceptors.response.use(
     const msg = error.response?.data?.error || error.message;
 
     if (error.response?.status === 401 && !config._retry) {
-      if (!config.url.includes('/auth/refresh') && !config.url.includes('/auth/login')) {
+      if (!config.url.includes('/auth/refresh') && !config.url.includes('/auth/login') && !config.url.includes('/auth/me')) {
         const refreshToken = localStorage.getItem('refreshToken');
         if (refreshToken) {
           if (isRefreshing) {
@@ -156,13 +156,16 @@ api.interceptors.response.use(
               });
           });
         }
-      }
-      
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      // Only redirect if not already on login page
-      if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/login';
+        
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        // Only redirect if not already on login page
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+      } else if (config.url.includes('/auth/me')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
       }
     }
     return Promise.reject(new Error(msg));

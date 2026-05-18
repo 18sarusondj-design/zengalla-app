@@ -47,6 +47,8 @@ const OrderBillingManagement = lazy(() => import('./features/shop/pages/OrderBil
 const CreditLedger = lazy(() => import('./features/shop/pages/CreditLedger'));
 const B2BProcurement = lazy(() => import('./features/shop/pages/B2BProcurement'));
 const DeliveryDashboard = lazy(() => import('./features/shop/pages/DeliveryDashboard'));
+const Banners = lazy(() => import('./features/shop/pages/Banners'));
+const BannerProducts = lazy(() => import('./features/customer/pages/BannerProducts'));
 
 // Lazy Loaded Pages (Super Admin)
 const Users = lazy(() => import('./features/admin/pages/Users'));
@@ -110,6 +112,7 @@ function App() {
                 <Route index element={<Landing />} />
                 <Route path="shops" element={<ShopList />} />
                 <Route path="shop/:shopId" element={<ShopMenu />} />
+                <Route path="shop/:shopId/banner/:bannerId" element={<BannerProducts />} />
                 <Route path="shop/:shopId/notifications" element={<ShopNotifications />} />
                 <Route path="products" element={<Home />} />
                 <Route path="cart" element={<Cart />} />
@@ -129,6 +132,7 @@ function App() {
                 <Route path="billing" element={<Billing />} />
                 <Route path="in-store-orders" element={<InStoreOrders />} />
                 <Route path="profile" element={<VendorProfile />} />
+                <Route path="banners" element={<Banners />} />
                 <Route path="customers" element={<Customers />} />
                 <Route path="staff" element={<StaffManagement />} />
                 <Route path="b2b" element={<B2BPartners />} />

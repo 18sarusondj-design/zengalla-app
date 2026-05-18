@@ -36,7 +36,8 @@ const shopSchema = new mongoose.Schema({
     discountType: { type: String, enum: ['percentage', 'flat'], default: 'percentage' },
     minOrderAmount: { type: Number, default: 0 },
     expiryDate: Date,
-    isActive: { type: Boolean, default: true }
+    isActive: { type: Boolean, default: true },
+    bannerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Banner', default: null }
   }],
   isWholesale: { type: Boolean, default: false },
   isPayLater: { type: Boolean, default: false },
@@ -79,6 +80,8 @@ const shopSchema = new mongoose.Schema({
   sponsorshipExpiresAt: { type: Date },
   lastWildcardDate: { type: Date },
   hadFreeSponsorship: { type: Boolean, default: false },
+  bannersEnabled: { type: Boolean, default: false },
+  bannersEnabledAt: { type: Date, default: null },
   rating: { type: Number, default: 0 },
   totalOrders: { type: Number, default: 0 },
   bankDetails: {

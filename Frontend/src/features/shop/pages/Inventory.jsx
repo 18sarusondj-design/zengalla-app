@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import * as XLSX from 'xlsx';
 import { useStore } from '../../shop/context/StoreContext';
 import { useAuth } from '../../auth/context/AuthContext';
-import { Search, Plus, AlertCircle, TrendingUp, ClipboardCheck, X, XCircle, Upload, Pencil, Trash2, Scan, CheckCircle2, Zap, Download as DownloadIcon, Eye, RotateCcw, ChevronRight, ChevronDown, Loader2, Filter, ChevronUp, ChevronLeft, Circle } from 'lucide-react';
+import { Search, Plus, AlertCircle, TrendingUp, ClipboardCheck, X, XCircle, Upload, Pencil, Trash2, Scan, CheckCircle2, Zap, Download as DownloadIcon, Eye, RotateCcw, ChevronRight, ChevronDown, Loader2, Filter, ChevronUp, ChevronLeft, Circle, Sparkles } from 'lucide-react';
 import api from '../../../config/api.js';
 import { toast } from 'sonner';
 import Pagination from '../../common/components/Pagination';
@@ -80,6 +80,55 @@ const Inventory = () => {
   const [newCategoryInput, setNewCategoryInput] = useState('');
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+
+  // -- Promote Product to Banner states --
+  const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
+  const [promotingProduct, setPromotingProduct] = useState(null);
+  const [vendorBanners, setVendorBanners] = useState([]);
+  const [selectedBannerId, setSelectedBannerId] = useState('');
+  const [isPromoteSubmitting, setIsPromoteSubmitting] = useState(false);
+
+  const handleOpenPromoteModal = async (product) => {
+    setPromotingProduct(product);
+    setSelectedBannerId('');
+    setIsPromoteModalOpen(true);
+    try {
+      const { data } = await api.get('/banners/my');
+      if (data?.success) {
+        const now = new Date();
+        const activeBanners = (data.banners || []).filter(b => b.isActive && new Date(b.endDate) >= now);
+        setVendorBanners(activeBanners);
+        if (activeBanners.length > 0) {
+          setSelectedBannerId(activeBanners[0]._id);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to load active banners');
+    }
+  };
+
+  const handlePromoteProductSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedBannerId) return toast.error('Please select a banner');
+    if (!promotingProduct) return;
+
+    setIsPromoteSubmitting(true);
+    try {
+      const { data } = await api.post(`/banners/${selectedBannerId}/products`, {
+        productId: promotingProduct._id || promotingProduct.id
+      });
+      if (data?.success) {
+        toast.success(`Successfully added ${promotingProduct.name} to banner!`);
+        setIsPromoteModalOpen(false);
+        fetchData(); // Sync products
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to promote product to banner');
+    } finally {
+      setIsPromoteSubmitting(false);
+    }
+  };
 
   const shopProducts = products.filter(p => {
     const pShopId = (p.shopId?._id || p.shopId || p.shop_id?._id || p.shop_id || '').toString();
@@ -517,6 +566,13 @@ const Inventory = () => {
                               className="w-8 h-8 rounded-xl bg-white border border-gray-100 text-gray-400 hover:text-sky-500 hover:border-sky-200 hover:shadow-sm transition-all flex items-center justify-center"
                             >
                               <Eye size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleOpenPromoteModal(p)}
+                              className="w-8 h-8 rounded-xl bg-white border border-gray-100 text-gray-400 hover:text-amber-500 hover:border-amber-200 hover:shadow-sm transition-all flex items-center justify-center"
+                              title="Promote Product"
+                            >
+                              <Sparkles size={16} />
                             </button>
                             <button
                               onClick={() => {
@@ -1405,6 +1461,107 @@ const Inventory = () => {
                 <span className="text-white text-[10px] font-black w-10">{imageZooms[activeImageIndex]}%</span>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {isPromoteModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-md overflow-hidden border border-gray-100" onClick={e => e.stopPropagation()}>
+            <div className="p-8 pb-4 flex justify-between items-center border-b">
+              <div>
+                <h3 className="text-xl font-black text-gray-900 tracking-tighter uppercase flex items-center gap-2">
+                  <Sparkles size={18} className="text-amber-500" />
+                  <span>Promote Product</span>
+                </h3>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">
+                  Add this product to an active offer banner
+                </p>
+              </div>
+              <button
+                onClick={() => setIsPromoteModalOpen(false)}
+                className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
+              >
+                <X size={20} strokeWidth={3} />
+              </button>
+            </div>
+
+            <form onSubmit={handlePromoteProductSubmit} className="p-8 space-y-6">
+              {promotingProduct && (
+                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border">
+                  {promotingProduct.image && (
+                    <img src={promotingProduct.image} alt={promotingProduct.name} className="w-12 h-12 rounded-xl object-cover" />
+                  )}
+                  <div>
+                    <h4 className="text-sm font-black text-gray-900 line-clamp-1">{promotingProduct.name}</h4>
+                    <p className="text-[10px] font-bold text-gray-400">MRP: ₹{promotingProduct.mrp} | Selling Price: ₹{promotingProduct.price}</p>
+                  </div>
+                </div>
+              )}
+
+              {vendorBanners.length === 0 ? (
+                <div className="p-5 bg-rose-50 rounded-3xl border border-rose-100 text-center space-y-2">
+                  <AlertCircle size={24} className="text-rose-500 mx-auto" />
+                  <p className="text-xs font-bold text-rose-800">You don't have any active or unexpired offer banners.</p>
+                  <a
+                    href="/vendor/dashboard/banners"
+                    className="text-xs font-black uppercase tracking-widest text-sky-600 hover:underline block"
+                    onClick={() => setIsPromoteModalOpen(false)}
+                  >
+                    Create a Banner First →
+                  </a>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">
+                      Select Offer Banner *
+                    </label>
+                    <select
+                      className="w-full bg-gray-50 border-2 border-transparent focus:border-sky-500/30 focus:bg-white rounded-2xl h-14 px-5 text-sm font-bold text-gray-800 focus:outline-none transition-all"
+                      value={selectedBannerId}
+                      onChange={(e) => setSelectedBannerId(e.target.value)}
+                      required
+                    >
+                      {vendorBanners.map(b => (
+                        <option key={b._id} value={b._id}>
+                          {b.title} ({b.type})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex items-start gap-3">
+                    <Sparkles size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-[10px] font-bold text-amber-850 leading-relaxed">
+                      If you want to offer a discount on this product for the banner, you can modify its selling price directly in the product edit details form at any time.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-4 border-t pt-6">
+                <button
+                  type="button"
+                  onClick={() => setIsPromoteModalOpen(false)}
+                  className="flex-1 h-14 bg-gray-50 hover:bg-gray-100 text-gray-400 rounded-2xl font-black text-xs uppercase tracking-widest transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPromoteSubmitting || vendorBanners.length === 0}
+                  className="flex-[2] h-14 bg-gray-900 hover:bg-gray-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-gray-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isPromoteSubmitting ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <CheckCircle2 size={16} strokeWidth={3} />
+                  )}
+                  <span>Promote Product</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

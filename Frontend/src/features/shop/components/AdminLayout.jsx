@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ShoppingCart, Package, Users, LogOut, Receipt, Menu, X, Store as StoreIconCustom, AlertCircle, User, Loader2, Phone, Shield, Truck, Wallet, History as HistoryIcon, ShoppingBag } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Package, Users, LogOut, Receipt, Menu, X, Store as StoreIconCustom, AlertCircle, User, Loader2, Phone, Shield, Truck, Wallet, History as HistoryIcon, ShoppingBag, Sparkles } from 'lucide-react';
 import { useStore } from '../../shop/context/StoreContext';
 import { useAuth } from '../../auth/context/AuthContext';
 import { toast } from 'sonner';
@@ -12,7 +12,7 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
 const AdminLayout = () => {
   const { logout, user, token } = useAuth();
   const navigate = useNavigate();
-  const { handleGlobalScan, vendorShop, toggleShopStatus, isDeliveryMode, setIsDeliveryMode } = useStore();
+  const { handleGlobalScan, vendorShop, fetchVendorShop, toggleShopStatus, isDeliveryMode, setIsDeliveryMode } = useStore();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -42,6 +42,12 @@ const AdminLayout = () => {
       return () => window.removeEventListener('shop-updated', handleShopUpdate);
     }
   }, [isVendor, isStaff, token]);
+
+  React.useEffect(() => {
+    if ((isVendor || isStaff) && token && !vendorShop && typeof fetchVendorShop === 'function') {
+      fetchVendorShop();
+    }
+  }, [isVendor, isStaff, token, vendorShop, fetchVendorShop]);
 
   React.useEffect(() => {
     if (isAdmin && token) {
@@ -196,7 +202,7 @@ const AdminLayout = () => {
           </div>
         </div>
 
-        <nav className="flex-1 px-3 py-4 flex flex-col gap-1.5 md:overflow-hidden scrollbar-hide">
+        <nav className="flex-1 px-3 py-4 flex flex-col gap-1.5 overflow-y-auto scrollbar-hide">
           {/* VENDOR & STAFF LINKS */}
           {(isVendor || isStaff) && (
             <>
@@ -207,6 +213,7 @@ const AdminLayout = () => {
                 </>
               )}
               {canManageInventory && <NavItem to="/vendor/dashboard/inventory" icon={<Package size={20} />} label="My Inventory" />}
+              {vendorShop?.bannersEnabled && <NavItem to="/vendor/dashboard/banners" icon={<Sparkles size={20} />} label="Offer Banners" />}
               <NavItem to="/vendor/dashboard/billing" icon={<Receipt size={20} />} label="Billing Area" />
               <NavItem to="/vendor/dashboard/ledger" icon={<HistoryIcon size={20} />} label="Billing History" />
               {isVendor && (
@@ -307,7 +314,7 @@ const AdminLayout = () => {
         {isMobileMenuOpen && (
           <div className="md:hidden fixed inset-0 top-16 bg-black/60 backdrop-blur-sm z-40 animate-in fade-in duration-300" onClick={() => setIsMobileMenuOpen(false)}>
             <div className="bg-white w-4/5 max-w-[300px] h-full shadow-2xl flex flex-col p-6 translate-x-0 transition-transform" onClick={e => e.stopPropagation()}>
-              <div className="flex-1 flex flex-col gap-2">
+              <div className="flex-1 flex flex-col gap-2 overflow-y-auto scrollbar-hide">
                 {(isVendor || isStaff) && (
                   <>
                     {vendorShop?.subscriptionPlan !== 'basic' && (
@@ -317,6 +324,7 @@ const AdminLayout = () => {
                       </>
                     )}
                     {canManageInventory && <NavItem to="/vendor/dashboard/inventory" icon={<Package size={20} />} label="Inventory" onClick={() => setIsMobileMenuOpen(false)} />}
+                    {vendorShop?.bannersEnabled && <NavItem to="/vendor/dashboard/banners" icon={<Sparkles size={20} />} label="Offer Banners" onClick={() => setIsMobileMenuOpen(false)} />}
                     <NavItem to="/vendor/dashboard/billing" icon={<Receipt size={20} />} label="Billing Area" onClick={() => setIsMobileMenuOpen(false)} />
                     <NavItem to="/vendor/dashboard/ledger" icon={<HistoryIcon size={20} />} label="Billing History" onClick={() => setIsMobileMenuOpen(false)} />
                     {isVendor && (

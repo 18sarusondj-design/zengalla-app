@@ -927,6 +927,16 @@ export const StoreProvider = ({ children }) => {
     window.dispatchEvent(new CustomEvent('global-barcode-scan', { detail: barcode }));
   }, []);
 
+  const getNotifications = useCallback(async (userId, shopId) => {
+    try {
+      // Clean fallback as customer notifications are primarily web-push based
+      return [];
+    } catch (err) {
+      console.error('getNotifications error:', err);
+      return [];
+    }
+  }, []);
+
   const value = useMemo(() => ({
     products, shops, orders, setOrders, cart, currentShopId, setCurrentShopId,
     loading, vendorShop, customerGstin, setCustomerGstin,
@@ -941,7 +951,7 @@ export const StoreProvider = ({ children }) => {
     getStaff, createStaff, updateStaff, deleteStaff,
     getDeliveryPartners, createDeliveryPartner, updateDeliveryPartner, deleteDeliveryPartner,
     getAvailableOrders, getMyActiveOrder, acceptOrder, assignOrder, rejectOrder, updateDeliveryStatus, getDeliveryHistory, updateDriverLocation, toggleOnlineStatus, handleGlobalScan,
-    isDeliveryMode, setIsDeliveryMode
+    isDeliveryMode, setIsDeliveryMode, getNotifications
   }), [
     products, shops, orders, cart, currentShopId, loading, vendorShop,
     customerGstin, cartTotal, totalCartItemCount,
@@ -954,7 +964,7 @@ export const StoreProvider = ({ children }) => {
     getStaff, createStaff, updateStaff, deleteStaff,
     getDeliveryPartners, createDeliveryPartner, updateDeliveryPartner, deleteDeliveryPartner,
     getAvailableOrders, getMyActiveOrder, acceptOrder, assignOrder, rejectOrder, updateDeliveryStatus, getDeliveryHistory, updateDriverLocation, toggleOnlineStatus, handleGlobalScan,
-    isDeliveryMode, setIsDeliveryMode
+    isDeliveryMode, setIsDeliveryMode, getNotifications
   ]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

@@ -9,7 +9,7 @@ import DeliveryLocationModal from '../components/DeliveryLocationModal';
 
 
 const Checkout = () => {
-  const { cartTotal, placeOrder, currentShopId, customerGstin, setCustomerGstin, orders } = useStore();
+  const { cart, cartTotal, placeOrder, currentShopId, customerGstin, setCustomerGstin, orders } = useStore();
   const { user, token, updateProfile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -209,10 +209,10 @@ const Checkout = () => {
     fetchShopDetails();
   }, [currentShopId]);
   
-  const handleApplyCoupon = () => {
-    if (!couponInput) return;
-    const code = couponInput.toUpperCase().trim();
-    const coupon = (activeShop?.coupons || []).find(c => c.code.toUpperCase() === code && c.isActive);
+  const handleApplyCoupon = async (passedCoupon = null) => {
+    const code = passedCoupon ? passedCoupon.code.toUpperCase().trim() : couponInput.toUpperCase().trim();
+    if (!code) return;
+    const coupon = passedCoupon || (activeShop?.coupons || []).find(c => c.code.toUpperCase() === code && c.isActive);
 
     if (!coupon) {
       toast.error("Invalid coupon code");
@@ -224,19 +224,59 @@ const Checkout = () => {
       return;
     }
 
-    if (cartTotal < (coupon.minOrderAmount || 0)) {
-      toast.error(`Min order of ₹${coupon.minOrderAmount} required for this coupon`);
+    let applicableTotal = cartTotal;
+    let bannerTitle = "";
+
+    if (coupon.bannerId) {
+      const toastId = toast.loading("Verifying promotional products...");
+      try {
+        const { data } = await api.get(`/banners/${coupon.bannerId}`);
+        if (data.success && data.banner) {
+          const bannerProductIds = (data.banner.products || []).map(p => String(p._id || p.id));
+          bannerTitle = data.banner.title;
+          
+          const shopCart = cart[currentShopId] || [];
+          const bannerItemsTotal = shopCart.reduce((sum, item) => {
+            const pId = String(item.product._id || item.product.id);
+            if (bannerProductIds.includes(pId)) {
+              return sum + item.product.price * item.quantity;
+            }
+            return sum;
+          }, 0);
+
+          if (bannerItemsTotal <= 0) {
+            toast.error(`This coupon applies ONLY to products in the "${bannerTitle}" campaign.`, { id: toastId });
+            return;
+          }
+
+          applicableTotal = bannerItemsTotal;
+          toast.success(`Applied to "${bannerTitle}" products!`, { id: toastId });
+        } else {
+          toast.error("Failed to verify campaign products.", { id: toastId });
+          return;
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Could not verify campaign products.", { id: toastId });
+        return;
+      }
+    }
+
+    if (applicableTotal < (coupon.minOrderAmount || 0)) {
+      toast.error(`Min order of ₹${coupon.minOrderAmount} of campaign products is required for this coupon`);
       return;
     }
 
     const discountValue = coupon.discountType === 'percentage'
-      ? Math.round(cartTotal * (coupon.discountValue / 100))
+      ? Math.round(applicableTotal * (coupon.discountValue / 100))
       : coupon.discountValue;
 
     setAppliedCoupon(coupon);
     setLocalDiscount(discountValue);
     setCouponInput('');
-    toast.success(`Coupon "${code}" applied! Save ₹${discountValue}`);
+    if (!passedCoupon) {
+      toast.success(`Coupon "${code}" applied! Save ₹${discountValue}`);
+    }
   };
 
   const handleRemoveCoupon = () => {
@@ -1479,6 +1519,11 @@ const Checkout = () => {
                                 <span className="text-[8px] font-black text-rose-400 uppercase tracking-widest shrink-0">Add ₹{Math.round(stillNeeds)}</span>
                               </div>
                             )}
+                            {c.bannerId && (
+                              <p className="text-[9px] font-black text-sky-500 uppercase tracking-widest mt-1.5">
+                                🎯 Campaign Products Only
+                              </p>
+                            )}
                           </div>
                         </div>
 
@@ -1489,15 +1534,8 @@ const Checkout = () => {
                               toast.info(`Add ₹${Math.round(stillNeeds)} more to use this coupon!`);
                               return;
                             }
-                            setCouponInput(c.code);
                             setOpenCouponDrawer(false);
-                            // Auto-apply logic
-                            const discountValue = c.discountType === 'percentage'
-                              ? Math.round(cartTotal * (c.discountValue / 100))
-                              : c.discountValue;
-                            setAppliedCoupon(c);
-                            setLocalDiscount(discountValue);
-                            toast.success(`Coupon "${c.code}" applied!`);
+                            handleApplyCoupon(c);
                           }}
                           className={`w-full py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all border-t ${
                             meetsMin

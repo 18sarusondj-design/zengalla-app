@@ -43,7 +43,8 @@ const VendorProfile = () => {
   const [isPaymentsUnlocked, setIsPaymentsUnlocked] = useState(false);
   const [unlockPassword, setUnlockPassword] = useState('');
   const [isUnlocking, setIsUnlocking] = useState(false);
-  const [newCoupon, setNewCoupon] = useState({ code: '', discountValue: '', discountType: 'percentage', minOrderAmount: 0, expiryDate: '' });
+  const [banners, setBanners] = useState([]);
+  const [newCoupon, setNewCoupon] = useState({ code: '', discountValue: '', discountType: 'percentage', minOrderAmount: 0, expiryDate: '', bannerId: '' });
 
   const shopUrl = `${window.location.protocol}//${window.location.host}/shop/${vendorShop?.id || vendorShop?._id || ''}`;
 
@@ -174,6 +175,15 @@ const VendorProfile = () => {
 
       if (!vendorShop) {
         await fetchVendorShop();
+      }
+
+      try {
+        const { data } = await api.get('/banners/my');
+        if (data.success) {
+          setBanners(data.banners || []);
+        }
+      } catch (err) {
+        console.error("Failed to load vendor banners:", err);
       }
 
       const customerRes = await getCustomers();
@@ -1058,6 +1068,21 @@ const VendorProfile = () => {
                                 className="w-full bg-white border border-sky-100 rounded-xl p-3 text-[10px] font-bold outline-none focus:border-sky-400 transition-all"
                               />
                             </div>
+                            <div className="space-y-1 col-span-2">
+                              <label className="text-[8px] font-black text-gray-500 uppercase tracking-widest ml-2">Restrict to Banner (Optional - Coupon will apply ONLY to this banner's products)</label>
+                              <select
+                                value={newCoupon.bannerId || ''}
+                                onChange={(e) => setNewCoupon({ ...newCoupon, bannerId: e.target.value || '' })}
+                                className="w-full bg-white border border-sky-100 rounded-xl p-3 text-[10px] font-bold outline-none focus:border-sky-400 transition-all"
+                              >
+                                <option value="">None (Applies to all store products)</option>
+                                {banners.map(b => (
+                                  <option key={b._id} value={b._id}>
+                                    {b.title} ({b.type})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
                           <div className="flex items-center justify-between gap-4">
                             <div className="flex bg-white p-1 rounded-xl border border-sky-100">
@@ -1093,7 +1118,7 @@ const VendorProfile = () => {
                                 }));
 
                                 // Clear form
-                                setNewCoupon({ code: '', discountValue: '', discountType: 'percentage', minOrderAmount: 0, expiryDate: '' });
+                                setNewCoupon({ code: '', discountValue: '', discountType: 'percentage', minOrderAmount: 0, expiryDate: '', bannerId: '' });
                                 setShowCouponForm(false);
 
                                 // Persist to database
@@ -1145,6 +1170,11 @@ const VendorProfile = () => {
                                     {coupon.discountType === 'percentage' ? `${coupon.discountValue}% OFF` : `₹${coupon.discountValue} OFF`}
                                     {coupon.minOrderAmount > 0 && <span className="text-gray-400 ml-2"> • Above ₹{coupon.minOrderAmount}</span>}
                                   </p>
+                                  {coupon.bannerId && (
+                                    <p className="text-[8px] font-black text-sky-500 uppercase tracking-widest mt-0.5">
+                                      🎯 Banner Only: {banners.find(b => b._id === coupon.bannerId)?.title || 'Campaign'}
+                                    </p>
+                                  )}
                                 </div>
                               </div>
 
