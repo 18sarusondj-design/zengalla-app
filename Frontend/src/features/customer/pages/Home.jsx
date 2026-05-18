@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, Plus, Minus, ShoppingBag, Sparkles } from 'lucide-react';
+import { Search, Plus, Minus, ShoppingBag, Sparkles, Play } from 'lucide-react';
 import { useStore } from '../../shop/context/StoreContext';
 import { useAuth } from '../../auth/context/AuthContext';
 import api from '../../../config/api.js';
@@ -9,7 +9,7 @@ import PWAInstallButton from '../../common/components/PWAInstallButton';
 import { ProductSkeleton } from '../components/Skeleton';
 
 const Home = () => {
-  const { products, cart, addToCart, updateQuantity, setItemQuantity } = useStore();
+  const { products, cart: allCarts, addToCart, updateQuantity, setItemQuantity } = useStore();
   const { token, user } = useAuth();
   const [currentPage, setCurrentPage] = useState(1);
   const [frequentProducts, setFrequentProducts] = useState([]);
@@ -193,7 +193,9 @@ const Home = () => {
             <div className="flex overflow-x-auto gap-3 px-4 pb-4 scrollbar-hide snap-x">
                 {frequentProducts.map(product => {
                   const productId = (product._id || product.id || '').toString();
-                  const inCart = cart.find(item => (item.product?._id || item.product?.id || '').toString() === productId);
+                  const rawCart = allCarts[product.shopId || product.shop];
+                  const shopCart = Array.isArray(rawCart) ? rawCart : [];
+                  const inCart = shopCart.find(item => (item.product?._id || item.product?.id || '').toString() === productId);
                 return (
                   <div key={productId} className="min-w-[124px] bg-white dark:bg-slate-900 rounded-2xl p-3 border border-gray-100 dark:border-slate-800 shadow-sm snap-start flex flex-col items-center text-center">
                     <div className="w-16 h-16 bg-gray-50 dark:bg-slate-800 rounded-xl overflow-hidden mb-2 relative">
@@ -259,7 +261,9 @@ const Home = () => {
           ) : (
             paginatedProducts.map(product => {
               const productId = (product._id || product.id || '').toString();
-              const cartItem = cart.find(c => (c.product?._id || c.product?.id || '').toString() === productId);
+              const rawCart = allCarts[product.shopId || product.shop];
+              const shopCart = Array.isArray(rawCart) ? rawCart : [];
+              const cartItem = shopCart.find(c => (c.product?._id || c.product?.id || '').toString() === productId);
               const inStock = Number(product.stockQuantity) > 0;
 
               return (
@@ -307,7 +311,7 @@ const Home = () => {
                         {cartItem ? (
                           <div className="flex items-center gap-1.5 bg-sky-50 dark:bg-sky-900/40 rounded-xl p-1 text-sky-600 font-bold text-sm">
                             <button onClick={(e) => { e.stopPropagation(); updateQuantity(productId, -1); }} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-slate-800 shadow-sm"><Minus size={14} /></button>
-                            <span className="w-4 text-center text-xs">{cartItem.quantity}</span>
+                            <span className="w-8 text-center text-xs">{parseFloat(Number(cartItem.quantity).toFixed(3))}</span>
                             <button onClick={(e) => { e.stopPropagation(); updateQuantity(productId, 1); }} className="w-8 h-8 flex items-center justify-center rounded-lg bg-sky-600 text-white shadow-sm"><Plus size={14} /></button>
                           </div>
                         ) : (
@@ -361,7 +365,7 @@ const Home = () => {
 
       <ProductDetailsModal 
         product={selectedProduct}
-        cartItem={cart.find(c => (c.product?._id || c.product?.id || '').toString() === (selectedProduct?._id || selectedProduct?.id || '').toString())}
+        cartItem={selectedProduct ? (Array.isArray(allCarts[selectedProduct.shopId || selectedProduct.shop]) ? allCarts[selectedProduct.shopId || selectedProduct.shop] : []).find(c => (c.product?._id || c.product?.id || '').toString() === (selectedProduct?._id || selectedProduct?.id || '').toString()) : null}
         addToCart={handleAddToCart}
         updateQuantity={updateQuantity}
       />
@@ -370,7 +374,7 @@ const Home = () => {
         isOpen={!!weighingProduct}
         onClose={() => setWeighingProduct(null)}
         product={weighingProduct}
-        initialValue={cart.find(c => (c.product?._id || c.product?.id || '').toString() === (weighingProduct?._id || weighingProduct?.id || '').toString())?.quantity}
+        initialValue={weighingProduct ? (Array.isArray(allCarts[weighingProduct.shopId || weighingProduct.shop]) ? allCarts[weighingProduct.shopId || weighingProduct.shop] : []).find(c => (c.product?._id || c.product?.id || '').toString() === (weighingProduct?._id || weighingProduct?.id || '').toString())?.quantity : undefined}
         onConfirm={(p, qty) => setItemQuantity(p, qty)}
       />
     </div>

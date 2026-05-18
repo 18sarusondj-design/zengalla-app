@@ -5,15 +5,27 @@ import api from '../../../config/api.js';
 const AuthContext = createContext({});
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const cached = localStorage.getItem('cached_user');
+      return cached ? JSON.parse(cached) : null;
+    } catch (err) {
+      return null;
+    }
+  });
   const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [refreshToken, setRefreshToken] = useState(() => localStorage.getItem('refreshToken'));
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    const hasToken = !!localStorage.getItem('token');
+    const hasCachedUser = !!localStorage.getItem('cached_user');
+    return hasToken && !hasCachedUser;
+  });
 
   // Load user on mount if token exists
   useEffect(() => {
     if (token) {
-      refreshUser();
+      const hasCachedUser = !!localStorage.getItem('cached_user');
+      refreshUser(hasCachedUser);
     } else {
       setLoading(false);
     }
@@ -24,13 +36,19 @@ export const AuthProvider = ({ children }) => {
       if (!silent) setLoading(true);
       const { data } = await api.get('/auth/me');
       setUser(data.user);
+      localStorage.setItem('cached_user', JSON.stringify(data.user));
     } catch (err) {
-      // Token expired or invalid — clear it
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      setToken(null);
-      setRefreshToken(null);
-      setUser(null);
+      // ONLY clear session if the server explicitly reports 401/403 (unauthorized/invalid token)
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('cached_user');
+        setToken(null);
+        setRefreshToken(null);
+        setUser(null);
+      } else {
+        console.warn("Silent session sync failed (network or server issue):", err.message);
+      }
     } finally {
       if (!silent) setLoading(false);
     }
@@ -41,6 +59,7 @@ export const AuthProvider = ({ children }) => {
       const { data } = await api.post('/auth/login', { email, password });
       localStorage.setItem('token', data.token);
       localStorage.setItem('refreshToken', data.refreshToken);
+      localStorage.setItem('cached_user', JSON.stringify(data.user));
       setToken(data.token);
       setRefreshToken(data.refreshToken);
       setUser(data.user);
@@ -65,6 +84,7 @@ export const AuthProvider = ({ children }) => {
       const { data } = await api.post('/auth/verify-otp', { email, otp });
       localStorage.setItem('token', data.token);
       localStorage.setItem('refreshToken', data.refreshToken);
+      localStorage.setItem('cached_user', JSON.stringify(data.user));
       setToken(data.token);
       setRefreshToken(data.refreshToken);
       setUser(data.user);
@@ -84,6 +104,7 @@ export const AuthProvider = ({ children }) => {
     }
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
+    localStorage.removeItem('cached_user');
     setToken(null);
     setRefreshToken(null);
     setUser(null);
@@ -94,6 +115,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data } = await api.put('/auth/me', profileData);
       setUser(data.user);
+      localStorage.setItem('cached_user', JSON.stringify(data.user));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

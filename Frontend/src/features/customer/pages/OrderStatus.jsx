@@ -396,7 +396,7 @@ const OrderStatus = () => {
                                       </p>
                                     )}
                                  </div>
-                                 <span className="col-span-1 text-center font-black text-gray-900 text-[10px]">x{item.quantity}</span>
+                                 <span className="col-span-1 text-center font-black text-gray-900 text-[10px]">x{parseFloat(Number(item.quantity).toFixed(3))}</span>
                                  <div className="col-span-2 text-right">
                                    <span className={`font-mono font-bold text-[9px] block ${isWholesaleApplied ? 'text-sky-600' : 'text-gray-400'}`}>₹{chargedPrice}</span>
                                    {isWholesaleApplied && (
@@ -404,7 +404,7 @@ const OrderStatus = () => {
                                    )}
                                  </div>
                                  <span className="col-span-2 text-right font-black font-mono text-gray-900 text-[10px]">
-                                    ₹{(item.quantity * chargedPrice).toFixed(2)}
+                                    ₹{(parseFloat(Number(item.quantity).toFixed(3)) * chargedPrice).toFixed(2)}
                                  </span>
                               </div>
                             </div>

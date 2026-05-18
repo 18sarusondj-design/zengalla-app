@@ -647,7 +647,7 @@ const Checkout = () => {
       </div>
 
       <div className="flex-1 w-full max-w-[1400px] mx-auto p-4 md:p-8 mt-[130px] lg:mt-[130px] lg:overflow-hidden lg:h-[calc(100vh-130px)]">
-        <form onSubmit={handleSubmit} id="checkout-form" className="flex flex-col lg:flex-row gap-6 md:gap-8 lg:h-full">
+        <form onSubmit={handleSubmit} id="checkout-form" className="flex flex-col lg:flex-row gap-6 md:gap-8 lg:h-full pb-36 lg:pb-0">
           
             {/* Left Side: Forms & Addresses (Scrollable) */}
           <div className="flex-1 lg:w-2/3 pr-2 flex flex-col gap-8 lg:overflow-y-auto lg:pr-6 no-scrollbar">
@@ -694,45 +694,6 @@ const Checkout = () => {
               )}
           
             <div className="bg-white rounded-[32px] p-6 md:p-8 shadow-sm border border-gray-100 flex flex-col gap-8">
-              {/* Contact Information */}
-              <section className="space-y-4">
-                <h2 className="text-xs font-black text-gray-900 uppercase tracking-[0.2em]">Contact Information</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Email Address</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-sky-500 transition-colors">
-                        <Mail size={16} />
-                      </div>
-                      <input 
-                        type="email" 
-                        required
-                        placeholder="your@email.com"
-                        value={formData.email}
-                        onChange={(e) => setFormData({...formData, email: e.target.value})}
-                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:bg-white focus:ring-4 focus:ring-sky-500/10 focus:border-sky-500 transition-all outline-none"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Phone Number</label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-sky-500 transition-colors">
-                        <Phone size={16} />
-                      </div>
-                      <input 
-                        type="tel" 
-                        required
-                        placeholder="10-digit number"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10)})}
-                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:bg-white focus:ring-4 focus:ring-sky-500/10 focus:border-sky-500 transition-all outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </section>
-
               {/* Order Type Toggle */}
               {isLoadingShop ? (
                 <section className="animate-pulse">
@@ -764,20 +725,28 @@ const Checkout = () => {
                 )}
               </div>
               {orderType === 'DELIVERY' && user?.deliveryModeEnabled !== false && (
-                <div className="mt-3 px-4 py-2 bg-brand-primaryLight/20 text-brand-primary text-[10px] font-black uppercase tracking-widest rounded-full border border-brand-primary/10 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <span>📍 Distance: {distance > 0 ? `${distance.toFixed(2)} km` : "Detection pending..."}</span>
+                <div className="mt-4 p-4 bg-sky-50/50 border border-sky-100 rounded-3xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-sky-700 bg-sky-100/50 px-3 py-1.5 rounded-xl border border-sky-200/40">
+                      📍 {distance > 0 ? `${distance.toFixed(2)} km` : "Location pending..."}
+                    </span>
                     <button 
                       type="button"
                       onClick={() => setIsManualMapOpen(true)}
-                      className="bg-brand-primary text-white px-3 py-1.5 rounded-lg font-black hover:bg-sky-700 transition-all active:scale-95 shadow-sm ml-2 uppercase"
+                      className="bg-sky-600 text-white px-4 py-2 rounded-xl text-[10px] font-black hover:bg-sky-700 transition-all active:scale-95 shadow-md shadow-sky-500/10 uppercase tracking-wider shrink-0"
                     >
                       Change location
                     </button>
                   </div>
-                  <div className="flex items-center gap-4">
-                    {activeShop?.deliveryPricePerKm > 0 && <span>Rate: ₹{activeShop.deliveryPricePerKm}/km</span>}
-                    <span className="bg-brand-primary text-white px-2 py-0.5 rounded-md">Fee: ₹{Math.round(deliveryFee)}</span>
+                  <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+                    {activeShop?.deliveryPricePerKm > 0 && (
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 bg-gray-100 px-3 py-1.5 rounded-xl border border-gray-200/50">
+                        Rate: ₹{activeShop.deliveryPricePerKm}/km
+                      </span>
+                    )}
+                    <span className="bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-600/10 shadow-sm shadow-emerald-500/10 shrink-0">
+                      Fee: {deliveryFee > 0 ? `₹${Math.round(deliveryFee)}` : "FREE"}
+                    </span>
                   </div>
                 </div>
               )}

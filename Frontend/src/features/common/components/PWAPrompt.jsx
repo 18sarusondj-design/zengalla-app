@@ -55,14 +55,7 @@ const PWAPrompt = () => {
     }
   }, [needRefresh, isCriticalFlow, updateServiceWorker]);
 
-  React.useEffect(() => {
-    if (offlineReady) {
-      toast.success('App ready to work offline!', {
-        description: 'You can now access ZenGalla even without an internet connection.',
-        duration: 3000,
-      });
-    }
-  }, [offlineReady]);
+
 
   return null;
 };

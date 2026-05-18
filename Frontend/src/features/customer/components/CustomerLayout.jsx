@@ -18,12 +18,11 @@ const CustomerLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
-  // 🛡️ SECURITY: Prevent Admins and Vendors from getting stuck in customer pages
-  // But allow them to browse shops if they specifically navigate there
+  // 🛡️ SECURITY: Prevent authenticated users from visiting /login or /register, but allow them to browse customer pages
   React.useEffect(() => {
     if (!loading && user) {
-      const isCustomerPage = pathname === '/' || pathname === '/shops' || pathname === '/profile' || pathname === '/cart' || pathname === '/orders' || pathname === '/my-shops' || pathname === '/login' || pathname === '/register';
-      if (isCustomerPage) {
+      const isAuthPage = pathname === '/login' || pathname === '/register';
+      if (isAuthPage) {
         if (user.role === 'admin') {
           navigate('/super-admin', { replace: true });
         } else if (user.role === 'vendor' || user.role === 'staff' || user.role === 'delivery') {
@@ -257,6 +256,7 @@ const CustomerLayout = () => {
                 // 👤 Full Navigation for Logged-in Users
                 <>
                   <NavItem to="/" icon={<Home size={22} />} label="Home" />
+                  <NavItem to="/my-shops" icon={<Clock size={22} />} label="Recent" />
                   <NavItem to="/shops" icon={<Store size={22} />} label="Shops" />
                   <NavItem to="/cart" icon={<ShoppingCart size={22} />} label="Cart" badge={totalCartItemCount > 0 ? Math.floor(totalCartItemCount) : null} />
                   <NavItem to="/orders" icon={<ClipboardList size={22} />} label="Orders" />

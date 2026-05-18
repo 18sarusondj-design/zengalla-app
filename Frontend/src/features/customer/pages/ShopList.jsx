@@ -278,10 +278,6 @@ const ShopList = () => {
         <div className="relative px-5 pt-6 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Logo className="h-10" variant="full" white />
-            <div>
-              <h1 className="text-lg font-black text-white leading-none tracking-tight uppercase">Discover</h1>
-              <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em] mt-1">Zengalla Marketplace</p>
-            </div>
           </div>
           <div className="flex items-center gap-3">
             <button

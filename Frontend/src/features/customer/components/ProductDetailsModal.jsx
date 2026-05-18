@@ -250,7 +250,7 @@ const ProductDetailsModal = ({ isOpen, onClose, product, cartItem, addToCart, up
                   className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-gray-700 shadow-sm hover:shadow-md font-bold text-xl transition-all active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >−</button>
                 <div className="flex-1 text-center">
-                  <span className="text-lg font-black text-gray-900 leading-none">{cartItem.quantity}</span>
+                  <span className="text-lg font-black text-gray-900 leading-none">{parseFloat(Number(cartItem.quantity).toFixed(3))}</span>
                   <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">In Cart</p>
                 </div>
                 <button

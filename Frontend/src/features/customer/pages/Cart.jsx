@@ -327,7 +327,7 @@ const Cart = () => {
                         <div className="flex-1 min-w-0">
                           <h4 className="font-black text-sm text-gray-900 uppercase tracking-tight truncate leading-tight">{item.product?.name}</h4>
                           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
-                            {isWeight ? `${item.quantity} KG` : `${item.quantity} ${item.product?.unit || 'pc'}`}
+                            {isWeight ? `${parseFloat(Number(item.quantity).toFixed(3))} KG` : `${parseFloat(Number(item.quantity).toFixed(3))} ${item.product?.unit || 'pc'}`}
                             <span className="mx-1.5 text-gray-300">·</span>
                             ₹{price}/{isWeight ? 'kg' : 'pc'}
                           </p>
@@ -342,7 +342,7 @@ const Cart = () => {
                             >
                               <Minus size={11} strokeWidth={3} />
                             </button>
-                            <span className="text-xs font-black text-gray-900 min-w-[20px] text-center">{item.quantity}</span>
+                            <span className="text-xs font-black text-gray-900 min-w-[20px] text-center">{parseFloat(Number(item.quantity).toFixed(3))}</span>
                             <button
                               onClick={() => updateQuantity(pid, 1, shopId)}
                               className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:bg-sky-500 hover:text-white transition-all active:scale-90"

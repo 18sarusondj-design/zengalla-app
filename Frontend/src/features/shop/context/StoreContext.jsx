@@ -22,10 +22,21 @@ export const StoreProvider = ({ children }) => {
     try {
       const saved = localStorage.getItem('cart');
       const parsed = saved ? JSON.parse(saved) : {};
-      // 🧹 CLEANUP: Remove ghost keys caused by argument mismatches
       if (parsed["[object Object]"]) delete parsed["[object Object]"];
       if (parsed["undefined"]) delete parsed["undefined"];
-      return parsed;
+      
+      const clean = {};
+      Object.entries(parsed || {}).forEach(([key, val]) => {
+        if (key === "[object Object]" || key === "undefined") return;
+        if (Array.isArray(val)) {
+          clean[key] = val;
+        } else if (val && typeof val === 'object') {
+          clean[key] = Object.values(val);
+        } else {
+          clean[key] = [];
+        }
+      });
+      return clean;
     } catch { return {}; }
   });
 
@@ -54,10 +65,18 @@ export const StoreProvider = ({ children }) => {
         // Transition: Guest -> Logged In (Login)
         try {
           const guestSaved = localStorage.getItem('cart_guest');
-          const guestCart = guestSaved ? JSON.parse(guestSaved) : {};
+          const parsedGuest = guestSaved ? JSON.parse(guestSaved) : {};
+          const guestCart = {};
+          Object.entries(parsedGuest || {}).forEach(([k, v]) => {
+            guestCart[k] = Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.values(v) : []);
+          });
           
           const userSaved = localStorage.getItem(`cart_${currentUserId}`);
-          const userCart = userSaved ? JSON.parse(userSaved) : {};
+          const parsedUser = userSaved ? JSON.parse(userSaved) : {};
+          const userCart = {};
+          Object.entries(parsedUser || {}).forEach(([k, v]) => {
+            userCart[k] = Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.values(v) : []);
+          });
 
           // Merge guest cart items into user cart safely
           const merged = { ...userCart };
@@ -103,7 +122,11 @@ export const StoreProvider = ({ children }) => {
           
           // Clear active cart state & load guest cart
           const guestSaved = localStorage.getItem('cart_guest');
-          const guestCart = guestSaved ? JSON.parse(guestSaved) : {};
+          const parsedGuest = guestSaved ? JSON.parse(guestSaved) : {};
+          const guestCart = {};
+          Object.entries(parsedGuest || {}).forEach(([k, v]) => {
+            guestCart[k] = Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.values(v) : []);
+          });
           setCart(guestCart);
         } catch (err) {
           console.error("Cart logout handling failed:", err);
@@ -114,7 +137,11 @@ export const StoreProvider = ({ children }) => {
         try {
           localStorage.setItem(`cart_${prevUserId}`, JSON.stringify(cart));
           const newUserSaved = localStorage.getItem(`cart_${currentUserId}`);
-          const newUserCart = newUserSaved ? JSON.parse(newUserSaved) : {};
+          const parsedNewUser = newUserSaved ? JSON.parse(newUserSaved) : {};
+          const newUserCart = {};
+          Object.entries(parsedNewUser || {}).forEach(([k, v]) => {
+            newUserCart[k] = Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.values(v) : []);
+          });
           setCart(newUserCart);
         } catch (err) {
           console.error("Cart switch user handling failed:", err);

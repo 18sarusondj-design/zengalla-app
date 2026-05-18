@@ -898,7 +898,7 @@ const ShopMenu = () => {
                                 onClick={() => setWeighingProduct(product)}
                                 className="flex-1 flex items-center justify-center gap-1 bg-sky-50 text-sky-700 h-8 rounded-xl border border-sky-100 font-black text-[9px] transition-all active:scale-95"
                               >
-                                <Eye size={12} /> {inCart.quantity.toFixed(2)} KG
+                                <Eye size={12} /> {parseFloat(Number(inCart.quantity).toFixed(3))} KG
                               </button>
                             ) : (
                                <div className="flex-1 flex items-center bg-sky-600 rounded-xl p-0.5 gap-1 h-8">
@@ -908,7 +908,7 @@ const ShopMenu = () => {
                                 >
                                   <Minus size={11} strokeWidth={4} />
                                 </button>
-                                <span className="text-white font-black text-xs min-w-[14px] text-center">{inCart.quantity}</span>
+                                <span className="text-white font-black text-xs min-w-[14px] text-center">{parseFloat(Number(inCart.quantity).toFixed(3))}</span>
                                 <button
                                   onClick={() => updateQuantity(productId, 1, shopId)}
                                   className="flex-1 h-full flex items-center justify-center text-white hover:text-sky-400 transition-all active:scale-75 font-black text-base"
