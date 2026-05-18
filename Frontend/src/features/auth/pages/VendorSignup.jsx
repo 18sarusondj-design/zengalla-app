@@ -15,6 +15,76 @@ const defaultCenter = { lat: 15.3647, lng: 75.1240 };
 
 import LeafletMap from '../../common/components/LeafletMap';
 
+const formatOSMAddress = (data) => {
+  if (!data || !data.address) return data?.display_name || '';
+  
+  const address = data.address;
+  
+  // 1. Get POI Name / Shop name / Map Name
+  const poi = address.shop || 
+              address.amenity || 
+              address.building || 
+              address.office || 
+              address.tourism || 
+              address.university || 
+              address.school || 
+              address.hospital || 
+              address.historic ||
+              address.leisure ||
+              address.railway ||
+              address.aeroway ||
+              data.display_name.split(',')[0].trim();
+
+  // 2. Get Area
+  const area = address.suburb || 
+               address.neighbourhood || 
+               address.village || 
+               address.town ||
+               address.residential ||
+               address.road ||
+               '';
+
+  // 3. Get Taluk / Sub-district
+  const taluk = address.taluk || 
+                address.subdistrict || 
+                '';
+                
+  // 4. Get District / City
+  const district = address.district || 
+                   address.county || 
+                   address.city || 
+                   '';
+
+  // 5. Get Pin Code
+  const pincode = address.postcode ? address.postcode.split(' ')[0].replace(/\D/g, '').substring(0, 6) : '';
+
+  // Build array of non-empty components
+  const parts = [];
+  
+  // Add POI
+  if (poi) parts.push(poi);
+  
+  // Add Area (if different from POI)
+  if (area && area.toLowerCase() !== poi.toLowerCase()) parts.push(area);
+  
+  // Add Taluk (if different from POI and Area)
+  if (taluk && taluk.toLowerCase() !== poi.toLowerCase() && taluk.toLowerCase() !== area.toLowerCase()) parts.push(taluk);
+  
+  // Add District (if different from POI, Area, and Taluk)
+  if (district && 
+      district.toLowerCase() !== poi.toLowerCase() && 
+      district.toLowerCase() !== area.toLowerCase() && 
+      district.toLowerCase() !== taluk.toLowerCase()) {
+    parts.push(district);
+  }
+
+  // Add Pin Code at the very end
+  if (pincode && pincode.length >= 5) parts.push(pincode);
+
+  // Return a clean comma-separated string
+  return parts.filter(Boolean).join(', ');
+};
+
 const VendorSignup = () => {
   const [formData, setFormData] = useState({
     name: '', email: '', password: '', phone: '', pinCode: '',
@@ -25,15 +95,15 @@ const VendorSignup = () => {
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [showSatellite, setShowSatellite] = useState(true);
   const navigate = useNavigate();
-
+ 
   const [step, setStep] = useState(1);
   const [otp, setOtp] = useState('');
   const { register, verifyOtp } = useAuth();
-
+ 
   const [isPassValid, setIsPassValid] = useState(false);
   const [isPhoneValid, setIsPhoneValid] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
-
+ 
   useEffect(() => {
     let interval;
     if (resendTimer > 0) {
@@ -43,12 +113,12 @@ const VendorSignup = () => {
     }
     return () => clearInterval(interval);
   }, [resendTimer]);
-
+ 
   useEffect(() => {
     setIsPassValid(/^(?=.*[0-9]).{7,}$/.test(formData.password));
     setIsPhoneValid(/^\d{10}$/.test(formData.phone));
   }, [formData.password, formData.phone]);
-
+ 
   const onLocationChange = (coords) => {
     const { lat, lng } = coords;
     
@@ -59,38 +129,43 @@ const VendorSignup = () => {
         coordinates: { lat, lng }
       }
     }));
-
+ 
     // Use FREE OpenStreetMap Nominatim API instead of paid Google Geocoder
     fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en`)
       .then(res => res.json())
       .then(data => {
         console.log("OSM Data:", data);
         const postalCode = data.address?.postcode;
+        const formattedAddress = formatOSMAddress(data);
+
+        setFormData(prev => {
+          const updated = { ...prev };
+          updated.location = {
+            ...updated.location,
+            address: formattedAddress
+          };
+          
+          if (postalCode) {
+            const cleanPin = postalCode.split(' ')[0].replace(/\D/g, '').substring(0, 6);
+            if (cleanPin.length >= 5) {
+              updated.pinCode = cleanPin;
+            }
+          } else {
+            const match = data.display_name.match(/\b\d{6}\b/);
+            if (match) {
+              updated.pinCode = match[0];
+            }
+          }
+          
+          return updated;
+        });
 
         if (postalCode) {
-          // Clean pin code (OSM sometimes adds extra stuff)
           const cleanPin = postalCode.split(' ')[0].replace(/\D/g, '').substring(0, 6);
           if (cleanPin.length >= 5) {
-             setFormData(prev => ({ ...prev, pinCode: cleanPin }));
-             toast.success(`Pin Code ${cleanPin} Detected!`, { id: 'geo-success' });
-             if (!formData.location.address) {
-                const poiName = data.address?.shop || data.address?.amenity || data.address?.building || data.address?.office || data.address?.tourism;
-                const fullAddress = poiName && !data.display_name.startsWith(poiName) 
-                  ? `${poiName}, ${data.display_name}` 
-                  : data.display_name;
-                  
-                setFormData(prev => ({ 
-                  ...prev, 
-                  location: { ...prev.location, address: fullAddress } 
-                }));
-             }
+            toast.success(`Pin Code ${cleanPin} Detected!`, { id: 'geo-success' });
           }
         } else {
-          // If no explicit postcode, try to extract from display_name
-          const match = data.display_name.match(/\b\d{6}\b/);
-          if (match) {
-            setFormData(prev => ({ ...prev, pinCode: match[0] }));
-          }
           toast.info("Location pinned.", { id: 'geo-info' });
         }
       })

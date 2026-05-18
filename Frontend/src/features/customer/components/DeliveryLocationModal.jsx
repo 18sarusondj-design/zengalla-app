@@ -16,6 +16,76 @@ const LIBRARIES = ['places', 'geometry'];
 
 import LeafletMap from '../../common/components/LeafletMap';
 
+const formatOSMAddress = (data) => {
+  if (!data || !data.address) return data?.display_name || '';
+  
+  const address = data.address;
+  
+  // 1. Get POI Name / Shop name / Map Name
+  const poi = address.shop || 
+              address.amenity || 
+              address.building || 
+              address.office || 
+              address.tourism || 
+              address.university || 
+              address.school || 
+              address.hospital || 
+              address.historic ||
+              address.leisure ||
+              address.railway ||
+              address.aeroway ||
+              data.display_name.split(',')[0].trim();
+
+  // 2. Get Area
+  const area = address.suburb || 
+               address.neighbourhood || 
+               address.village || 
+               address.town ||
+               address.residential ||
+               address.road ||
+               '';
+
+  // 3. Get Taluk / Sub-district
+  const taluk = address.taluk || 
+                address.subdistrict || 
+                '';
+                
+  // 4. Get District / City
+  const district = address.district || 
+                   address.county || 
+                   address.city || 
+                   '';
+
+  // 5. Get Pin Code
+  const pincode = address.postcode ? address.postcode.split(' ')[0].replace(/\D/g, '').substring(0, 6) : '';
+
+  // Build array of non-empty components
+  const parts = [];
+  
+  // Add POI
+  if (poi) parts.push(poi);
+  
+  // Add Area (if different from POI)
+  if (area && area.toLowerCase() !== poi.toLowerCase()) parts.push(area);
+  
+  // Add Taluk (if different from POI and Area)
+  if (taluk && taluk.toLowerCase() !== poi.toLowerCase() && taluk.toLowerCase() !== area.toLowerCase()) parts.push(taluk);
+  
+  // Add District (if different from POI, Area, and Taluk)
+  if (district && 
+      district.toLowerCase() !== poi.toLowerCase() && 
+      district.toLowerCase() !== area.toLowerCase() && 
+      district.toLowerCase() !== taluk.toLowerCase()) {
+    parts.push(district);
+  }
+
+  // Add Pin Code at the very end
+  if (pincode && pincode.length >= 5) parts.push(pincode);
+
+  // Return a clean comma-separated string
+  return parts.filter(Boolean).join(', ');
+};
+
 const DeliveryLocationModal = ({ isOpen, onClose, initialCoords, onConfirm, shopLocation }) => {
   const [currentCoords, setCurrentCoords] = useState(initialCoords || defaultCenter);
   const [showSatellite, setShowSatellite] = useState(true);
@@ -37,14 +107,8 @@ const DeliveryLocationModal = ({ isOpen, onClose, initialCoords, onConfirm, shop
       const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lng}&addressdetails=1&accept-language=en`);
       const data = await res.json();
       if (data) {
-        const poiName = data.address?.shop || data.address?.amenity || data.address?.building || data.address?.office || data.address?.tourism;
-        const subArea = data.address?.neighbourhood || data.address?.suburb || data.address?.hamlet || data.address?.village || data.address?.residential;
-        
-        let fullAddr = data.display_name;
-        if (poiName && !fullAddr.startsWith(poiName)) fullAddr = `${poiName}, ${fullAddr}`;
-        if (subArea && !fullAddr.includes(subArea)) fullAddr = `${subArea}, ${fullAddr}`;
-        
-        setAddress(fullAddr);
+        const formattedAddress = formatOSMAddress(data);
+        setAddress(formattedAddress);
         setPincode(data.address?.postcode?.split(' ')[0].replace(/\D/g, '').substring(0, 6) || data.display_name.match(/\b\d{6}\b/)?.[0] || '');
       }
     } catch (err) {

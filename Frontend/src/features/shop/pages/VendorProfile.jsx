@@ -19,6 +19,76 @@ const LIBRARIES = ['places', 'geometry'];
 
 import LeafletMap from '../../common/components/LeafletMap';
 
+const formatOSMAddress = (data) => {
+  if (!data || !data.address) return data?.display_name || '';
+  
+  const address = data.address;
+  
+  // 1. Get POI Name / Shop name / Map Name
+  const poi = address.shop || 
+              address.amenity || 
+              address.building || 
+              address.office || 
+              address.tourism || 
+              address.university || 
+              address.school || 
+              address.hospital || 
+              address.historic ||
+              address.leisure ||
+              address.railway ||
+              address.aeroway ||
+              data.display_name.split(',')[0].trim();
+
+  // 2. Get Area
+  const area = address.suburb || 
+               address.neighbourhood || 
+               address.village || 
+               address.town ||
+               address.residential ||
+               address.road ||
+               '';
+
+  // 3. Get Taluk / Sub-district
+  const taluk = address.taluk || 
+                address.subdistrict || 
+                '';
+                
+  // 4. Get District / City
+  const district = address.district || 
+                   address.county || 
+                   address.city || 
+                   '';
+
+  // 5. Get Pin Code
+  const pincode = address.postcode ? address.postcode.split(' ')[0].replace(/\D/g, '').substring(0, 6) : '';
+
+  // Build array of non-empty components
+  const parts = [];
+  
+  // Add POI
+  if (poi) parts.push(poi);
+  
+  // Add Area (if different from POI)
+  if (area && area.toLowerCase() !== poi.toLowerCase()) parts.push(area);
+  
+  // Add Taluk (if different from POI and Area)
+  if (taluk && taluk.toLowerCase() !== poi.toLowerCase() && taluk.toLowerCase() !== area.toLowerCase()) parts.push(taluk);
+  
+  // Add District (if different from POI, Area, and Taluk)
+  if (district && 
+      district.toLowerCase() !== poi.toLowerCase() && 
+      district.toLowerCase() !== area.toLowerCase() && 
+      district.toLowerCase() !== taluk.toLowerCase()) {
+    parts.push(district);
+  }
+
+  // Add Pin Code at the very end
+  if (pincode && pincode.length >= 5) parts.push(pincode);
+
+  // Return a clean comma-separated string
+  return parts.filter(Boolean).join(', ');
+};
+
 const VendorProfile = () => {
   const { user, token } = useAuth();
   const {
@@ -118,11 +188,7 @@ const VendorProfile = () => {
       const data = await response.json();
 
       if (data) {
-        const poiName = data.address?.shop || data.address?.amenity || data.address?.building || data.address?.office || data.address?.tourism;
-        const fullAddress = poiName && !data.display_name.startsWith(poiName)
-          ? `${poiName}, ${data.display_name}`
-          : data.display_name;
-
+        const formattedAddress = formatOSMAddress(data);
         const pin = data.address?.postcode?.split(' ')[0].replace(/\D/g, '').substring(0, 6);
 
         setFormData(prev => ({
@@ -130,7 +196,7 @@ const VendorProfile = () => {
           pinCode: pin || prev.pinCode,
           location: {
             ...prev.location,
-            address: fullAddress
+            address: formattedAddress
           }
         }));
 
@@ -141,7 +207,7 @@ const VendorProfile = () => {
             const pinData = await pinRes.json();
             if (pinData?.[0]?.PostOffice?.[0]) {
               const detectedArea = pinData[0].PostOffice[0].District;
-              const specificArea = pinData[0].PostOffice.find(po => fullAddress.toUpperCase().includes(po.Name.toUpperCase()))?.Name;
+              const specificArea = pinData[0].PostOffice.find(po => formattedAddress.toUpperCase().includes(po.Name.toUpperCase()))?.Name;
 
               setFormData(prev => ({
                 ...prev,

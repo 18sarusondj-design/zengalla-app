@@ -9,6 +9,7 @@ export default defineConfig({
     react(),
     // basicSsl(),
     VitePWA({
+      manifestFilename: 'manifest.json',
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.js',

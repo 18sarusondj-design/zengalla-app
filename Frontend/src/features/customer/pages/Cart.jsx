@@ -137,7 +137,10 @@ const Cart = () => {
 
     if (!user) {
       toast.info("Please login to proceed to checkout");
-      navigate('/login', { state: { from: '/cart', discount, couponCode: coupon } });
+      sessionStorage.setItem('redirectUrl', '/checkout');
+      sessionStorage.setItem('checkout_discount', String(discount));
+      sessionStorage.setItem('checkout_couponCode', coupon || '');
+      navigate('/login', { state: { from: '/checkout', discount, couponCode: coupon } });
       return;
     }
     navigate('/checkout', { state: { discount, couponCode: coupon } });

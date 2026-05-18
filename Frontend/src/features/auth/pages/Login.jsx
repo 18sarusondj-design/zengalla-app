@@ -30,7 +30,30 @@ const Login = () => {
       } else if (user.role === 'admin') {
         navigate('/super-admin', { replace: true });
       } else {
-        navigate(from, { replace: true });
+        const storedRedirect = sessionStorage.getItem('redirectUrl');
+        const storedDiscount = sessionStorage.getItem('checkout_discount');
+        const storedCouponCode = sessionStorage.getItem('checkout_couponCode');
+        
+        sessionStorage.removeItem('redirectUrl');
+        sessionStorage.removeItem('checkout_discount');
+        sessionStorage.removeItem('checkout_couponCode');
+
+        const target = storedRedirect || from;
+        const discount = storedDiscount ? Number(storedDiscount) : (location.state?.discount || 0);
+        const couponCode = storedCouponCode || location.state?.couponCode || null;
+
+        if (target === '/checkout') {
+          navigate(target, { 
+            replace: true, 
+            state: { 
+              discount, 
+              couponCode,
+              appliedCoupon: couponCode
+            } 
+          });
+        } else {
+          navigate(target, { replace: true });
+        }
       }
     }
   }, [user, navigate, from]);
@@ -53,7 +76,7 @@ const Login = () => {
   };
 
   return (
-    <div className="h-screen lg:min-h-screen bg-white flex font-sans relative overflow-hidden">
+    <div className="h-screen bg-white flex font-sans relative overflow-hidden">
       {/* Left Side: Brand Imagery (Desktop only) */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         <img 
@@ -79,7 +102,7 @@ const Login = () => {
       <div className="flex-1 flex flex-col relative bg-slate-50 h-full overflow-hidden">
         
         {/* Mobile Hero Banner */}
-        <div className="lg:hidden relative h-28 flex-shrink-0 overflow-hidden">
+        <div className="lg:hidden relative h-44 flex-shrink-0 overflow-hidden">
           <img 
             src="/brand_login.png" 
             className="absolute inset-0 w-full h-full object-cover"
@@ -97,7 +120,7 @@ const Login = () => {
           </div>
         </div>
 
-        <div className="flex flex-col items-center justify-center flex-1 py-4 px-4 sm:px-6 overflow-y-auto">
+        <div className="flex flex-col items-center justify-center flex-1 py-4 px-4 sm:px-6 overflow-hidden">
           <div className="w-full max-w-[420px]">
             <div className="flex flex-col items-center text-center mb-3">
               <div className="h-10 w-10 bg-sky-500 rounded-xl flex items-center justify-center shadow-xl shadow-sky-100 border border-sky-400 mb-2">

@@ -32,9 +32,100 @@ export const StoreProvider = ({ children }) => {
   // -- Refs --
   const isFetchingRef = useRef(false);
   const prevOrderCountRef = useRef(0);
+  const prevUserIdRef = useRef(user?._id || user?.id || null);
 
   // -- Persistence --
-  useEffect(() => { localStorage.setItem('cart', JSON.stringify(cart)); }, [cart]);
+  useEffect(() => {
+    localStorage.setItem('cart', JSON.stringify(cart));
+    const userId = user?._id || user?.id;
+    if (userId) {
+      localStorage.setItem(`cart_${userId}`, JSON.stringify(cart));
+    } else {
+      localStorage.setItem('cart_guest', JSON.stringify(cart));
+    }
+  }, [cart, user]);
+
+  useEffect(() => {
+    const currentUserId = user?._id || user?.id || null;
+    const prevUserId = prevUserIdRef.current;
+
+    if (currentUserId !== prevUserId) {
+      if (currentUserId && !prevUserId) {
+        // Transition: Guest -> Logged In (Login)
+        try {
+          const guestSaved = localStorage.getItem('cart_guest');
+          const guestCart = guestSaved ? JSON.parse(guestSaved) : {};
+          
+          const userSaved = localStorage.getItem(`cart_${currentUserId}`);
+          const userCart = userSaved ? JSON.parse(userSaved) : {};
+
+          // Merge guest cart items into user cart safely
+          const merged = { ...userCart };
+          let mergedAny = false;
+
+          Object.entries(guestCart || {}).forEach(([shopId, guestItems]) => {
+            if (!guestItems || guestItems.length === 0) return;
+            if (!merged[shopId]) {
+              merged[shopId] = [...guestItems];
+              mergedAny = true;
+              return;
+            }
+            const mergedItems = [...merged[shopId]];
+            guestItems.forEach(gItem => {
+              const gProductId = gItem.product?._id || gItem.product?.id;
+              const existingIdx = mergedItems.findIndex(uItem => (uItem.product?._id || uItem.product?.id) === gProductId);
+              if (existingIdx > -1) {
+                const uItem = mergedItems[existingIdx];
+                const maxStock = Number(uItem.product?.stockQuantity || uItem.product?.stock || 9999);
+                const newQty = Math.min(uItem.quantity + gItem.quantity, maxStock);
+                mergedItems[existingIdx] = { ...uItem, quantity: newQty };
+              } else {
+                mergedItems.push(gItem);
+              }
+            });
+            merged[shopId] = mergedItems;
+            mergedAny = true;
+          });
+
+          setCart(merged);
+          localStorage.removeItem('cart_guest');
+          if (mergedAny) {
+            toast.success("Guest items merged with your account cart!");
+          }
+        } catch (err) {
+          console.error("Cart merging failed:", err);
+        }
+      } else if (!currentUserId && prevUserId) {
+        // Transition: Logged In -> Guest (Logout)
+        try {
+          // Save the logged-out user's cart just in case
+          localStorage.setItem(`cart_${prevUserId}`, JSON.stringify(cart));
+          
+          // Clear active cart state & load guest cart
+          const guestSaved = localStorage.getItem('cart_guest');
+          const guestCart = guestSaved ? JSON.parse(guestSaved) : {};
+          setCart(guestCart);
+        } catch (err) {
+          console.error("Cart logout handling failed:", err);
+          setCart({});
+        }
+      } else if (currentUserId && prevUserId && currentUserId !== prevUserId) {
+        // Transition: User A -> User B
+        try {
+          localStorage.setItem(`cart_${prevUserId}`, JSON.stringify(cart));
+          const newUserSaved = localStorage.getItem(`cart_${currentUserId}`);
+          const newUserCart = newUserSaved ? JSON.parse(newUserSaved) : {};
+          setCart(newUserCart);
+        } catch (err) {
+          console.error("Cart switch user handling failed:", err);
+          setCart({});
+        }
+      }
+      
+      prevUserIdRef.current = currentUserId;
+    }
+  }, [user]);
+
   useEffect(() => {
     if (currentShopId) localStorage.setItem('currentShopId', currentShopId);
     else localStorage.removeItem('currentShopId');

@@ -61,7 +61,10 @@ const ProtectedRoute = ({ children, requireRole, allowPending }) => {
   const location = useLocation();
 
   if (loading) return null;
-  if (!user) return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  if (!user) {
+    sessionStorage.setItem('redirectUrl', location.pathname);
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  }
 
   if (requireRole) {
     const roles = (Array.isArray(requireRole) ? requireRole : [requireRole]).map(r => r.toLowerCase());
