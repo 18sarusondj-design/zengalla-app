@@ -291,11 +291,19 @@ export const StoreProvider = ({ children }) => {
 
     let shouldAlert = false;
     if (user.role === 'admin') {
-      shouldAlert = orders.some(o => 
+      const hasNewDeliveryNoPartner = orders.some(o => 
         o.status === 'NEW' && 
         o.orderType === 'DELIVERY' && 
         !o.deliveryPartnerId
       );
+      const hasRecentlyAcceptedPackingOrder = orders.some(o => {
+        if (o.status !== 'PACKING') return false;
+        const updateTime = o.updatedAt || o.createdAt;
+        if (!updateTime) return false;
+        const timeDiffMs = new Date() - new Date(updateTime);
+        return timeDiffMs > 0 && timeDiffMs <= 30 * 60 * 1000;
+      });
+      shouldAlert = hasNewDeliveryNoPartner || hasRecentlyAcceptedPackingOrder;
     } else if (user.role === 'vendor' && vendorShop?._id) {
       shouldAlert = orders.some(o => o.status === 'NEW');
     }
@@ -720,7 +728,7 @@ export const StoreProvider = ({ children }) => {
 
   const createStaff = async (staffData) => {
     try {
-      const email = staffData.email || `${staffData.phone}@staff.zengalla.com`;
+      const email = staffData.email || `${staffData.phone}@gmail.com`;
       const { data } = await api.post('/auth/register', { 
         ...staffData, 
         email,
@@ -763,7 +771,7 @@ export const StoreProvider = ({ children }) => {
 
   const createDeliveryPartner = async (partnerData) => {
     try {
-      const email = partnerData.email || `${partnerData.phone}@delivery.zengalla.com`;
+      const email = partnerData.email || `${partnerData.phone}@gmail.com`;
       const { data } = await api.post('/auth/register', { 
         ...partnerData, 
         email,
@@ -779,7 +787,8 @@ export const StoreProvider = ({ children }) => {
 
   const updateDeliveryPartner = async (id, partnerData) => {
     try {
-      const { data } = await api.patch(`/shops/my/users/${id}/status`, partnerData);
+      const url = user?.role === 'admin' ? `/admin/users/${id}/status` : `/shops/my/users/${id}/status`;
+      const { data } = await api.patch(url, partnerData);
       return { success: true, partner: data.user };
     } catch (err) {
       return { success: false, error: err.message };
@@ -788,7 +797,8 @@ export const StoreProvider = ({ children }) => {
 
   const deleteDeliveryPartner = async (id) => {
     try {
-      await api.delete(`/shops/my/users/${id}`);
+      const url = user?.role === 'admin' ? `/admin/users/${id}` : `/shops/my/users/${id}`;
+      await api.delete(url);
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

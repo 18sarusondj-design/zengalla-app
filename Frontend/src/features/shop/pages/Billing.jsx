@@ -84,6 +84,49 @@ const Billing = () => {
     setBarcodeMode(false);
   };
 
+  // Handle scanned barcodes redirect / broadcast
+  useEffect(() => {
+    const handleAutoAdd = (barcodeToSearch) => {
+      if (!barcodeToSearch) return;
+      const product = (products || []).find(p => p.barcode === barcodeToSearch);
+      if (product) {
+        // Stock check
+        const currentStock = parseFloat(Number(product.stockQuantity || product.stock || 0));
+        if (currentStock <= 0) {
+          toast.error(`${product.name} is out of stock`);
+          return;
+        }
+        if (product.sellingType === 'weight' || product.selling_type === 'weight') {
+          setSelectedWeightProduct(product);
+          setShowWeightModal(true);
+        } else {
+          addToBill(product);
+          toast.success(`Added ${product.name} to bill`);
+        }
+      }
+    };
+
+    // 1. Check if we just navigated with autoAddBarcode in state
+    if (location.state?.autoAddBarcode) {
+      const barcode = location.state.autoAddBarcode;
+      // Clear location state immediately to avoid double additions on reload/rerender
+      navigate(location.pathname, { replace: true, state: {} });
+      handleAutoAdd(barcode);
+    }
+
+    // 2. Listen to custom window scan event
+    const handleGlobalScanEvent = (e) => {
+      if (e.detail) {
+        handleAutoAdd(e.detail);
+      }
+    };
+
+    window.addEventListener('auto-add-billing-product', handleGlobalScanEvent);
+    return () => {
+      window.removeEventListener('auto-add-billing-product', handleGlobalScanEvent);
+    };
+  }, [location.state, products, navigate, location.pathname, addToBill]);
+
   const handleBarcodeSubmit = (e) => {
     e.preventDefault();
     const product = products.find(p => p.barcode === barcodeInput);
@@ -244,7 +287,7 @@ const Billing = () => {
   );
 
   return (
-    <div className="flex flex-col md:h-screen md:overflow-hidden min-h-screen bg-gray-50/50 p-2 lg:p-6 overflow-hidden font-sans">
+    <div className="flex flex-col md:h-screen md:overflow-hidden min-h-screen bg-gray-50/50 p-2 lg:p-6 overflow-y-auto md:overflow-hidden font-sans">
       {/* Header with Customer Info */}
       <div className="bg-white rounded-[40px] shadow-sm border border-gray-100 p-6 mb-6 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex items-center gap-4">

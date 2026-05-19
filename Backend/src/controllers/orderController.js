@@ -4,6 +4,16 @@ import User from '../models/User.js';
 import Shop from '../models/Shop.js';
 import { sendPushNotification } from '../services/notificationService.js';
 
+const restoreStock = async (order) => {
+  if (!order || !order.items || !order.items.length) return;
+  for (const item of order.items) {
+    const pid = (item.product && typeof item.product === 'object') ? item.product._id : (item.product || item.productId);
+    if (!pid) continue;
+    const qtyToRestore = Number(item.weight || item.quantity || 0);
+    await Product.findByIdAndUpdate(pid, { $inc: { stock: qtyToRestore } });
+  }
+};
+
 // POST /api/orders — place order
 export const placeOrder = async (req, res) => {
   try {
@@ -20,13 +30,14 @@ export const placeOrder = async (req, res) => {
 
     // 1. Verify stock for all items first
     for (const item of items) {
-      const pid = item.product?._id || item.productId;
+      const pid = (item.product && typeof item.product === 'object') ? item.product._id : (item.product || item.productId);
       if (!pid) continue;
       const product = await Product.findById(pid);
       if (!product) continue;
       
       const available = Number(product.stockQuantity || product.stock || 0);
-      if (available < item.quantity) {
+      const qtyToVerify = Number(item.weight || item.quantity || 0);
+      if (available < qtyToVerify) {
         return res.status(400).json({ 
           error: `Insufficient stock for ${product.name}. Available: ${available}`,
           productId: pid
@@ -36,9 +47,10 @@ export const placeOrder = async (req, res) => {
 
     // 2. Deduct stock and check for low stock alerts
     for (const item of items) {
-      const pid = item.product?._id || item.productId;
+      const pid = (item.product && typeof item.product === 'object') ? item.product._id : (item.product || item.productId);
       if (!pid) continue;
-      const product = await Product.findByIdAndUpdate(pid, { $inc: { stock: -item.quantity } }, { new: true });
+      const qtyToDeduct = Number(item.weight || item.quantity || 0);
+      const product = await Product.findByIdAndUpdate(pid, { $inc: { stock: -qtyToDeduct } }, { new: true });
       
       // Notify Vendor if stock is low (< 10)
       if (product && product.stock <= 10) {
@@ -309,8 +321,17 @@ export const getOrderById = async (req, res) => {
 export const updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    const order = await Order.findByIdAndUpdate(req.params.id, { status }, { new: true });
+    const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    const oldStatus = order.status;
+    order.status = status;
+    await order.save();
+
+    // If order is cancelled, restore stock
+    if (status === 'CANCELLED' && oldStatus !== 'CANCELLED') {
+      await restoreStock(order);
+    }
 
     // Notify Customer
     if (order.userId) {
@@ -347,12 +368,19 @@ export const updateOrderStatus = async (req, res) => {
 export const cancelOrder = async (req, res) => {
   try {
     const { reason } = req.body;
-    const order = await Order.findByIdAndUpdate(
-      req.params.id,
-      { status: 'CANCELLED', cancellationReason: reason || '' },
-      { new: true }
-    );
+    const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    const oldStatus = order.status;
+    if (oldStatus !== 'CANCELLED') {
+      order.status = 'CANCELLED';
+      order.cancellationReason = reason || '';
+      await order.save();
+
+      // Restore stock
+      await restoreStock(order);
+    }
+
     res.json({ success: true, order });
   } catch (err) {
     res.status(500).json({ error: err.message });

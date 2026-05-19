@@ -66,7 +66,7 @@ const StaffManagement = () => {
     // 0. Specific Validation
     if (!formData.name.trim()) return toast.error('Personnel name is required');
     if (!formData.phone || formData.phone.length !== 10) return toast.error('Mobile Identity must be exactly 10 digits');
-    if (!editingStaff && !isPassValid) return toast.error('Security password must be at least 7 characters and include at least one number');
+    if (!editingStaff && !isPassValid) return toast.error('Security password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a number');
 
     setIsSubmitting(true);
     try {
@@ -333,8 +333,8 @@ const StaffManagement = () => {
       {/* Unified Modal (Add/Edit) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[500] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+          <div className="bg-white rounded-[40px] w-full max-w-sm shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            <div className="p-6 md:p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 shrink-0">
                <div>
                  <h2 className="text-xl font-black text-gray-900 tracking-tight uppercase">{editingStaff ? 'Update Identity' : 'New Assistant'}</h2>
                  <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mt-0.5">{editingStaff ? 'Modify Staff Credentials' : 'Grant New Store Access'}</p>
@@ -342,7 +342,7 @@ const StaffManagement = () => {
                <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors"><XCircle size={24}/></button>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
+            <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6 overflow-y-auto flex-1">
               <div className="space-y-4 md:space-y-5">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-5">Personnel Name</label>
@@ -366,7 +366,7 @@ const StaffManagement = () => {
                   </label>
                   <div className="relative group">
                     <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-indigo-400 transition-colors" size={18} />
-                    <input readOnly placeholder="Enter phone to generate email" className="w-full bg-indigo-50/50 border-2 border-indigo-100 rounded-[24px] py-4 md:py-5 pl-14 pr-6 font-bold text-sm text-indigo-700 outline-none cursor-not-allowed" value={formData.phone ? `${formData.phone}@staff.zengalla.com` : ''} />
+                    <input readOnly placeholder="Enter phone to generate email" className="w-full bg-indigo-50/50 border-2 border-indigo-100 rounded-[24px] py-4 md:py-5 pl-14 pr-6 font-bold text-sm text-indigo-700 outline-none cursor-not-allowed" value={formData.phone ? `${formData.phone}@gmail.com` : ''} />
                   </div>
                 </div>
 

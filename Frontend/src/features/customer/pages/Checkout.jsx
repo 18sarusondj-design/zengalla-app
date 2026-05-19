@@ -333,9 +333,28 @@ const Checkout = () => {
 
 
 
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handleRazorpayPayment = async () => {
     try {
       setIsInitiatingPayment(true);
+
+      const loaded = await loadRazorpayScript();
+      if (!loaded || !window.Razorpay) {
+        throw new Error('Razorpay payment gateway failed to load. Please check your internet connection or use another payment method.');
+      }
       
       // 1. Create Razorpay Order via Backend
       const { data: orderData } = await api.post('/payments/razorpay/order', {
@@ -638,10 +657,6 @@ const Checkout = () => {
             </div>
           </div>
           <div className="flex flex-col items-end">
-            <div className="px-3 py-1 bg-white/10 backdrop-blur-md border border-white/10 rounded-full flex items-center gap-2">
-               <Shield size={12} className="text-emerald-400" />
-               <span className="text-[9px] font-black text-white uppercase tracking-widest">Secure Checkout</span>
-            </div>
           </div>
         </div>
       </div>

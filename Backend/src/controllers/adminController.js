@@ -340,7 +340,7 @@ export const createGlobalDeliveryPartner = async (req, res) => {
       name,
       phone,
       password,
-      email: email || `${phone}@zengalla.logistics`,
+      email: email || `${phone}@gmail.com`,
       role: 'delivery',
       status: 'active',
       photoUrl,

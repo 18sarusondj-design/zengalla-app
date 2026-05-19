@@ -429,14 +429,14 @@ const Orders = () => {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="text-[10px] font-black uppercase outline-none bg-transparent"
+                  className="text-[10px] font-black uppercase outline-none bg-transparent w-24 sm:w-28 cursor-pointer"
                 />
                 <span className="text-[10px] font-black text-gray-300">TO</span>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="text-[10px] font-black uppercase outline-none bg-transparent"
+                  className="text-[10px] font-black uppercase outline-none bg-transparent w-24 sm:w-28 cursor-pointer"
                 />
               </div>
               {startDate && endDate && (

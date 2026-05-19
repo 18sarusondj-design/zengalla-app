@@ -457,7 +457,7 @@ const Inventory = () => {
               </div>
             </div>
 
-            <div className="overflow-x-auto flex-1">
+            <div className="overflow-x-auto flex-1 hidden md:block">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50/50 border-b border-gray-100">
@@ -607,6 +607,164 @@ const Inventory = () => {
               )}
             </div>
 
+            {/* Mobile Card List (Visible only on mobile) */}
+            <div className="md:hidden flex-1 overflow-y-auto p-4 space-y-4">
+              {paginatedProducts.map((p) => {
+                const stock = Number(p.stockQuantity || p.stock || 0);
+                const threshold = Number(p.low_stock_threshold || p.lowStockThreshold || 5);
+                const isOutOfStock = stock <= 0;
+                const isLowStock = stock <= threshold;
+
+                return (
+                  <div 
+                    key={p._id || p.id} 
+                    className="bg-white border border-gray-100 rounded-3xl p-4 shadow-sm space-y-3 relative hover:shadow-md transition-all group"
+                  >
+                    {/* Header: Image & Name & Category */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 overflow-hidden flex-shrink-0 relative">
+                        {p.imageUrl || p.image || (p.images && p.images[0]) ? (
+                          <img 
+                            src={p.imageUrl || p.image || p.images[0]} 
+                            alt={p.name} 
+                            className="w-full h-full object-cover" 
+                            style={{
+                              objectPosition: p.imageSettings?.[0]?.position || '50% 50%',
+                              transform: `scale(${(p.imageSettings?.[0]?.zoom || 100) / 100})`,
+                              transformOrigin: p.imageSettings?.[0]?.position || '50% 50%'
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-300">
+                            <Zap size={20} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[10px] font-black text-sky-500 uppercase tracking-widest leading-none block mb-1">{p.category || 'General'}</span>
+                        <h4 className="text-sm font-black text-gray-900 leading-snug truncate">{p.name}</h4>
+                        <span className="text-[10px] font-bold text-gray-400 font-mono tracking-wider block mt-1">
+                          Barcode: {p.barcode || '---'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Stock Status & Quantity & Pricing Info */}
+                    <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-50 text-xs">
+                      <div>
+                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Price</span>
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-sm font-black text-gray-900">₹{p.price}</span>
+                          {p.mrp && p.mrp > p.price && (
+                            <span className="text-[10px] font-bold text-gray-300 line-through">₹{p.mrp}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Inventory</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[11px] font-black uppercase ${isOutOfStock ? 'text-rose-500 italic' : 'text-gray-700'}`}>
+                            {isOutOfStock ? 'OUT OF STOCK' : (p.sellingType === 'weight' || p.selling_type === 'weight' ? `${stock.toFixed(2)} KG` : `${stock} PKT`)}
+                          </span>
+                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${isOutOfStock ? 'bg-rose-50 text-rose-500' :
+                            isLowStock ? 'bg-amber-50 text-amber-500' :
+                              'bg-emerald-50 text-emerald-500'
+                            }`}>
+                            {isOutOfStock ? 'OUT' : isLowStock ? 'LOW' : 'OK'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions Row */}
+                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-50">
+                      {/* Logs / History Button */}
+                      <button
+                        onClick={() => {
+                          setShowLogsFor(p);
+                          fetchLogs(p._id || p.id);
+                        }}
+                        type="button"
+                        className="h-9 px-3 rounded-xl bg-gray-50 text-gray-500 hover:text-emerald-500 hover:bg-emerald-50 transition-all flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-widest"
+                        title="History"
+                      >
+                        <TrendingUp size={12} />
+                        <span>History</span>
+                      </button>
+
+                      {/* Edit Button */}
+                      <button
+                        onClick={() => {
+                          setEditingId(p._id || p.id);
+                          setNewProduct({
+                            ...p,
+                            stockQuantity: p.stockQuantity ?? p.stock ?? '',
+                            lowStockThreshold: p.lowStockThreshold ?? p.low_stock_threshold ?? 5,
+                            wholesalePrice: p.wholesalePrice ?? p.wholesale_price ?? '',
+                            businessPrice: p.businessPrice ?? p.business_price ?? '',
+                            weightPerUnit: p.weightPerUnit ?? p.weight_per_unit ?? '',
+                            unitType: p.unitType ?? p.unit_type ?? 'GM',
+                            minimumOrderQuantity: p.minimumOrderQuantity ?? p.minimum_order_quantity ?? 1,
+                            taxRate: p.taxRate ?? p.tax_rate ?? 0,
+                            sellingType: p.sellingType ?? p.selling_type ?? 'piece',
+                            description: p.description ?? '',
+                            batches: p.batches || [],
+                            images: p.images || [p.image].filter(Boolean)
+                          });
+                          setImagePositions(p.imageSettings?.map(s => s.position || '50% 50%') || ['50% 50%', '50% 50%', '50% 50%']);
+                          setImageZooms(p.imageSettings?.map(s => s.zoom || 100) || [100, 100, 100]);
+                          setIsModalOpen(true);
+                        }}
+                        type="button"
+                        className="h-9 px-3 rounded-xl bg-gray-50 text-gray-500 hover:text-sky-500 hover:bg-sky-50 transition-all flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-widest"
+                      >
+                        <Eye size={12} />
+                        <span>Edit</span>
+                      </button>
+
+                      {/* Promote Button */}
+                      <button
+                        onClick={() => handleOpenPromoteModal(p)}
+                        type="button"
+                        className="w-9 h-9 rounded-xl bg-gray-50 text-gray-500 hover:text-amber-500 hover:bg-amber-50 transition-all flex items-center justify-center shrink-0"
+                        title="Promote Product"
+                      >
+                        <Sparkles size={12} />
+                      </button>
+
+                      {/* Delete Button */}
+                      <button
+                        onClick={() => {
+                          toast("Delete this product?", {
+                            description: "This action cannot be undone.",
+                            action: {
+                              label: "Delete",
+                              onClick: () => deleteProduct(p._id || p.id),
+                            },
+                            cancel: {
+                              label: "Cancel",
+                              onClick: () => { },
+                            }
+                          });
+                        }}
+                        type="button"
+                        className="w-9 h-9 rounded-xl bg-gray-50 text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all flex items-center justify-center shrink-0"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {filteredProducts.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+                  <ClipboardCheck size={40} strokeWidth={1} className="mb-2 opacity-20" />
+                  <p className="text-xs font-bold uppercase tracking-widest">No products found</p>
+                </div>
+              )}
+            </div>
+
             {/* Footer Pagination */}
             <div className="px-6 py-4 bg-gray-50/30 border-t border-gray-100 flex items-center justify-between shrink-0">
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
@@ -659,10 +817,10 @@ const Inventory = () => {
               </div>
             )}
 
-            <form onSubmit={handleSaveProduct} className="flex-1 overflow-hidden p-4 grid grid-cols-2 lg:grid-cols-4 gap-4 min-h-0">
+            <form onSubmit={handleSaveProduct} className="flex-1 overflow-y-auto p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 min-h-0">
 
               {/* Column 1: Identity & Media */}
-              <div className={`space-y-4 flex flex-col h-full ${modalMode === 'STOCK' ? 'opacity-40 pointer-events-none' : ''}`}>
+              <div className={`space-y-4 flex flex-col ${modalMode === 'STOCK' ? 'opacity-40 pointer-events-none' : ''}`}>
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Basic Identity</label>
                   <input
@@ -1070,7 +1228,7 @@ const Inventory = () => {
               </div>
 
               {/* Column 4: Final Actions */}
-              <div className="flex flex-col justify-between py-2">
+              <div className="space-y-4 py-2">
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="p-4 bg-amber-50/60 border border-amber-200/60 rounded-2xl space-y-2">

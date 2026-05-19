@@ -22,8 +22,13 @@ const BannerProducts = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [weighingProduct, setWeighingProduct] = useState(null);
 
-  const { cart: allCarts, addToCart, removeFromCart, updateQuantity, setItemQuantity, cartTotal, setCurrentShopId } = useStore();
+  const { cart: allCarts, addToCart, removeFromCart, updateQuantity, setItemQuantity, setCurrentShopId } = useStore();
   const cart = allCarts[shopId] || [];
+  const localCartTotal = cart.reduce((sum, item) => {
+    const price = item.product?.price || 0;
+    const qty = item.selectedWeight || item.quantity || 0;
+    return sum + (price * qty);
+  }, 0);
   const { user } = useAuth();
 
   const isOwner = user?.role === 'vendor' && user?.email === shop?.vendorEmail;
@@ -364,7 +369,7 @@ const BannerProducts = () => {
             <div>
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Your Shop Cart</p>
               <h4 className="text-sm font-black text-white leading-none">
-                {cart.length} Items | ₹{cartTotal(shopId)}
+                {cart.length} Items | ₹{localCartTotal}
               </h4>
             </div>
           </div>

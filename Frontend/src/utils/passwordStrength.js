@@ -8,14 +8,14 @@ export const getPasswordStrength = (password) => {
   if (!password) return { score: 0, label: 'Weak', isValid: false };
   
   const requirements = {
-    length: password.length >= 7,
+    length: password.length >= 8,
     hasNumber: /[0-9]/.test(password),
     hasUpper: /[A-Z]/.test(password),
     hasLower: /[a-z]/.test(password),
     hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password)
   };
 
-  const isSatisfied = requirements.length && requirements.hasNumber;
+  const isSatisfied = requirements.length && requirements.hasNumber && requirements.hasUpper && requirements.hasLower;
 
   let score = 0;
   if (isSatisfied) {

@@ -51,7 +51,7 @@ const CustomerReportModal = ({ isOpen, onClose, shopName, orderId }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-gray-100 flex flex-col">
+      <div className="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] shadow-2xl overflow-hidden border border-gray-100 flex flex-col">
         {/* Header */}
         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
           <div className="flex items-center gap-3">
@@ -69,7 +69,7 @@ const CustomerReportModal = ({ isOpen, onClose, shopName, orderId }) => {
         </div>
 
         {/* Form Body */}
-        <div className="p-6 overflow-y-auto max-h-[70vh]">
+        <div className="p-6 overflow-y-auto flex-1">
           <form id="report-form" onSubmit={handleSubmit} className="space-y-4">
             {!user && (
               <div className="grid grid-cols-2 gap-4">

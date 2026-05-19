@@ -574,12 +574,12 @@ const VendorProfile = () => {
 
   return (
     <div className="flex flex-col md:h-screen md:overflow-hidden min-h-screen bg-slate-50 relative p-2 md:p-4">
-      <div className="mb-4 flex-shrink-0 bg-white/60 backdrop-blur-sm sticky top-0 z-10 py-3 px-2 border-b border-sky-100 flex items-center justify-between rounded-t-[32px]">
+      <div className="mb-6 flex-shrink-0 bg-white/90 backdrop-blur-sm sticky top-0 z-10 py-4 px-4 sm:px-6 border-b border-sky-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-t-[32px] md:rounded-t-[40px] shadow-sm">
         <div className="flex items-center gap-4">
           {/* Compact Branding Upside */}
           <div className="relative group shrink-0">
-            <div className="w-14 h-14 rounded-2xl overflow-hidden bg-white border-2 border-white shadow-xl">
-              {formData.imageUrl ? <img src={formData.imageUrl} alt="Shop" className="w-full h-full object-cover" /> : <Store size={24} className="m-auto mt-4 text-gray-300" />}
+            <div className="w-14 h-14 rounded-2xl overflow-hidden bg-white border-2 border-sky-100 shadow-md flex items-center justify-center">
+              {formData.imageUrl ? <img src={formData.imageUrl} alt="Shop" className="w-full h-full object-cover" /> : <Store size={24} className="text-gray-300" />}
             </div>
             <label className="absolute -bottom-1 -right-1 w-6 h-6 bg-sky-600 text-white rounded-lg flex items-center justify-center cursor-pointer shadow-lg hover:bg-sky-700 transition-all z-20 scale-90">
               <Camera size={10} />
@@ -587,25 +587,28 @@ const VendorProfile = () => {
             </label>
           </div>
           <div>
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase leading-none">{formData.name || 'Shop Profile'}</h1>
-            <div className="mt-1.5 flex items-center gap-3">
-              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-sky-600/10 text-sky-600 rounded-full border border-sky-600/20">
+            <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight uppercase leading-tight">{formData.name || 'Shop Profile'}</h1>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <div className="flex items-center gap-1 px-2.5 py-0.5 bg-sky-600/10 text-sky-600 rounded-full border border-sky-600/20">
                 <CheckCircle size={10} className="fill-sky-600 text-white" />
                 <span className="text-[8px] font-black uppercase tracking-widest">Verified Vendor</span>
               </div>
 
               {vendorShop?.isSponsored && (
-                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-500/10 text-amber-600 rounded-full border border-amber-500/20 animate-pulse">
-                  <Sparkles size={10} className="fill-amber-500 text-white" />
+                <div className="flex items-center gap-1 px-2.5 py-0.5 bg-amber-500/10 text-amber-600 rounded-full border border-amber-500/20">
+                  <Sparkles size={10} className="fill-amber-500 text-white animate-pulse" />
                   <span className="text-[8px] font-black uppercase tracking-widest">Sponsored Partner</span>
                 </div>
               )}
             </div>
           </div>
         </div>
-        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all ${vendorShop?.isActive ? 'bg-sky-50 text-sky-600' : 'bg-red-50 text-red-600'}`}>
-          {vendorShop?.isActive ? <CheckCircle size={12} /> : <XCircle size={12} />}
-          <span className="text-[9px] font-black uppercase tracking-widest">{vendorShop?.isActive ? 'ACTIVE NODE' : 'INACTIVE NODE'}</span>
+        <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest sm:hidden">System Node Status:</span>
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all shadow-sm shrink-0 ${vendorShop?.isActive ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
+            {vendorShop?.isActive ? <CheckCircle size={12} /> : <XCircle size={12} />}
+            <span className="text-[9px] font-black uppercase tracking-widest">{vendorShop?.isActive ? 'ACTIVE NODE' : 'INACTIVE NODE'}</span>
+          </div>
         </div>
       </div>
       <div className="flex-1 min-h-0 md:h-[calc(100vh-180px)]">

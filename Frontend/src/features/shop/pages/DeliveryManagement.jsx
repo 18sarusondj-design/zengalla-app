@@ -8,6 +8,67 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import SafeDeleteModal from '../../common/components/SafeDeleteModal';
 
+const compressImage = (file, maxWidth = 1000, maxQuality = 0.7) => {
+  return new Promise((resolve) => {
+    if (!file || !file.type.startsWith('image/')) {
+      resolve(file);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxWidth) {
+            width = Math.round((width * maxWidth) / height);
+            height = maxWidth;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file);
+              return;
+            }
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            if (compressedFile.size > file.size) {
+              resolve(file);
+            } else {
+              resolve(compressedFile);
+            }
+          },
+          'image/jpeg',
+          maxQuality
+        );
+      };
+      img.onerror = () => resolve(file);
+    };
+    reader.onerror = () => resolve(file);
+  });
+};
+
 const DeliveryManagement = () => {
   const { getDeliveryPartners, createDeliveryPartner, updateDeliveryPartner, deleteDeliveryPartner, vendorShop, updateShop } = useStore();
   const { user } = useAuth();
@@ -167,9 +228,9 @@ const DeliveryManagement = () => {
       // 0. Validation
       if (!formData.name.trim()) throw new Error('Driver name is required');
       if (!formData.phone || formData.phone.length !== 10) throw new Error('Mobile number must be exactly 10 digits');
-      const passwordRegex = /^(?=.*[0-9]).{7,}$/;
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
       if (!editingPartner && (!formData.password || !passwordRegex.test(formData.password))) {
-        throw new Error('Security password must be at least 7 characters and include at least one number');
+        throw new Error('Security password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a number');
       }
       if (!editingPartner && (!photoFile || !docFile)) throw new Error('Both Recent Photo and ID Document are mandatory for new drivers');
 
@@ -180,20 +241,24 @@ const DeliveryManagement = () => {
       const uploadPromises = [];
       
       if (photoFile) {
-        const pData = new FormData();
-        pData.append('image', photoFile);
         uploadPromises.push(
-          api.post('/upload/image', pData, { headers: { 'Content-Type': 'multipart/form-data' } })
-            .then(res => photoUrl = res.data.url)
+          compressImage(photoFile).then(compressedPhoto => {
+            const pData = new FormData();
+            pData.append('image', compressedPhoto);
+            return api.post('/upload/image', pData, { headers: { 'Content-Type': 'multipart/form-data' } })
+              .then(res => photoUrl = res.data.url);
+          })
         );
       }
 
       if (docFile) {
-        const dData = new FormData();
-        dData.append('image', docFile);
         uploadPromises.push(
-          api.post('/upload/image', dData, { headers: { 'Content-Type': 'multipart/form-data' } })
-            .then(res => documentUrl = res.data.url)
+          compressImage(docFile).then(compressedDoc => {
+            const dData = new FormData();
+            dData.append('image', compressedDoc);
+            return api.post('/upload/image', dData, { headers: { 'Content-Type': 'multipart/form-data' } })
+              .then(res => documentUrl = res.data.url);
+          })
         );
       }
 
@@ -204,7 +269,7 @@ const DeliveryManagement = () => {
       // 3. Save Driver
       const payload = {
         name: formData.name,
-        email: formData.phone + '@zengalla.logistics',
+        email: formData.phone + '@gmail.com',
         password: formData.password || undefined,
         phone: formData.phone,
         photoUrl,
@@ -429,7 +494,7 @@ const DeliveryManagement = () => {
         )}
 
         {/* List Column */}
-        <div className="flex-1 flex flex-col min-h-0 md:overflow-hidden">
+        <div className={`flex-1 flex flex-col min-h-0 md:overflow-hidden ${(user?.role === 'vendor' || user?.role === 'staff') ? 'lg:col-span-3' : 'lg:col-span-4'}`}>
           <div className="space-y-4 flex-1 overflow-y-auto pr-4 custom-scrollbar">
             {partners.length === 0 && (
                <div className="bg-white rounded-[40px] p-20 border border-dashed border-gray-200 flex flex-col items-center justify-center text-center">
@@ -551,8 +616,8 @@ const DeliveryManagement = () => {
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[500] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+          <div className="bg-white rounded-[40px] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 shrink-0">
                <div>
                  <h2 className="text-xl font-black text-gray-900 tracking-tight uppercase">{editingPartner ? 'Modify Driver' : 'New Driver'}</h2>
                  <p className="text-[9px] font-black text-sky-400 uppercase tracking-widest mt-0.5">Delivery Boy Credentials</p>
@@ -560,7 +625,7 @@ const DeliveryManagement = () => {
                <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors"><XCircle size={24}/></button>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+            <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto flex-1">
               <div className="space-y-5">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-5">Driver Name</label>
@@ -584,7 +649,7 @@ const DeliveryManagement = () => {
                   </label>
                   <div className="relative group">
                     <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-sky-400 transition-colors" size={18} />
-                    <input readOnly placeholder="Enter phone to generate email" className="w-full bg-sky-50/50 border-2 border-sky-100 rounded-[24px] py-4 md:py-5 pl-14 pr-6 font-bold text-sm text-sky-700 outline-none cursor-not-allowed" value={formData.phone ? `${formData.phone}@delivery.zengalla.com` : ''} />
+                    <input readOnly placeholder="Enter phone to generate email" className="w-full bg-sky-50/50 border-2 border-sky-100 rounded-[24px] py-4 md:py-5 pl-14 pr-6 font-bold text-sm text-sky-700 outline-none cursor-not-allowed" value={formData.phone ? `${formData.phone}@gmail.com` : ''} />
                   </div>
                 </div>
 
