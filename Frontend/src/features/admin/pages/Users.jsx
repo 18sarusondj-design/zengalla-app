@@ -410,98 +410,6 @@ const Users = ({ roleFilter }) => {
       </div>
 
       <div className="bg-white rounded-[48px] shadow-2xl shadow-gray-200/50 border border-gray-50 overflow-hidden flex flex-col flex-1 min-h-0 relative">
-         <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/20">
-           <h2 className="text-xl font-black tracking-tight text-gray-900 uppercase">Registered {roleFilter === 'vendor' ? 'Vendors' : 'Customers'}</h2>
-           {roleFilter === 'vendor' && uniquePins.length > 0 && (
-             <div className="relative">
-               {/* Single Filter Button */}
-               <button
-                 onClick={() => { setPinDropdownOpen(o => !o); setPinSearch(''); }}
-                 className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl border-2 font-black text-[10px] uppercase tracking-widest transition-all ${
-                   selectedPinFilter !== 'all'
-                     ? 'bg-sky-600 text-white border-sky-600 shadow-lg shadow-sky-200'
-                     : 'bg-white text-gray-600 border-gray-200 hover:border-sky-300 hover:text-sky-600'
-                 }`}
-               >
-                 <MapPin size={13} />
-                 {selectedPinFilter === 'all' ? 'Filter by Area' : `PIN: ${selectedPinFilter}`}
-                 {selectedPinFilter !== 'all' && (
-                   <span
-                     onClick={e => { e.stopPropagation(); setSelectedPinFilter('all'); setPinDropdownOpen(false); }}
-                     className="ml-1 w-4 h-4 bg-white/30 rounded-full flex items-center justify-center text-[10px] cursor-pointer hover:bg-white/50"
-                   >✕</span>
-                 )}
-                 <span className="opacity-60 text-[10px]">{pinDropdownOpen ? '▲' : '▼'}</span>
-               </button>
-
-               {/* Searchable Dropdown */}
-               {pinDropdownOpen && (
-                 <div className="absolute right-0 top-[calc(100%+8px)] w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
-                   {/* Search Input */}
-                   <div className="p-3 border-b border-gray-100">
-                     <input
-                       autoFocus
-                       type="text"
-                       placeholder="Search pin code..."
-                       value={pinSearch}
-                       onChange={e => setPinSearch(e.target.value)}
-                       className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                     />
-                   </div>
-                   {/* All Areas Option */}
-                   <button
-                     onClick={() => { setSelectedPinFilter('all'); setPinDropdownOpen(false); }}
-                     className={`w-full text-left px-4 py-3 text-xs font-black uppercase tracking-widest transition-colors flex items-center justify-between ${
-                       selectedPinFilter === 'all' ? 'bg-sky-50 text-sky-600' : 'text-gray-500 hover:bg-gray-50'
-                     }`}
-                   >
-                     <span>All Areas</span>
-                     <span className="text-[9px] font-bold opacity-50">{users.length} shops</span>
-                   </button>
-                   {/* Filtered Pin List */}
-                   <div className="max-h-56 overflow-y-auto">
-                     {uniquePins
-                       .filter(p => {
-                         const search = pinSearch.toLowerCase();
-                         const areaName = (pinAreaMap[p] || '').toLowerCase();
-                         return p.includes(search) || areaName.includes(search);
-                       })
-                       .map(pin => (
-                         <button
-                           key={pin}
-                           onClick={() => { setSelectedPinFilter(pin); setPinDropdownOpen(false); }}
-                           className={`w-full text-left px-4 py-3 text-xs font-black uppercase tracking-widest transition-colors flex items-center justify-between border-t border-gray-50 ${
-                             selectedPinFilter === pin ? 'bg-sky-50 text-sky-600' : 'text-gray-700 hover:bg-gray-50'
-                           }`}
-                         >
-                           <span className="flex flex-col">
-                             <span className="flex items-center gap-2">
-                               <MapPin size={10} className="text-sky-400" />
-                               {pin}
-                             </span>
-                             {pinAreaMap[pin] && (
-                               <span className="text-[8px] opacity-70 ml-4 font-black text-sky-500 uppercase tracking-wider">{pinAreaMap[pin]}</span>
-                             )}
-                           </span>
-                           <span className="text-[9px] font-bold text-gray-400">{users.filter(u => u.pinCode === pin).length} shops</span>
-                         </button>
-                       ))
-                     }
-                     {uniquePins.filter(p => p.includes(pinSearch)).length === 0 && (
-                       <p className="px-4 py-4 text-[10px] font-bold text-gray-400 text-center uppercase tracking-widest">No pin codes found</p>
-                     )}
-                   </div>
-                 </div>
-               )}
-
-               {/* Click outside to close */}
-               {pinDropdownOpen && (
-                 <div className="fixed inset-0 z-40" onClick={() => setPinDropdownOpen(false)} />
-               )}
-             </div>
-           )}
-         </div>
-      <div className="bg-white rounded-[40px] shadow-2xl shadow-gray-100/50 border border-gray-50 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -597,7 +505,6 @@ const Users = ({ roleFilter }) => {
             onPageChange={setCurrentPage}
           />
         )}
-      </div>
       </div>
 
       {/* DETAIL MANAGEMENT MODAL */}
@@ -709,33 +616,7 @@ const Users = ({ roleFilter }) => {
                 </div>
               </div>
 
-              {/* Sponsorship */}
-              <div style={{ marginBottom: '24px' }}>
-                <p style={{ fontSize: '9px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.3em', marginBottom: '12px' }}>Sponsorship Status</p>
-                <div style={{ background: '#f8fafc', borderRadius: '20px', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: modalData?.isSponsored ? '#10b981' : '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Sparkles size={22} color={modalData?.isSponsored ? 'white' : '#9ca3af'} />
-                    </div>
-                    <div>
-                      <p style={{ fontSize: '13px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.03em', color: '#111827', margin: 0 }}>Sponsorship Badge</p>
-                      <p style={{ fontSize: '9px', fontWeight: '700', color: modalData?.isSponsored ? '#10b981' : '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '3px 0 0' }}>
-                        Status: {modalData?.isSponsored ? '✓ Active' : 'None'}
-                      </p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => { setModalData(prev => ({ ...prev, isSponsored: !prev.isSponsored })); setIsModified(true); }}
-                    style={{ 
-                      padding: '10px 20px', borderRadius: '12px', border: 'none', cursor: 'pointer',
-                      background: modalData?.isSponsored ? '#ef4444' : '#10b981',
-                      color: 'white', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em'
-                    }}
-                  >
-                    {modalData?.isSponsored ? 'Remove Badge' : 'Give Sponsor Badge'}
-                  </button>
-                </div>
-              </div>
+
 
               {/* Offer Banners Access */}
               <div style={{ marginBottom: '24px' }}>
@@ -778,15 +659,11 @@ const Users = ({ roleFilter }) => {
                       setIsProcessing(modalData._id);
                       try {
                         const planChanged = modalData.subscriptionPlan !== selectedVendor.subscriptionPlan;
-                        const sponsorChanged = modalData.isSponsored !== selectedVendor.isSponsored;
                         const statusChanged = modalData.status !== selectedVendor.status;
                         const bannersAccessChanged = modalData.bannersEnabled !== selectedVendor.bannersEnabled;
 
                         if (planChanged) {
                           await handleUpdatePlan(modalData.shopId, modalData.subscriptionPlan, true);
-                        }
-                        if (sponsorChanged) {
-                          await handleToggleSponsorship(modalData._id, modalData.shopId, true);
                         }
                         if (bannersAccessChanged) {
                           await handleToggleBannersAccess(modalData._id, modalData.shopId, true);

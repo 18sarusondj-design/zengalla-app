@@ -3,7 +3,8 @@ import {
   getUsers, updateUserStatus, updateUserRole, deleteUser, 
   getStats, getReports, replyToReport, getAllShops, toggleSponsorship,
   deleteReport, updateShopPlan, getSystemSettings, updateSystemSettings,
-  getAllDeliveryPartners, toggleShopBannersAccess
+  getAllDeliveryPartners, toggleShopBannersAccess,
+  getSponsorships, createSponsorship, updateSponsorship, deleteSponsorship, getShopsByPinCode
 } from '../controllers/adminController.js';
 
 import { authenticate, requireRole } from '../middleware/auth.js';
@@ -30,7 +31,12 @@ router.get('/system-settings', getSystemSettings);
 router.patch('/system-settings', updateSystemSettings);
 router.get('/delivery-partners', getAllDeliveryPartners);
 
-
+// Sponsorships management
+router.get('/sponsorships', getSponsorships);
+router.post('/sponsorships', createSponsorship);
+router.put('/sponsorships/:id', updateSponsorship);
+router.delete('/sponsorships/:id', deleteSponsorship);
+router.get('/shops/by-pincode/:pinCode', getShopsByPinCode);
 
 export default router;
 

@@ -89,6 +89,38 @@ const formatOSMAddress = (data) => {
   return parts.filter(Boolean).join(', ');
 };
 
+const formatShopDataForForm = (shop, prevFormData, user) => {
+  if (!shop) return prevFormData;
+  const coords = shop.location?.coordinates;
+  let lat = 15.3647;
+  let lng = 75.1240;
+
+  if (Array.isArray(coords)) {
+    // GeoJSON format is [lng, lat]
+    lng = coords[0];
+    lat = coords[1];
+  } else if (coords && typeof coords === 'object') {
+    lat = coords.lat || lat;
+    lng = coords.lng || lng;
+  }
+
+  return {
+    ...prevFormData,
+    ...shop,
+    gstin: shop.gstin || '',
+    fssai: shop.fssai || '',
+    pinCode: shop.pinCode || '',
+    areaName: shop.areaName || '',
+    name: shop.name || prevFormData?.name || user?.name || '',
+    phone: shop.phone || prevFormData?.phone || user?.phone || '',
+    coupons: shop.coupons || prevFormData?.coupons || [],
+    location: {
+      address: shop.address || shop.location?.address || prevFormData?.location?.address || '',
+      coordinates: { lat, lng }
+    }
+  };
+};
+
 const VendorProfile = () => {
   const { user, token } = useAuth();
   const {
@@ -259,39 +291,14 @@ const VendorProfile = () => {
     loadInitialData();
   }, [token]);
 
+  const lastLoadedShopId = React.useRef(null);
+
   useEffect(() => {
-    // Only populate form if we have shop data AND the form name is still empty (initial load)
-    // Or if we specifically want to sync (like after a successful update)
-    if (vendorShop && !formData.name) {
-      const coords = vendorShop.location?.coordinates;
-      let lat = 15.3647;
-      let lng = 75.1240;
-
-      if (Array.isArray(coords)) {
-        lng = coords[0];
-        lat = coords[1];
-      } else if (coords && typeof coords === 'object') {
-        lat = coords.lat || lat;
-        lng = coords.lng || lng;
+    if (vendorShop) {
+      if (!lastLoadedShopId.current || lastLoadedShopId.current !== vendorShop._id) {
+        lastLoadedShopId.current = vendorShop._id;
+        setFormData(prev => formatShopDataForForm(vendorShop, prev, user));
       }
-
-      setFormData(prev => ({
-        ...prev,
-        ...vendorShop,
-        // Ensure identification fields are handled correctly
-        gstin: vendorShop.gstin || '',
-        fssai: vendorShop.fssai || '',
-        pinCode: vendorShop.pinCode || '',
-        areaName: vendorShop.areaName || '',
-        // Fallback to user account info if shop info is missing
-        name: vendorShop.name || prev.name || user?.name || '',
-        phone: vendorShop.phone || prev.phone || user?.phone || '',
-        coupons: vendorShop.coupons || prev.coupons || [],
-        location: {
-          address: vendorShop.address || vendorShop.location?.address || prev.location.address,
-          coordinates: { lat, lng }
-        }
-      }));
     }
   }, [vendorShop, user]);
 
@@ -448,7 +455,7 @@ const VendorProfile = () => {
         toast.success(`${label} updated successfully!`);
         // Update local state with the returned shop to ensure consistency
         if (res.data) {
-          setFormData(prev => ({ ...prev, ...res.data }));
+          setFormData(prev => formatShopDataForForm(res.data, prev, user));
         }
       } else {
         toast.error(res.error || "Update failed");

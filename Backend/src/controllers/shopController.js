@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import Order from '../models/Order.js';
 import Shop from '../models/Shop.js';
+import Sponsorship from '../models/Sponsorship.js';
 import { sendCouponEmail } from '../utils/mailer.js';
 import { broadcastPushNotification } from '../services/notificationService.js';
 
@@ -28,27 +29,62 @@ export const lookupShopByCode = async (req, res) => {
 
 export const getShops = async (req, res) => {
   try {
-    const { page = 1, limit = 50, isSponsored } = req.query;
+    const { page = 1, limit = 50, isSponsored, pinCode } = req.query;
     const filter = { 
       isActive: true,
       subscriptionPlan: 'premium' 
     };
     if (isSponsored === 'true') filter.isSponsored = true;
 
+    // Load active sponsorships if pinCode is provided
+    let sponsoredShopIds = [];
+    let priorityMap = {};
+    if (pinCode) {
+      const activeSponsorships = await Sponsorship.find({
+        pinCode,
+        isActive: true,
+        startDate: { $lte: new Date() },
+        endDate: { $gte: new Date() }
+      }).sort({ priority: 1 });
+      sponsoredShopIds = activeSponsorships.map(s => s.shopId.toString());
+      activeSponsorships.forEach(s => {
+        priorityMap[s.shopId.toString()] = s.priority;
+      });
+    }
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const [shops, total] = await Promise.all([
-      Shop.find(filter)
-        .select('-razorpayKeySecret')
-        .sort({ isSponsored: -1, createdAt: -1 })
-        .skip(skip)
-        .limit(parseInt(limit)),
-      Shop.countDocuments(filter)
-    ]);
+    // Fetch all matching shops to sort properly across pages
+    const allShops = await Shop.find(filter).select('-razorpayKeySecret').lean();
+
+    // Enrich with sponsorship details
+    let enrichedShops = allShops.map(shop => {
+      if (pinCode) {
+        const isPinSponsored = sponsoredShopIds.includes(shop._id.toString());
+        shop.isSponsored = isPinSponsored;
+        shop.sponsorshipPriority = isPinSponsored ? priorityMap[shop._id.toString()] : Infinity;
+      } else {
+        shop.sponsorshipPriority = shop.isSponsored ? 1 : Infinity;
+      }
+      return shop;
+    });
+
+    // Sort to prioritize: 1. Sponsored, 2. CreatedAt
+    enrichedShops.sort((a, b) => {
+      if (a.isSponsored && !b.isSponsored) return -1;
+      if (!a.isSponsored && b.isSponsored) return 1;
+      if (a.isSponsored && b.isSponsored) {
+        return (a.sponsorshipPriority || 9999) - (b.sponsorshipPriority || 9999);
+      }
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+    const total = enrichedShops.length;
+    const paginatedShops = enrichedShops.slice(skip, skip + parseInt(limit));
 
     res.json({ 
       success: true, 
-      shops,
+      shops: paginatedShops,
       pagination: {
         total,
         page: parseInt(page),
@@ -65,7 +101,7 @@ export const getShops = async (req, res) => {
 // GET /api/shops/nearby?lat=&lng=&radius=&search=
 export const getNearbyShops = async (req, res) => {
   try {
-    const { lat, lng, radius = 10, page = 1, limit = 50, search = '' } = req.query;
+    const { lat, lng, radius = 10, page = 1, limit = 50, search = '', pinCode } = req.query;
     
     let filter = { 
       isActive: true,
@@ -107,6 +143,22 @@ export const getNearbyShops = async (req, res) => {
     const longitude = parseFloat(lng);
     const searchRadius = parseFloat(radius);
     const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Load active sponsorships if pinCode is provided
+    let sponsoredShopIds = [];
+    let priorityMap = {};
+    if (pinCode) {
+      const activeSponsorships = await Sponsorship.find({
+        pinCode,
+        isActive: true,
+        startDate: { $lte: new Date() },
+        endDate: { $gte: new Date() }
+      }).sort({ priority: 1 });
+      sponsoredShopIds = activeSponsorships.map(s => s.shopId.toString());
+      activeSponsorships.forEach(s => {
+        priorityMap[s.shopId.toString()] = s.priority;
+      });
+    }
 
     // 2. Perform the search
     let shops = [];
@@ -157,16 +209,36 @@ export const getNearbyShops = async (req, res) => {
     }
 
     // 3. Attach matched products and final sorting
-    shops = shops.map(shop => ({
-      ...shop,
-      matchedProducts: shopIdToProducts[shop._id] || []
-    }));
+    shops = shops.map(shop => {
+      const shopIdStr = shop._id.toString();
+      let isSponsored = shop.isSponsored;
+      let sponsorshipPriority = isSponsored ? 1 : Infinity;
+
+      if (pinCode) {
+        isSponsored = sponsoredShopIds.includes(shopIdStr);
+        sponsorshipPriority = isSponsored ? priorityMap[shopIdStr] : Infinity;
+      }
+
+      return {
+        ...shop,
+        isSponsored,
+        sponsorshipPriority,
+        matchedProducts: shopIdToProducts[shop._id] || []
+      };
+    });
 
     // Re-sort to prioritize: 1. Sponsored, 2. Rating, 3. Distance
     shops.sort((a, b) => {
       // 1. Sponsored first
       if (a.isSponsored && !b.isSponsored) return -1;
       if (!a.isSponsored && b.isSponsored) return 1;
+      
+      // If both sponsored, sort by priority
+      if (a.isSponsored && b.isSponsored) {
+        const priorityA = a.sponsorshipPriority || 9999;
+        const priorityB = b.sponsorshipPriority || 9999;
+        if (priorityA !== priorityB) return priorityA - priorityB;
+      }
       
       // 2. Best rating next
       const ratingA = a.rating || 0;

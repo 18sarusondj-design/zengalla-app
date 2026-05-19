@@ -1,0 +1,17 @@
+import mongoose from 'mongoose';
+
+const sponsorshipSchema = new mongoose.Schema({
+  shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', required: true },
+  pinCode: { type: String, required: true, index: true },
+  priority: { type: Number, default: 1 },
+  startDate: { type: Date, required: true },
+  endDate: { type: Date, required: true },
+  isActive: { type: Boolean, default: true }
+}, { timestamps: true });
+
+// Prevent duplicate sponsorships for same shop + pin code
+sponsorshipSchema.index({ shopId: 1, pinCode: 1 }, { unique: true });
+// Optimize location-based queries
+sponsorshipSchema.index({ pinCode: 1, isActive: 1, startDate: 1, endDate: 1 });
+
+export default mongoose.model('Sponsorship', sponsorshipSchema);

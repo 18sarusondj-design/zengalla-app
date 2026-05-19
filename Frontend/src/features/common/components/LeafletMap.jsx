@@ -72,9 +72,20 @@ function RecenterMap({ center }) {
 
 function ChangeView({ center, zoom }) {
   const map = useMap();
+  const isFirstRender = React.useRef(true);
+  const prevZoom = React.useRef(zoom);
+
   useEffect(() => {
     if (isValidCoords(center)) {
-      map.flyTo(getLatLngArray(center), zoom || map.getZoom(), {
+      let targetZoom = map.getZoom();
+      
+      if (isFirstRender.current || prevZoom.current !== zoom) {
+        targetZoom = zoom || targetZoom;
+        isFirstRender.current = false;
+        prevZoom.current = zoom;
+      }
+
+      map.flyTo(getLatLngArray(center), targetZoom, {
         animate: true,
         duration: 1.5
       });

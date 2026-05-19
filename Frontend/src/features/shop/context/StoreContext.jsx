@@ -160,9 +160,9 @@ export const StoreProvider = ({ children }) => {
   }, [isDeliveryMode]);
 
   // -- Granular Data Fetching --
-  const fetchShops = useCallback(async () => {
+  const fetchShops = useCallback(async (pinCode = '') => {
     try {
-      const shopsRes = await api.get('/shops');
+      const shopsRes = await api.get(`/shops?pinCode=${pinCode}`);
       if (shopsRes.data?.shops) setShops(shopsRes.data.shops);
     } catch (err) {
       console.error('fetchShops error:', err.message);
@@ -443,9 +443,9 @@ export const StoreProvider = ({ children }) => {
   }, [vendorShop?._id, user?._id, user?.id]);
 
   // -- Fetch Nearby Shops --
-  const fetchNearbyShops = useCallback(async (lat, lng, radius = 10, search = '') => {
+  const fetchNearbyShops = useCallback(async (lat, lng, radius = 10, search = '', pinCode = '') => {
     try {
-      const { data } = await api.get(`/shops/nearby?lat=${lat}&lng=${lng}&radius=${radius}&search=${encodeURIComponent(search)}`);
+      const { data } = await api.get(`/shops/nearby?lat=${lat}&lng=${lng}&radius=${radius}&search=${encodeURIComponent(search)}&pinCode=${pinCode}`);
       return data.shops || [];
     } catch (err) {
       return [];

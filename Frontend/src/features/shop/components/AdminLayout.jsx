@@ -270,6 +270,7 @@ const AdminLayout = () => {
                   <p className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 mt-4">Security Groups</p>
                   <NavItem to="/super-admin/vendors" icon={<Users size={20} />} label="Vendors List" badge={adminStats.vendors} />
                   <NavItem to="/super-admin/customers" icon={<Users size={20} />} label="Customers List" badge={adminStats.customers} />
+                  <NavItem to="/super-admin/sponsorships" icon={<Sparkles size={20} />} label="Sponsored Shops" />
 
                   <div className="h-px bg-gray-100 my-2 mx-4" />
                   <p className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 mt-4">Inboxes</p>
@@ -354,6 +355,7 @@ const AdminLayout = () => {
                     <NavItem to="/super-admin/delivery" icon={<Truck size={20} />} label="Delivery Fleet" onClick={() => setIsMobileMenuOpen(false)} />
                     <NavItem to="/super-admin/vendors" icon={<Users size={20} />} label="Vendors" badge={adminStats.vendors} onClick={() => setIsMobileMenuOpen(false)} />
                     <NavItem to="/super-admin/customers" icon={<Users size={20} />} label="Customers" badge={adminStats.customers} onClick={() => setIsMobileMenuOpen(false)} />
+                    <NavItem to="/super-admin/sponsorships" icon={<Sparkles size={20} />} label="Sponsored Shops" onClick={() => setIsMobileMenuOpen(false)} />
                     <NavItem to="/super-admin/support/vendors" icon={<AlertCircle size={20} />} label="Vendor Support" badge={adminStats.vendorReports} onClick={() => setIsMobileMenuOpen(false)} />
                     <NavItem to="/super-admin/support/customers" icon={<AlertCircle size={20} />} label="Customer Support" badge={adminStats.customerReports} onClick={() => setIsMobileMenuOpen(false)} />
                     <NavItem to="/super-admin/profile" icon={<User size={20} />} label="Security Settings" onClick={() => setIsMobileMenuOpen(false)} />

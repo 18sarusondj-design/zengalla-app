@@ -3,6 +3,7 @@ import Shop from '../models/Shop.js';
 import Order from '../models/Order.js';
 import Report from '../models/Report.js';
 import SystemSettings from '../models/SystemSettings.js';
+import Sponsorship from '../models/Sponsorship.js';
 
 // GET /api/admin/users?role=
 export const getUsers = async (req, res) => {
@@ -392,6 +393,101 @@ export const toggleShopBannersAccess = async (req, res) => {
     delete sanitizedShop.razorpayKeySecret;
 
     res.json({ success: true, shop: sanitizedShop });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/admin/sponsorships
+export const getSponsorships = async (req, res) => {
+  try {
+    const { pinCode } = req.query;
+    const filter = {};
+    if (pinCode) filter.pinCode = pinCode;
+    const sponsorships = await Sponsorship.find(filter)
+      .populate('shopId', 'name email phone pinCode owner isActive')
+      .sort({ pinCode: 1, priority: 1 });
+    res.json({ success: true, sponsorships });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /api/admin/sponsorships
+export const createSponsorship = async (req, res) => {
+  try {
+    const { shopId, pinCode, priority, startDate, endDate, isActive } = req.body;
+    
+    // Check if duplicate sponsorship exists
+    const existing = await Sponsorship.findOne({ shopId, pinCode });
+    if (existing) {
+      return res.status(400).json({ error: 'This shop is already sponsored under this PIN code.' });
+    }
+
+    const sponsorship = await Sponsorship.create({
+      shopId,
+      pinCode,
+      priority: Number(priority) || 1,
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      isActive: isActive !== false
+    });
+
+    // Populate shop info
+    const populated = await sponsorship.populate('shopId', 'name email phone pinCode owner isActive');
+
+    res.status(201).json({ success: true, sponsorship: populated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// PUT /api/admin/sponsorships/:id
+export const updateSponsorship = async (req, res) => {
+  try {
+    const { priority, startDate, endDate, isActive } = req.body;
+    
+    const updateData = {};
+    if (priority !== undefined) updateData.priority = Number(priority);
+    if (startDate !== undefined) updateData.startDate = new Date(startDate);
+    if (endDate !== undefined) updateData.endDate = new Date(endDate);
+    if (isActive !== undefined) updateData.isActive = isActive;
+
+    const sponsorship = await Sponsorship.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    ).populate('shopId', 'name email phone pinCode owner isActive');
+
+    if (!sponsorship) {
+      return res.status(404).json({ error: 'Sponsorship not found' });
+    }
+
+    res.json({ success: true, sponsorship });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// DELETE /api/admin/sponsorships/:id
+export const deleteSponsorship = async (req, res) => {
+  try {
+    const sponsorship = await Sponsorship.findByIdAndDelete(req.params.id);
+    if (!sponsorship) {
+      return res.status(404).json({ error: 'Sponsorship not found' });
+    }
+    res.json({ success: true, message: 'Sponsorship deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/admin/shops/by-pincode/:pinCode
+export const getShopsByPinCode = async (req, res) => {
+  try {
+    const { pinCode } = req.params;
+    const shops = await Shop.find({ pinCode }).select('-razorpayKeySecret');
+    res.json({ success: true, shops });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

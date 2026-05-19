@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryParam } from '../../../hooks/useQueryParam';
-import { Store, MapPin, Clock, ChevronRight, ChevronLeft, Search, Sparkles, ArrowRight, HelpCircle, ShoppingCart } from 'lucide-react';
+import { Store, MapPin, Map, Clock, ChevronRight, ChevronLeft, Search, Sparkles, ArrowRight, HelpCircle, ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore } from '../../shop/context/StoreContext';
 import { useAuth } from '../../auth/context/AuthContext';
@@ -21,7 +21,14 @@ const ShopList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isMapOpen, setIsMapOpen] = useState(false);
   const ITEMS_PER_PAGE = 12;
-  const [userCoords, setUserCoords] = useState(null);
+  const [userCoords, setUserCoords] = useState(() => {
+    try {
+      const saved = localStorage.getItem('detected_coords');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [shopsWithDistance, setShopsWithDistance] = useState([]);
   const [topSponsoredShops, setTopSponsoredShops] = useState([]);
   const [detectingLocation, setDetectingLocation] = useState(false);
@@ -29,23 +36,93 @@ const ShopList = () => {
   const { shops: contextShops, products, totalCartItemCount, fetchNearbyShops, fetchShops: fetchContextShops } = useStore();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [currentPincode, setCurrentPincode] = useState(() => {
+    return localStorage.getItem('detected_pincode') || user?.pincode || '';
+  });
+
+  const geocodePincode = async (pin) => {
+    if (!pin || pin.length !== 6) return;
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&postalcode=${pin}&country=India`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.length > 0) {
+          const coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+          setUserCoords(coords);
+          localStorage.setItem('detected_coords', JSON.stringify(coords));
+        }
+      }
+    } catch (err) {
+      console.warn("Pincode geocoding failed:", err.message);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.pincode) {
+      setCurrentPincode(user.pincode);
+      localStorage.setItem('detected_pincode', user.pincode);
+      if (!user?.location?.coordinates) {
+        geocodePincode(user.pincode);
+      }
+    }
+  }, [user?.pincode, user?.location?.coordinates]);
+
+  useEffect(() => {
+    if (!userCoords) return;
+    const reverseGeocode = async () => {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userCoords.lat}&lon=${userCoords.lng}&addressdetails=1`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.address) {
+            const postcode = data.address.postcode;
+            const pin = postcode ? postcode.split(' ')[0].replace(/\D/g, '').substring(0, 6) : null;
+            if (pin && pin.length === 6) {
+              setCurrentPincode(pin);
+              localStorage.setItem('detected_pincode', pin);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Reverse geocoding failed on user location:", err.message);
+      }
+    };
+    reverseGeocode();
+  }, [userCoords]);
 
   const detectLocation = () => {
     // Priority 1: User's saved profile location
     if (user?.location?.coordinates) {
-      setUserCoords({
+      const coords = {
         lat: user.location.coordinates[1],
         lng: user.location.coordinates[0]
-      });
+      };
+      setUserCoords(coords);
+      localStorage.setItem('detected_coords', JSON.stringify(coords));
       return;
     }
 
-    // Priority 2: Browser Geolocation
+    // Priority 2: Use cached location from localStorage if available
+    try {
+      const savedCoords = localStorage.getItem('detected_coords');
+      const savedPin = localStorage.getItem('detected_pincode');
+      if (savedCoords && savedPin) {
+        setUserCoords(JSON.parse(savedCoords));
+        setCurrentPincode(savedPin);
+        return;
+      }
+    } catch (e) {
+      console.warn("Error reading from localStorage:", e);
+    }
+
+    // Priority 3: Browser Geolocation
     if (!navigator.geolocation) return;
     setDetectingLocation(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setUserCoords({ lat: position.coords.latitude, lng: position.coords.longitude });
+        const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
+        setUserCoords(coords);
+        localStorage.setItem('detected_coords', JSON.stringify(coords));
         setDetectingLocation(false);
       },
       (error) => {
@@ -59,14 +136,14 @@ const ShopList = () => {
   useEffect(() => {
     detectLocation();
     fetchContextShops(); // Pre-fetch baseline shops
-  }, [fetchContextShops]);
+  }, [fetchContextShops, user]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchShops(searchTerm);
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchTerm, userCoords]); // Re-fetch when location updates
+  }, [searchTerm, userCoords, currentPincode]); // Re-fetch when location or PIN updates
 
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
@@ -78,6 +155,7 @@ const ShopList = () => {
       (position) => {
         const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
         setUserCoords(coords);
+        localStorage.setItem('detected_coords', JSON.stringify(coords));
         toast.dismiss(toastId);
         toast.success("Location updated! Finding stores near you.");
       },
@@ -104,22 +182,28 @@ const ShopList = () => {
       if (userCoords) {
         try {
           // Use a massive radius (10000km) to show ALL shops sorted by distance
-          data = await fetchNearbyShops(userCoords.lat, userCoords.lng, 10000, query); 
+          data = await fetchNearbyShops(userCoords.lat, userCoords.lng, 10000, query, currentPincode); 
           if (!data || data.length === 0) {
-            data = contextShops;
+            const res = await api.get(`/shops?pinCode=${currentPincode}`);
+            data = res.data?.shops || [];
           }
         } catch (err) {
           console.warn("Nearby fetch failed, using fallback:", err);
-          data = contextShops;
+          const res = await api.get(`/shops?pinCode=${currentPincode}`);
+          data = res.data?.shops || [];
         }
       } else {
-        // Immediate fallback to context shops for speed
-        data = contextShops;
-        if (query && data) {
-          data = data.filter(s => 
-            s.name.toLowerCase().includes(query.toLowerCase()) || 
-            s.category?.toLowerCase().includes(query.toLowerCase())
-          );
+        try {
+          const res = await api.get(`/shops?pinCode=${currentPincode}`);
+          data = res.data?.shops || [];
+          if (query && data) {
+            data = data.filter(s => 
+              s.name.toLowerCase().includes(query.toLowerCase()) || 
+              s.category?.toLowerCase().includes(query.toLowerCase())
+            );
+          }
+        } catch (err) {
+          data = [];
         }
       }
 
@@ -178,13 +262,18 @@ const ShopList = () => {
       });
 
       enriched.sort((a, b) => {
-        const userPincode = user?.pincode || '';
-        const aMatchesPin = a.pinCode === userPincode;
-        const bMatchesPin = b.pinCode === userPincode;
+        const pinToCompare = currentPincode || user?.pincode || '';
+        const aMatchesPin = a.pinCode === pinToCompare;
+        const bMatchesPin = b.pinCode === pinToCompare;
 
-        // 1. Prioritize Sponsored Shops in the user's Pincode
+        // 1. Prioritize Sponsored Shops in the user's Pincode, sorted by priority (ascending)
         if (aMatchesPin && a.isSponsored && !(bMatchesPin && b.isSponsored)) return -1;
         if (bMatchesPin && b.isSponsored && !(aMatchesPin && a.isSponsored)) return 1;
+        if (aMatchesPin && a.isSponsored && bMatchesPin && b.isSponsored) {
+          const priorityA = a.sponsorshipPriority || 9999;
+          const priorityB = b.sponsorshipPriority || 9999;
+          if (priorityA !== priorityB) return priorityA - priorityB;
+        }
 
         // 2. Prioritize Shops in the user's Pincode (even if not sponsored)
         if (aMatchesPin && !bMatchesPin) return -1;
@@ -193,6 +282,11 @@ const ShopList = () => {
         // 3. Sponsored first (for other locations)
         if (a.isSponsored && !b.isSponsored) return -1;
         if (!a.isSponsored && b.isSponsored) return 1;
+        if (a.isSponsored && b.isSponsored) {
+          const priorityA = a.sponsorshipPriority || 9999;
+          const priorityB = b.sponsorshipPriority || 9999;
+          if (priorityA !== priorityB) return priorityA - priorityB;
+        }
         
         // 4. Best Rating next
         const ratingA = Number(a.dynamicRating) || 0;
@@ -213,7 +307,8 @@ const ShopList = () => {
 
   const fetchTopSponsoredShops = async () => {
     try {
-      const { data } = await api.get('/shops?isSponsored=true&limit=5');
+      const pin = currentPincode || user?.pincode || '';
+      const { data } = await api.get(`/shops?isSponsored=true&limit=5&pinCode=${pin}`);
       setTopSponsoredShops(data.shops || []);
     } catch (err) {
       console.error("Failed to fetch sponsored shops:", err);
@@ -224,16 +319,19 @@ const ShopList = () => {
     if (userCoords?.lat && userCoords?.lng) {
       fetchTopSponsoredShops();
     }
-  }, [userCoords]);
+  }, [userCoords, currentPincode]);
 
-  const userPincode = user?.pincode || '';
+  const pinToCompare = currentPincode || user?.pincode || '';
   const featuredShops = shopsWithDistance
     .filter(s => s.isSponsored)
     .sort((a, b) => {
-      const aMatches = a.pinCode === userPincode;
-      const bMatches = b.pinCode === userPincode;
+      const aMatches = a.pinCode === pinToCompare;
+      const bMatches = b.pinCode === pinToCompare;
       if (aMatches && !bMatches) return -1;
       if (!aMatches && bMatches) return 1;
+      if (aMatches && bMatches) {
+        return (a.sponsorshipPriority || 9999) - (b.sponsorshipPriority || 9999);
+      }
       return 0;
     });
 
@@ -305,7 +403,7 @@ const ShopList = () => {
         </div>
 
         {/* Search Bar & Location Button */}
-        <form onSubmit={handleSearchSubmit} className="relative px-5 pt-6 pb-8 flex gap-3">
+        <form onSubmit={handleSearchSubmit} className="relative px-5 pt-6 pb-8 flex gap-2">
           <div className="relative group flex-1">
             <button 
               type="submit"
@@ -327,21 +425,104 @@ const ShopList = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-
           </div>
+          
+          <button
+            type="button"
+            onClick={() => setIsMapOpen(true)}
+            className="w-14 h-14 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-2xl flex items-center justify-center shadow-lg transition-all active:scale-95 shrink-0"
+            title="Select Location on Map"
+          >
+            <Map size={22} strokeWidth={2.5} />
+          </button>
+
           <button
             type="button"
             onClick={handleGetLocation}
-            className="w-14 h-14 bg-gray-900 hover:bg-black text-white rounded-2xl flex items-center justify-center shadow-lg transition-all active:scale-95 shrink-0"
+            className="w-14 h-14 bg-sky-500 hover:bg-sky-600 text-white rounded-2xl flex items-center justify-center shadow-lg transition-all active:scale-95 shrink-0"
             title="Use My Location"
           >
-            <MapPin size={24} strokeWidth={2.5} />
+            <MapPin size={22} strokeWidth={2.5} />
           </button>
         </form>
       </div>
 
       {/* ── Scrollable Body ── */}
       <div className="pb-4">
+        
+        {!currentPincode ? (
+          <div className="mx-5 mt-4 p-5 bg-sky-50 border border-sky-100 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top-2 duration-300">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-sky-100/80 text-sky-600 rounded-2xl flex items-center justify-center shrink-0">
+                <MapPin size={20} strokeWidth={2.5} />
+              </div>
+              <div>
+                <p className="text-xs font-black text-sky-950 uppercase tracking-tight">Location access is off</p>
+                <p className="text-[10px] font-bold text-sky-600/80 mt-0.5">Enter your pincode or enable location to see sponsored local stores near you.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
+              <input
+                type="text"
+                maxLength={6}
+                placeholder="Enter 6-digit PIN"
+                className="w-full md:w-36 px-4 py-2.5 rounded-xl border-2 border-sky-200/50 bg-white text-xs font-bold text-gray-800 placeholder:text-gray-400 outline-none focus:border-sky-500 transition-all"
+                onChange={async (e) => {
+                  const pin = e.target.value.replace(/\D/g, '');
+                  if (pin.length === 6) {
+                    setCurrentPincode(pin);
+                    localStorage.setItem('detected_pincode', pin);
+                    
+                    const toastId = toast.loading(`Locating PIN ${pin}...`);
+                    try {
+                      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&postalcode=${pin}&country=India`);
+                      if (res.ok) {
+                        const data = await res.json();
+                        if (data && data.length > 0) {
+                          const coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+                          setUserCoords(coords);
+                          localStorage.setItem('detected_coords', JSON.stringify(coords));
+                          toast.success(`Showing stores near PIN: ${pin}`, { id: toastId });
+                        } else {
+                          toast.error(`Could not resolve coordinates for PIN ${pin}`, { id: toastId });
+                        }
+                      } else {
+                        toast.error(`PIN search failed`, { id: toastId });
+                      }
+                    } catch (err) {
+                      console.warn("Geocoding pincode failed:", err.message);
+                      toast.error(`PIN search failed`, { id: toastId });
+                    }
+                  }
+                }}
+              />
+              <button
+                onClick={handleGetLocation}
+                className="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap active:scale-95 shadow-sm"
+              >
+                Locate Me
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mx-5 mt-4 px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-between animate-in fade-in duration-300">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
+              <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Active PIN Code: {currentPincode}</span>
+            </div>
+            <button 
+              onClick={() => {
+                setCurrentPincode('');
+                localStorage.removeItem('detected_pincode');
+                localStorage.removeItem('detected_coords');
+                setUserCoords(null);
+              }} 
+              className="text-[9px] font-black text-sky-600 hover:text-sky-700 uppercase tracking-widest transition-colors"
+            >
+              Change Location
+            </button>
+          </div>
+        )}
 
         {/* ════ FEATURED / AD CAROUSEL ════ */}
         {!searchTerm && (
@@ -446,7 +627,10 @@ const ShopList = () => {
         onClose={() => setIsMapOpen(false)}
         shops={contextShops}
         userCoords={userCoords}
-        onUserLocationChange={setUserCoords}
+        onUserLocationChange={(coords) => {
+          setUserCoords(coords);
+          localStorage.setItem('detected_coords', JSON.stringify(coords));
+        }}
       />
     </div>
   );
