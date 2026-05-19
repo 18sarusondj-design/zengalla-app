@@ -20,7 +20,7 @@ async function reset() {
     await mongoose.connect(uri);
     const hashedPassword = await bcrypt.hash('Admin@123', 10);
     const user = await User.findOneAndUpdate(
-      { email: 'sarusondj@gmail.com' },
+      { email: '18sarusondj@gmail.com' },
       { 
         password: hashedPassword, 
         role: 'admin', 
@@ -32,13 +32,13 @@ async function reset() {
 
     if (user) {
       console.log('Super Admin credentials updated successfully.');
-      console.log('Email: sarusondj@gmail.com');
+      console.log('Email: 18sarusondj@gmail.com');
       console.log('Password: Admin@123');
     } else {
-      console.log('User sarusondj@gmail.com not found. Creating new Super Admin...');
+      console.log('User 18sarusondj@gmail.com not found. Creating new Super Admin...');
       await User.create({
         name: 'Super Admin',
-        email: 'sarusondj@gmail.com',
+        email: '18sarusondj@gmail.com',
         password: hashedPassword,
         role: 'admin',
         isVerified: true,

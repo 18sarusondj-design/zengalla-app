@@ -19,7 +19,7 @@ import LeafletMap from '../../common/components/LeafletMap';
 
 const ShopMapModal = ({ isOpen, onClose, shops, userCoords, onUserLocationChange }) => {
   const navigate = useNavigate();
-  const [showSatellite, setShowSatellite] = useState(true);
+  const [showSatellite, setShowSatellite] = useState(false);
 
   if (!isOpen) return null;
 

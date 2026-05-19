@@ -106,7 +106,7 @@ const VendorProfile = () => {
   const [showQR, setShowQR] = useState(false);
   const [activeTab, setActiveTab] = useQueryParam('tab', 'details');
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
-  const [showSatellite, setShowSatellite] = useState(true);
+  const [showSatellite, setShowSatellite] = useState(false);
   const [showCouponForm, setShowCouponForm] = useState(false);
   const [isGeneratingBanner, setIsGeneratingBanner] = useState(false);
   const [isSendingCoupon, setIsSendingCoupon] = useState(false);

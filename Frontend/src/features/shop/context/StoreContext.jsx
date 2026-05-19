@@ -108,9 +108,6 @@ export const StoreProvider = ({ children }) => {
 
           setCart(merged);
           localStorage.removeItem('cart_guest');
-          if (mergedAny) {
-            toast.success("Guest items merged with your account cart!");
-          }
         } catch (err) {
           console.error("Cart merging failed:", err);
         }

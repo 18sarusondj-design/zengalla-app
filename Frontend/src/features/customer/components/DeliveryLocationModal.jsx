@@ -88,7 +88,7 @@ const formatOSMAddress = (data) => {
 
 const DeliveryLocationModal = ({ isOpen, onClose, initialCoords, onConfirm, shopLocation }) => {
   const [currentCoords, setCurrentCoords] = useState(initialCoords || defaultCenter);
-  const [showSatellite, setShowSatellite] = useState(true);
+  const [showSatellite, setShowSatellite] = useState(false);
   const [address, setAddress] = useState('');
   const [pincode, setPincode] = useState('');
   const [fetching, setFetching] = useState(false);

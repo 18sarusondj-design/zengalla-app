@@ -384,7 +384,7 @@ const Profile = () => {
                         }} 
                         autoDetect={false}
                         interactive={false}
-                        showSatellite={true}
+                        showSatellite={false}
                       />
                       <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-[2px]">
                         <div className="bg-white/90 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 transform translate-y-4 group-hover:translate-y-0 transition-all">

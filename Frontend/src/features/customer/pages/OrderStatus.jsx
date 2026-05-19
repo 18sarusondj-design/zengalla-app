@@ -55,8 +55,10 @@ const OrderStatus = () => {
     }
   }, [order?.status]);
 
+  const isVal = (loc) => loc && typeof loc.lat === 'number' && typeof loc.lng === 'number' && (loc.lat !== 0 || loc.lng !== 0);
+
   const trackingMarkers = [];
-  if (trackingData?.deliveryLocation) {
+  if (isVal(trackingData?.deliveryLocation)) {
     trackingMarkers.push({
       lat: trackingData.deliveryLocation.lat,
       lng: trackingData.deliveryLocation.lng,
@@ -64,7 +66,7 @@ const OrderStatus = () => {
       label: "You"
     });
   }
-  if (trackingData?.driverLocation) {
+  if (isVal(trackingData?.driverLocation)) {
     trackingMarkers.push({
       lat: trackingData.driverLocation.lat,
       lng: trackingData.driverLocation.lng,
@@ -73,7 +75,7 @@ const OrderStatus = () => {
     });
   }
 
-  const trackingPolyline = trackingData?.driverLocation && trackingData?.deliveryLocation 
+  const trackingPolyline = isVal(trackingData?.driverLocation) && isVal(trackingData?.deliveryLocation) 
     ? [trackingData.driverLocation, trackingData.deliveryLocation]
     : null;
 
@@ -187,7 +189,7 @@ const OrderStatus = () => {
         {/* Live Tracking Map */}
         {(currentStatus === 'OUT_FOR_DELIVERY' || currentStatus === 'ASSIGNED') && (
            <div className="bg-white rounded-[40px] p-2 shadow-xl border border-gray-100 overflow-hidden relative group h-[300px] mb-3">
-              {trackingData?.driverLocation ? (
+              {isVal(trackingData?.driverLocation) ? (
                 <LeafletMap 
                   height="100%"
                   center={trackingData.driverLocation}

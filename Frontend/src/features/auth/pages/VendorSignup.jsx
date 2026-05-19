@@ -93,7 +93,7 @@ const VendorSignup = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
-  const [showSatellite, setShowSatellite] = useState(true);
+  const [showSatellite, setShowSatellite] = useState(false);
   const navigate = useNavigate();
  
   const [step, setStep] = useState(1);

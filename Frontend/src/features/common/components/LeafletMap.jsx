@@ -96,7 +96,7 @@ const LeafletMap = ({
   autoDetect = true,
   height = "400px",
   className = "",
-  showSatellite = true,
+  showSatellite = false,
   interactive = true
 }) => {
   const [selectedPos, setSelectedPos] = useState(null);
@@ -105,12 +105,11 @@ const LeafletMap = ({
 
   const mapCenter = useMemo(() => {
     // Priority: User Coords (GPS/Detection) > Selected Pos (Manual Click) > Default Center
-    if (isValidCoords(userCoords)) return [userCoords.lat, userCoords.lng];
-    if (isValidCoords(selectedPos)) return [selectedPos.lat, selectedPos.lng];
+    if (isValidCoords(userCoords)) return getLatLngArray(userCoords);
+    if (isValidCoords(selectedPos)) return getLatLngArray(selectedPos);
     
     // Handle array or object center
-    if (Array.isArray(defaultCenter)) return defaultCenter;
-    if (isValidCoords(defaultCenter)) return [defaultCenter.lat, defaultCenter.lng];
+    if (isValidCoords(defaultCenter)) return getLatLngArray(defaultCenter);
     
     return [15.3647, 75.1240]; // Final fallback
   }, [selectedPos, userCoords, defaultCenter]);
@@ -191,14 +190,14 @@ const LeafletMap = ({
           />
         )}
         
-        {autoDetect && !userCoords && !selectedPos && (
+        {autoDetect && !isValidCoords(userCoords) && !isValidCoords(selectedPos) && (
           <LocationMarker onLocationFound={handleMapClick} />
         )}
 
         {isValidCoords(userCoords) && (
           <>
             <Circle 
-              center={[userCoords.lat, userCoords.lng]}
+              center={getLatLngArray(userCoords)}
               radius={userCoords.accuracy || 20}
               pathOptions={{ 
                 fillColor: '#3B82F6', 
@@ -209,7 +208,7 @@ const LeafletMap = ({
               }}
             />
             <Marker 
-              position={[userCoords.lat, userCoords.lng]} 
+              position={getLatLngArray(userCoords)} 
               icon={userIcon}
               draggable={true}
               eventHandlers={{
@@ -225,10 +224,10 @@ const LeafletMap = ({
           </>
         )}
 
-        {selectedPos && (
+        {isValidCoords(selectedPos) && (
           <>
             <Circle 
-              center={[selectedPos.lat, selectedPos.lng]}
+              center={getLatLngArray(selectedPos)}
               radius={30}
               pathOptions={{ 
                 fillColor: '#EF4444', 
@@ -237,7 +236,7 @@ const LeafletMap = ({
                 weight: 2 
               }}
             />
-            <Marker position={[selectedPos.lat, selectedPos.lng]}>
+            <Marker position={getLatLngArray(selectedPos)}>
               <Popup>Selected Location</Popup>
             </Marker>
           </>
@@ -252,7 +251,7 @@ const LeafletMap = ({
           }) : DefaultIcon;
 
           return (
-            <Marker key={idx} position={[m.lat, m.lng]} icon={icon}>
+            <Marker key={idx} position={getLatLngArray(m)} icon={icon}>
               {m.content ? (
                 <Popup>{m.content}</Popup>
               ) : (
@@ -262,9 +261,9 @@ const LeafletMap = ({
           );
         })}
 
-        {polyline && (
+        {polyline && Array.isArray(polyline) && (
           <Polyline 
-            positions={polyline.map(p => [p.lat, p.lng])} 
+            positions={polyline.filter(p => isValidCoords(p)).map(p => getLatLngArray(p))} 
             color="#f97316" 
             weight={4}
             dashArray="10, 10"
