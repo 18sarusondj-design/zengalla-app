@@ -93,6 +93,31 @@ export const placeOrder = async (req, res) => {
       }
     }
 
+    // 5. Coupon Validation & Processing
+    let couponToUpdate = null;
+    if (couponApplied && couponApplied.code) {
+      const shop = await Shop.findById(shopId);
+      if (shop && shop.coupons) {
+        const couponIndex = shop.coupons.findIndex(c => c.code.toUpperCase() === couponApplied.code.toUpperCase() && c.isActive);
+        if (couponIndex !== -1) {
+          const matchedCoupon = shop.coupons[couponIndex];
+          // Check expiry
+          if (matchedCoupon.expiryDate && new Date(matchedCoupon.expiryDate) < new Date()) {
+            return res.status(400).json({ error: `Coupon ${couponApplied.code} has expired.` });
+          }
+          // Check usage limit
+          if (matchedCoupon.usageLimit !== null && matchedCoupon.usageLimit > 0) {
+            if ((matchedCoupon.usedCount || 0) >= matchedCoupon.usageLimit) {
+              return res.status(400).json({ error: `Coupon ${couponApplied.code} has reached its usage limit.` });
+            }
+          }
+          couponToUpdate = { shopId, couponCode: matchedCoupon.code };
+        } else {
+           return res.status(400).json({ error: `Invalid or inactive coupon: ${couponApplied.code}` });
+        }
+      }
+    }
+
     const order = await Order.create({
       shopId, userId: req.user?._id || null, items,
       totalPrice, orderType, paymentMethod,
@@ -108,6 +133,14 @@ export const placeOrder = async (req, res) => {
       paymentProofUrl,
       balanceDue: balanceDue !== undefined ? balanceDue : (paymentMethod === 'PAY_LATER' ? Math.max(0, totalPrice - (cashAmount || 0)) : 0),
     });
+
+    // 6. Increment Coupon Used Count
+    if (couponToUpdate) {
+      await Shop.updateOne(
+        { _id: couponToUpdate.shopId, 'coupons.code': couponToUpdate.couponCode },
+        { $inc: { 'coupons.$.usedCount': 1 } }
+      );
+    }
 
     // Notify Vendor (Shop Owner)
     const shop = await Shop.findById(shopId);

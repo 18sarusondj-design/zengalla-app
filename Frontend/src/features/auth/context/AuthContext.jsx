@@ -7,6 +7,11 @@ const AuthContext = createContext({});
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     try {
+      const hasToken = !!localStorage.getItem('token');
+      if (!hasToken) {
+        localStorage.removeItem('cached_user');
+        return null;
+      }
       const cached = localStorage.getItem('cached_user');
       return cached ? JSON.parse(cached) : null;
     } catch (err) {

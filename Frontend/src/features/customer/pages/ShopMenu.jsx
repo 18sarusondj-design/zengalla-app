@@ -253,7 +253,10 @@ const ShopMenu = () => {
 
   const fetchShopProducts = async () => {
     try {
-      if (!shopId || shopId === 'undefined') return;
+      if (!shopId || shopId === 'undefined') {
+        setLoading(false);
+        return;
+      }
 
       const [shopRes, productsRes] = await Promise.all([
         api.get(`/shops/${shopId}`),

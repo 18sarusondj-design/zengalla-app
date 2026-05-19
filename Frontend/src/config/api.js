@@ -146,6 +146,7 @@ api.interceptors.response.use(
                 processQueue(err, null);
                 localStorage.removeItem('token');
                 localStorage.removeItem('refreshToken');
+                localStorage.removeItem('cached_user');
                 if (!window.location.pathname.includes('/login')) {
                   window.location.href = '/login';
                 }
@@ -159,6 +160,7 @@ api.interceptors.response.use(
         
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
+        localStorage.removeItem('cached_user');
         // Only redirect if not already on login page
         if (!window.location.pathname.includes('/login')) {
           window.location.href = '/login';
@@ -166,6 +168,7 @@ api.interceptors.response.use(
       } else if (config.url.includes('/auth/me')) {
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
+        localStorage.removeItem('cached_user');
       }
     }
     return Promise.reject(new Error(msg));

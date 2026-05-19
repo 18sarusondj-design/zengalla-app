@@ -275,7 +275,7 @@ const Users = ({ roleFilter }) => {
 
   const filteredUsers = showExpiringSoon 
     ? users.filter(u => u.role === 'vendor' && u.daysRemaining !== null && u.daysRemaining <= 5)
-    : selectedPinFilter !== 'all'
+    : (selectedPinFilter !== 'all' && roleFilter === 'vendor')
       ? users.filter(u => u.pinCode === selectedPinFilter)
       : users;
 
@@ -366,7 +366,7 @@ const Users = ({ roleFilter }) => {
     <div className="flex flex-col min-h-screen space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex flex-col gap-2">
-          <h1 className="text-5xl md:text-7xl font-black text-gray-900 tracking-tighter uppercase leading-none">
+          <h1 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tighter uppercase leading-none">
             {roleFilter === 'vendor' ? 'Vendor' : 'Customer'} <span className="text-sky-500">Management</span>
           </h1>
           <p className="text-[10px] md:text-xs font-black text-gray-400 uppercase tracking-[0.3em]">{pageDesc}</p>
@@ -388,13 +388,13 @@ const Users = ({ roleFilter }) => {
           <button 
             onClick={handleDownloadPDF}
             className={`flex items-center gap-2 px-6 py-4 rounded-full transition-all active:scale-95 shadow-lg font-black text-[10px] uppercase tracking-widest ${
-              selectedPinFilter !== 'all' 
+              (selectedPinFilter !== 'all' && roleFilter === 'vendor')
                 ? 'bg-sky-500 text-white shadow-sky-100' 
                 : 'bg-gray-900 text-white hover:bg-sky-600'
             }`}
           >
             <Download size={16} /> 
-            {selectedPinFilter !== 'all' ? `PIN ${selectedPinFilter}` : 'Export PDF'}
+            {(selectedPinFilter !== 'all' && roleFilter === 'vendor') ? `PIN ${selectedPinFilter}` : 'Export PDF'}
           </button>
 
           <div className="bg-white px-6 py-4 rounded-full shadow-sm border border-gray-100 flex items-center gap-4">
@@ -518,85 +518,81 @@ const Users = ({ roleFilter }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {groupByPinCode && roleFilter === 'vendor' && pinCodeGroups ? (
-                Object.entries(pinCodeGroups).map(([pin, group]) => (
-                  <React.Fragment key={pin}>
-                    <tr className="bg-slate-50/50">
-                      <td colSpan="3" className="px-10 py-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <Map className="text-sky-500" size={16} />
-                            <span className="font-black text-xs uppercase tracking-widest text-gray-700">Pin Code: {pin}</span>
-                            <span className="px-3 py-1 bg-white border border-sky-100 text-sky-600 text-[9px] font-black rounded-full shadow-sm">
-                              {group.vendors.length} Shops
+              {paginatedUsers.map(u => (
+                <tr 
+                  key={u._id} 
+                  className="group hover:bg-sky-50/30 transition-all border-b border-gray-50"
+                >
+                  <td className="px-6 py-4">
+                     <p className="font-black text-sm text-gray-900 tracking-tight leading-none uppercase">{roleFilter === 'vendor' ? (u.shopName || u.name) : u.name}</p>
+                     <p className="text-[9px] font-black text-sky-500 uppercase tracking-widest mt-1.5">{u.email || 'NO EMAIL'}</p>
+                  </td>
+                  <td className="px-6 py-4">
+                     <div className="flex items-center gap-2">
+                        {roleFilter === 'vendor' ? (
+                          <>
+                            <MapPin size={14} className="text-sky-400" />
+                            <span className="text-xs font-black text-gray-700 uppercase tracking-widest">PIN: {u.pinCode || 'N/A'}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Calendar size={14} className="text-gray-300" />
+                            <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">
+                              {u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
                             </span>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                    {group.vendors.map(u => (
-                      <tr 
-                        key={u._id} 
-                        onClick={() => { setSelectedVendor(u); setModalData({ ...u }); setIsModified(false); }}
-                        className="group hover:bg-sky-50/30 transition-all cursor-pointer"
-                      >
-                        <td className="px-10 py-6">
-                           <p className="font-black text-lg text-gray-900 tracking-tight leading-none uppercase group-hover:text-sky-600 transition-colors">{u.shopName || u.name}</p>
-                           <p className="text-[10px] font-black text-sky-500 uppercase tracking-widest mt-1">{u.email || 'NO EMAIL'}</p>
-                        </td>
-                        <td className="px-10 py-6">
-                           <div className="flex items-center gap-2">
-                              <MapPin size={14} className="text-sky-400" />
-                              <span className="text-xs font-black text-gray-700 uppercase tracking-widest">PIN: {u.pinCode || 'N/A'}</span>
-                           </div>
-                        </td>
-                        <td className="px-10 py-6">
-                           <button className="px-6 py-2 bg-gray-100 text-gray-600 rounded-xl font-black text-[9px] uppercase tracking-widest group-hover:bg-sky-600 group-hover:text-white transition-all">
-                              Manage Shop
+                          </>
+                        )}
+                     </div>
+                  </td>
+                  <td className="px-6 py-4">
+                     <div className="flex items-center justify-between gap-4">
+                       {roleFilter !== 'vendor' && (
+                         <div className="flex flex-col hidden sm:flex">
+                            <span className="text-[10px] font-black text-gray-900 uppercase">
+                               {u.createdAt ? `${Math.floor((new Date() - new Date(u.createdAt)) / (1000 * 60 * 60 * 24))} Days` : 'N/A'}
+                            </span>
+                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em]">Tenure</span>
+                         </div>
+                       )}
+                       <div className="flex items-center gap-2 w-full justify-end">
+                         {roleFilter === 'vendor' ? (
+                           <button 
+                             onClick={() => { setSelectedVendor(u); setModalData({ ...u }); setIsModified(false); }}
+                             className="px-6 py-2 bg-sky-50 text-sky-600 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-sky-600 hover:text-white transition-all"
+                           >
+                             Manage Shop
                            </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </React.Fragment>
-                ))
-              ) : (
-                paginatedUsers.map(u => (
-                  <tr 
-                    key={u._id} 
-                    onClick={() => { setSelectedVendor(u); setModalData({ ...u }); setIsModified(false); }}
-                    className="group hover:bg-sky-50/30 transition-all cursor-pointer"
-                  >
-                    <td className="px-10 py-8">
-                       <p className="font-black text-lg text-gray-900 tracking-tight leading-none uppercase group-hover:text-sky-600 transition-colors">{u.name}</p>
-                       <p className="text-[10px] font-black text-sky-500 uppercase tracking-widest mt-1.5">{u.email}</p>
-                    </td>
-                    <td className="px-10 py-8">
-                       <div className="flex items-center gap-2">
-                          <Calendar size={14} className="text-gray-300" />
-                          <span className="text-[11px] font-black text-gray-600 uppercase tracking-widest">
-                            {u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
-                          </span>
+                         ) : (
+                           <>
+                             <button 
+                               onClick={() => handleStatusToggle(u._id || u.id)}
+                               className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${u.status === 'active' ? 'bg-emerald-50 text-emerald-600 hover:bg-rose-50 hover:text-rose-600' : 'bg-rose-50 text-rose-600 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                               title={u.status === 'active' ? 'Suspend Account' : 'Activate Account'}
+                             >
+                               {isProcessing === (u._id || u.id) ? '...' : (u.status === 'active' ? 'Deactivate' : 'Activate')}
+                             </button>
+                             <button 
+                               onClick={() => { setSelectedVendor(u); setIsSafeDeleteOpen(true); }}
+                               className="p-2 bg-gray-50 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                               title="Delete Account"
+                             >
+                               <Trash2 size={14} />
+                             </button>
+                           </>
+                         )}
                        </div>
-                    </td>
-                    <td className="px-10 py-8">
-                       <div className="flex flex-col">
-                          <span className="text-[12px] font-black text-gray-900 uppercase">
-                             {u.createdAt ? `${Math.floor((new Date() - new Date(u.createdAt)) / (1000 * 60 * 60 * 24))} Days` : 'N/A'}
-                          </span>
-                          <span className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em]">Platform Tenure</span>
-                       </div>
-                    </td>
-                  </tr>
-                ))
-              )}
+                     </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
-        {users.length > 0 && (
+        {filteredUsers.length > 0 && (
           <Pagination 
             currentPage={currentPage}
             totalPages={totalPages}
-            totalItems={users.length}
+            totalItems={filteredUsers.length}
             itemsPerPage={itemsPerPage}
             onPageChange={setCurrentPage}
           />
@@ -605,7 +601,7 @@ const Users = ({ roleFilter }) => {
       </div>
 
       {/* DETAIL MANAGEMENT MODAL */}
-      {selectedVendor && (
+      {selectedVendor && roleFilter === 'vendor' && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
           {/* Backdrop */}
           <div 
@@ -619,33 +615,59 @@ const Users = ({ roleFilter }) => {
             {/* Close Button */}
             <button 
               onClick={() => { setSelectedVendor(null); setModalData(null); }}
-              style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 10, width: '32px', height: '32px', background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '16px', fontWeight: '900' }}
+              style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 10, width: '36px', height: '36px', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '16px', fontWeight: '900', backdropFilter: 'blur(4px)' }}
             >
               ✕
             </button>
 
             {/* Header */}
-            <div style={{ padding: '32px', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', color: 'white', position: 'relative', overflow: 'hidden' }}>
-              <p style={{ fontSize: '9px', fontWeight: '900', color: '#38bdf8', letterSpacing: '0.4em', textTransform: 'uppercase', marginBottom: '8px' }}>Management Console</p>
+            <div style={{ padding: '40px', background: 'linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%)', color: 'white', position: 'relative', overflow: 'hidden' }}>
+              <p style={{ fontSize: '9px', fontWeight: '900', color: '#e0f2fe', letterSpacing: '0.4em', textTransform: 'uppercase', marginBottom: '8px' }}>Management Console</p>
               <h2 style={{ fontSize: '28px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '-1px', lineHeight: 1, marginBottom: '12px', marginTop: 0 }}>
                 {selectedVendor.shopName || selectedVendor.name}
               </h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '700', color: '#bae6fd', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                   📍 {selectedVendor.pinCode || 'Unassigned'}
                 </div>
-                <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#0ea5e9' }} />
-                <div style={{ fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                  Owner: {selectedVendor.name}
+                <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#7dd3fc' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '700', color: '#bae6fd', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  Owner: {selectedVendor.name || 'Unknown'}
                 </div>
               </div>
-              {/* Decorative */}
-              <div style={{ position: 'absolute', right: '-30px', top: '-30px', opacity: 0.05, fontSize: '150px' }}>⭐</div>
             </div>
 
             {/* Body */}
-            <div style={{ padding: '28px' }}>
+            <div style={{ padding: '40px', maxHeight: '60vh', overflowY: 'auto' }}>
               
+              {/* Account Status */}
+              <div style={{ marginBottom: '24px' }}>
+                <p style={{ fontSize: '9px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.3em', marginBottom: '12px' }}>Account Status</p>
+                <div style={{ background: '#f8fafc', borderRadius: '20px', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: modalData?.status === 'active' ? '#10b981' : '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <ShieldCheck size={22} color="white" />
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '13px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.03em', color: '#111827', margin: 0 }}>Vendor Account</p>
+                      <p style={{ fontSize: '9px', fontWeight: '700', color: modalData?.status === 'active' ? '#10b981' : '#ef4444', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '3px 0 0' }}>
+                        Status: {modalData?.status === 'active' ? '✓ Active' : 'Suspended'}
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => { setModalData(prev => ({ ...prev, status: prev.status === 'active' ? 'suspended' : 'active' })); setIsModified(true); }}
+                    style={{ 
+                      padding: '10px 20px', borderRadius: '12px', border: 'none', cursor: 'pointer',
+                      background: modalData?.status === 'active' ? '#ef4444' : '#10b981',
+                      color: 'white', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em'
+                    }}
+                  >
+                    {modalData?.status === 'active' ? 'Deactivate' : 'Activate'}
+                  </button>
+                </div>
+              </div>
+
               {/* Access Control */}
               <div style={{ marginBottom: '24px' }}>
                 <p style={{ fontSize: '9px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.3em', marginBottom: '12px' }}>Platform Visibility & Access</p>
@@ -654,13 +676,13 @@ const Users = ({ roleFilter }) => {
                   <button 
                     onClick={() => { setModalData(prev => ({ ...prev, subscriptionPlan: 'basic' })); setIsModified(true); }}
                     style={{ 
-                      padding: '20px', borderRadius: '20px', border: modalData.subscriptionPlan === 'basic' ? '2px solid #111827' : '2px solid #f3f4f6',
-                      background: modalData.subscriptionPlan === 'basic' ? '#f9fafb' : 'white',
+                      padding: '20px', borderRadius: '20px', border: modalData?.subscriptionPlan === 'basic' ? '2px solid #111827' : '2px solid #f3f4f6',
+                      background: modalData?.subscriptionPlan === 'basic' ? '#f9fafb' : 'white',
                       cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: '10px'
                     }}
                   >
-                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: modalData.subscriptionPlan === 'basic' ? '#111827' : '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Zap size={18} color={modalData.subscriptionPlan === 'basic' ? 'white' : '#9ca3af'} />
+                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: modalData?.subscriptionPlan === 'basic' ? '#111827' : '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Zap size={18} color={modalData?.subscriptionPlan === 'basic' ? 'white' : '#9ca3af'} />
                     </div>
                     <div>
                       <p style={{ fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#111827', margin: 0 }}>Offline Access</p>
@@ -671,13 +693,13 @@ const Users = ({ roleFilter }) => {
                   <button 
                     onClick={() => { setModalData(prev => ({ ...prev, subscriptionPlan: 'premium' })); setIsModified(true); }}
                     style={{ 
-                      padding: '20px', borderRadius: '20px', border: modalData.subscriptionPlan === 'premium' ? '2px solid #0ea5e9' : '2px solid #f3f4f6',
-                      background: modalData.subscriptionPlan === 'premium' ? '#f0f9ff' : 'white',
+                      padding: '20px', borderRadius: '20px', border: modalData?.subscriptionPlan === 'premium' ? '2px solid #0ea5e9' : '2px solid #f3f4f6',
+                      background: modalData?.subscriptionPlan === 'premium' ? '#f0f9ff' : 'white',
                       cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: '10px'
                     }}
                   >
-                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: modalData.subscriptionPlan === 'premium' ? '#0ea5e9' : '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Globe size={18} color={modalData.subscriptionPlan === 'premium' ? 'white' : '#9ca3af'} />
+                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: modalData?.subscriptionPlan === 'premium' ? '#0ea5e9' : '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Globe size={18} color={modalData?.subscriptionPlan === 'premium' ? 'white' : '#9ca3af'} />
                     </div>
                     <div>
                       <p style={{ fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#0c4a6e', margin: 0 }}>Online Access</p>
@@ -692,13 +714,13 @@ const Users = ({ roleFilter }) => {
                 <p style={{ fontSize: '9px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.3em', marginBottom: '12px' }}>Sponsorship Status</p>
                 <div style={{ background: '#f8fafc', borderRadius: '20px', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: modalData.isSponsored ? '#10b981' : '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Sparkles size={22} color={modalData.isSponsored ? 'white' : '#9ca3af'} />
+                    <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: modalData?.isSponsored ? '#10b981' : '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Sparkles size={22} color={modalData?.isSponsored ? 'white' : '#9ca3af'} />
                     </div>
                     <div>
                       <p style={{ fontSize: '13px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.03em', color: '#111827', margin: 0 }}>Sponsorship Badge</p>
-                      <p style={{ fontSize: '9px', fontWeight: '700', color: modalData.isSponsored ? '#10b981' : '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '3px 0 0' }}>
-                        Status: {modalData.isSponsored ? '✓ Active' : 'None'}
+                      <p style={{ fontSize: '9px', fontWeight: '700', color: modalData?.isSponsored ? '#10b981' : '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '3px 0 0' }}>
+                        Status: {modalData?.isSponsored ? '✓ Active' : 'None'}
                       </p>
                     </div>
                   </div>
@@ -706,11 +728,11 @@ const Users = ({ roleFilter }) => {
                     onClick={() => { setModalData(prev => ({ ...prev, isSponsored: !prev.isSponsored })); setIsModified(true); }}
                     style={{ 
                       padding: '10px 20px', borderRadius: '12px', border: 'none', cursor: 'pointer',
-                      background: modalData.isSponsored ? '#ef4444' : '#10b981',
+                      background: modalData?.isSponsored ? '#ef4444' : '#10b981',
                       color: 'white', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em'
                     }}
                   >
-                    {modalData.isSponsored ? 'Remove Badge' : 'Give Sponsor Badge'}
+                    {modalData?.isSponsored ? 'Remove Badge' : 'Give Sponsor Badge'}
                   </button>
                 </div>
               </div>
@@ -720,15 +742,15 @@ const Users = ({ roleFilter }) => {
                 <p style={{ fontSize: '9px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.3em', marginBottom: '12px' }}>Marketing Features</p>
                 <div style={{ background: '#f8fafc', borderRadius: '20px', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: modalData.bannersEnabled ? '#0ea5e9' : '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Zap size={22} color={modalData.bannersEnabled ? 'white' : '#9ca3af'} />
+                    <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: modalData?.bannersEnabled ? '#0ea5e9' : '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Zap size={22} color={modalData?.bannersEnabled ? 'white' : '#9ca3af'} />
                     </div>
                     <div>
                       <p style={{ fontSize: '13px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.03em', color: '#111827', margin: 0 }}>Offer Banners Access</p>
-                      <p style={{ fontSize: '9px', fontWeight: '700', color: modalData.bannersEnabled ? '#0ea5e9' : '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '3px 0 0' }}>
-                        Status: {modalData.bannersEnabled ? '✓ Enabled' : 'Disabled'}
+                      <p style={{ fontSize: '9px', fontWeight: '700', color: modalData?.bannersEnabled ? '#0ea5e9' : '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '3px 0 0' }}>
+                        Status: {modalData?.bannersEnabled ? '✓ Enabled' : 'Disabled'}
                       </p>
-                      {modalData.bannersEnabled && modalData.bannersEnabledAt && (
+                      {modalData?.bannersEnabled && modalData?.bannersEnabledAt && (
                         <p style={{ fontSize: '7px', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', margin: '3px 0 0' }}>
                           Granted: {new Date(modalData.bannersEnabledAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
                         </p>
@@ -739,11 +761,11 @@ const Users = ({ roleFilter }) => {
                     onClick={() => { setModalData(prev => ({ ...prev, bannersEnabled: !prev.bannersEnabled, bannersEnabledAt: !prev.bannersEnabled ? new Date().toISOString() : null })); setIsModified(true); }}
                     style={{ 
                       padding: '10px 20px', borderRadius: '12px', border: 'none', cursor: 'pointer',
-                      background: modalData.bannersEnabled ? '#ef4444' : '#0ea5e9',
+                      background: modalData?.bannersEnabled ? '#ef4444' : '#0ea5e9',
                       color: 'white', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em'
                     }}
                   >
-                    {modalData.bannersEnabled ? 'Disable Access' : 'Enable Access'}
+                    {modalData?.bannersEnabled ? 'Disable Access' : 'Enable Access'}
                   </button>
                 </div>
               </div>
@@ -759,29 +781,27 @@ const Users = ({ roleFilter }) => {
                         const sponsorChanged = modalData.isSponsored !== selectedVendor.isSponsored;
                         const statusChanged = modalData.status !== selectedVendor.status;
                         const bannersAccessChanged = modalData.bannersEnabled !== selectedVendor.bannersEnabled;
-                        
-                        const isBulk = (planChanged && sponsorChanged) || statusChanged || bannersAccessChanged;
 
                         if (planChanged) {
-                          await handleUpdatePlan(modalData.shopId, modalData.subscriptionPlan, isBulk);
+                          await handleUpdatePlan(modalData.shopId, modalData.subscriptionPlan, true);
                         }
                         if (sponsorChanged) {
-                          await handleToggleSponsorship(modalData._id, modalData.shopId, isBulk);
+                          await handleToggleSponsorship(modalData._id, modalData.shopId, true);
                         }
                         if (bannersAccessChanged) {
-                          await handleToggleBannersAccess(modalData._id, modalData.shopId, isBulk);
+                          await handleToggleBannersAccess(modalData._id, modalData.shopId, true);
                         }
                         
                         if (statusChanged) {
                           await api.patch(`/admin/users/${modalData._id}/status`, { status: modalData.status });
-                          if (!isBulk) toast.success(`✓ Account status set to ${modalData.status.toUpperCase()}`);
                         }
                         
-                        if (isBulk) {
-                          toast.success("✓ Vendor configuration updated successfully");
-                        }
+                        toast.success("✓ Vendor configuration updated successfully");
                         
                         setIsModified(false);
+                        setSelectedVendor(null);
+                        setModalData(null);
+                        fetchUsers(); // Refresh the list
                       } catch (err) {
                         toast.error("Some changes failed to save");
                       } finally {
@@ -803,16 +823,16 @@ const Users = ({ roleFilter }) => {
               )}
 
               {/* Footer Actions */}
-              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '20px', display: 'flex', alignItems: 'center', justifyItems: 'stretch', gap: '12px' }}>
                 <button 
                   onClick={() => handleManualWhatsApp(selectedVendor)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontWeight: '900', color: '#0ea5e9', background: 'none', border: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}
+                  style={{ flex: 1, padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '10px', fontWeight: '900', color: '#0ea5e9', background: '#f0f9ff', borderRadius: '12px', border: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}
                 >
                   <Phone size={14} /> Contact Vendor
                 </button>
                 <button 
                   onClick={() => setIsSafeDeleteOpen(true)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontWeight: '900', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}
+                  style={{ flex: 1, padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '10px', fontWeight: '900', color: '#ef4444', background: '#fef2f2', borderRadius: '12px', border: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}
                 >
                   <Trash2 size={14} /> Delete Account
                 </button>

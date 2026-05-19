@@ -150,8 +150,8 @@ const B2BPartners = () => {
   });
 
   return (
-    <div className="flex flex-col md:h-screen md:overflow-hidden min-h-screen bg-slate-50/50 md:p-10 p-2 font-sans">
-      <div className="max-w-[1600px] mx-auto flex flex-col h-full">
+    <div className="flex flex-col md:h-screen md:overflow-hidden min-h-screen bg-slate-50/50 md:p-10 p-2 font-sans w-full">
+      <div className="w-full flex flex-col h-full">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6 md:mb-10 flex-shrink-0">
           <div className="flex items-center gap-4">

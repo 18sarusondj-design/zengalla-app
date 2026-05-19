@@ -10,20 +10,11 @@ const CustomerOrders = () => {
   const { orders, deleteOrder, currentShopId, clearMyOrderHistory, setCurrentShopId, fetchCustomerOrders } = useStore();
   const navigate = useNavigate();
 
-  // Filter orders by shopId if in shop mode
+  // Show all customer orders (global view)
   const shopOrders = orders.filter(o => {
     // Only show orders, not in-store bills
     if (o.isBill || o.orderType === 'IN_STORE_BILL') return false;
-    
-    // Normalize shop ID to string for comparison
-    const orderShopId = (o.shopId?._id || o.shopId || o.shop?._id || o.shop || '').toString();
-    const activeShopId = (currentShopId || '').toString();
-
-    // If no shop is active, show all orders
-    if (!activeShopId) return true;
-    
-    // Otherwise show orders for the active shop
-    return orderShopId === activeShopId;
+    return true;
   });
 
   React.useEffect(() => {
@@ -176,18 +167,16 @@ const CustomerOrders = () => {
                 <Package size={48} strokeWidth={1.5} />
               </div>
               <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">
-                {currentShopId ? 'No orders in this shop' : 'No order history'}
+                No order history
               </h2>
               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest max-w-[200px] mx-auto leading-relaxed">
-                {currentShopId 
-                  ? "You haven't placed any orders with this store yet." 
-                  : "You haven't placed any orders on the platform yet."}
+                You haven't placed any orders on the platform yet.
               </p>
               <button 
-                onClick={() => navigate(currentShopId ? `/shop/${currentShopId}` : '/shops')} 
+                onClick={() => navigate('/shops')} 
                 className="mt-4 bg-gray-900 text-white px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-sky-600 transition-all active:scale-95 shadow-xl shadow-gray-100"
               >
-                {currentShopId ? 'Browse Menu' : 'View Marketplace'}
+                View Marketplace
               </button>
             </div>
           ) : activeTab === 'ACTIVE' ? (

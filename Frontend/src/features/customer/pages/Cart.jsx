@@ -1,7 +1,7 @@
 import React from 'react';
 import { useStore } from '../../shop/context/StoreContext';
 import { useAuth } from '../../auth/context/AuthContext';
-import { Plus, Minus, Trash2, ShoppingBag, ArrowRight, X, Tag, Ticket, Sparkles, CheckCircle2, Store, ChevronRight, ShoppingCart, Gift, Clock } from 'lucide-react';
+import { Plus, Minus, Trash2, ShoppingBag, ArrowRight, X, Tag, Ticket, Sparkles, CheckCircle2, Store, ChevronRight, ShoppingCart, Gift, Clock, Eye } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import CustomerWeightModal from '../components/CustomerWeightModal';
@@ -312,9 +312,9 @@ const Cart = () => {
                     const isWeight = item.product?.sellingType === 'weight';
 
                     return (
-                      <div key={pid || idx} className="group flex items-center gap-4 p-3 rounded-2xl hover:bg-slate-50 transition-all border border-transparent hover:border-gray-100">
+                      <div key={pid || idx} className="group flex items-center gap-2 sm:gap-4 p-2 sm:p-3 rounded-2xl hover:bg-slate-50 transition-all border border-transparent hover:border-gray-100">
                         {/* Product Image */}
-                        <div className="w-16 h-16 rounded-2xl bg-gray-50 overflow-hidden shrink-0 border border-gray-100 shadow-sm">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gray-50 overflow-hidden shrink-0 border border-gray-100 shadow-sm">
                           <img
                             src={item.product?.image || item.product?.imageUrl || null}
                             alt={item.product?.name || ''}
@@ -325,8 +325,8 @@ const Cart = () => {
 
                         {/* Name & Meta */}
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-black text-sm text-gray-900 uppercase tracking-tight truncate leading-tight">{item.product?.name}</h4>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
+                          <h4 className="font-black text-xs sm:text-sm text-gray-900 uppercase tracking-tight truncate leading-tight">{item.product?.name}</h4>
+                          <p className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5 truncate">
                             {isWeight ? `${parseFloat(Number(item.quantity).toFixed(3))} KG` : `${parseFloat(Number(item.quantity).toFixed(3))} ${item.product?.unit || 'pc'}`}
                             <span className="mx-1.5 text-gray-300">·</span>
                             ₹{price}/{isWeight ? 'kg' : 'pc'}
@@ -334,25 +334,42 @@ const Cart = () => {
                         </div>
 
                         {/* Quantity + Price */}
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 sm:gap-3 shrink-0">
                           <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
-                            <button
-                              onClick={() => updateQuantity(pid, -1, shopId)}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:bg-rose-500 hover:text-white transition-all active:scale-90"
-                            >
-                              <Minus size={11} strokeWidth={3} />
-                            </button>
-                            <span className="text-xs font-black text-gray-900 min-w-[20px] text-center">{parseFloat(Number(item.quantity).toFixed(3))}</span>
-                            <button
-                              onClick={() => updateQuantity(pid, 1, shopId)}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:bg-sky-500 hover:text-white transition-all active:scale-90"
-                            >
-                              <Plus size={11} strokeWidth={3} />
-                            </button>
+                            {isWeight ? (
+                              <>
+                                <span className="text-xs font-black text-gray-900 px-2 min-w-[32px] text-center">
+                                  {parseFloat(Number(item.quantity).toFixed(3))}
+                                </span>
+                                <button
+                                  onClick={() => setWeighingProduct(item.product)}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-sky-100 hover:bg-sky-200 text-sky-500 transition-all active:scale-90"
+                                  title="Change Weight"
+                                >
+                                  <Eye size={12} strokeWidth={2.5} />
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => updateQuantity(pid, -1, shopId)}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:bg-rose-500 hover:text-white transition-all active:scale-90"
+                                >
+                                  <Minus size={11} strokeWidth={3} />
+                                </button>
+                                <span className="text-xs font-black text-gray-900 min-w-[20px] text-center">{parseFloat(Number(item.quantity).toFixed(3))}</span>
+                                <button
+                                  onClick={() => updateQuantity(pid, 1, shopId)}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:bg-sky-500 hover:text-white transition-all active:scale-90"
+                                >
+                                  <Plus size={11} strokeWidth={3} />
+                                </button>
+                              </>
+                            )}
                           </div>
 
-                          <div className="text-right w-16">
-                            <p className="font-black text-sm text-gray-900 tracking-tight">₹{lineTotal}</p>
+                          <div className="text-right min-w-[3rem] sm:w-16">
+                            <p className="font-black text-xs sm:text-sm text-gray-900 tracking-tight">₹{lineTotal}</p>
                             <button
                               onClick={() => {
                                 toast.error(`Remove ${item.product?.name}?`, {

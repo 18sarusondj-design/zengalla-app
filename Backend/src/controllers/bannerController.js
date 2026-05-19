@@ -6,6 +6,13 @@ import Product from '../models/Product.js';
 export const getShopActiveBanners = async (req, res) => {
   try {
     const { shopId } = req.params;
+    
+    // Check if shop has banners enabled
+    const shop = await Shop.findById(shopId);
+    if (!shop || !shop.bannersEnabled) {
+      return res.json({ success: true, banners: [] });
+    }
+
     const now = new Date();
     
     const banners = await Banner.find({

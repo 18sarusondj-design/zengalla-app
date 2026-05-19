@@ -34,20 +34,23 @@ const globalLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => process.env.NODE_ENV !== 'production',
 });
 
 // Auth Rate Limiting (Stricter - prevents brute force)
 const authLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
   max: 5, // Lock after 5 failed/rapid attempts
-  message: { error: 'Too many login attempts, please wait 5 minutes.' }
+  message: { error: 'Too many login attempts, please wait 5 minutes.' },
+  skip: () => process.env.NODE_ENV !== 'production',
 });
 
 // OTP Rate Limiting (Prevents OTP spam)
 const otpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 3, // Max 3 OTP requests per 15 mins
-  message: { error: 'Too many OTP requests, please wait 15 minutes.' }
+  message: { error: 'Too many OTP requests, please wait 15 minutes.' },
+  skip: () => process.env.NODE_ENV !== 'production',
 });
 
 app.use('/api', globalLimiter);

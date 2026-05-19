@@ -36,6 +36,8 @@ const shopSchema = new mongoose.Schema({
     discountType: { type: String, enum: ['percentage', 'flat'], default: 'percentage' },
     minOrderAmount: { type: Number, default: 0 },
     expiryDate: Date,
+    usageLimit: { type: Number, default: null },
+    usedCount: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
     bannerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Banner', default: null }
   }],

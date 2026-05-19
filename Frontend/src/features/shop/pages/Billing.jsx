@@ -339,7 +339,7 @@ const Billing = () => {
           <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
             <div className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-6 gap-3">
               {filteredProducts.map(p => {
-                const stock = Number(p.stockQuantity || p.stock || 0);
+                const stock = parseFloat(Number(p.stockQuantity || p.stock || 0).toFixed(3));
                 const isOutOfStock = stock <= 0;
                 return (
                   <div 

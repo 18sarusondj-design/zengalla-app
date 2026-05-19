@@ -114,7 +114,7 @@ const VendorProfile = () => {
   const [unlockPassword, setUnlockPassword] = useState('');
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [banners, setBanners] = useState([]);
-  const [newCoupon, setNewCoupon] = useState({ code: '', discountValue: '', discountType: 'percentage', minOrderAmount: 0, expiryDate: '', bannerId: '' });
+  const [newCoupon, setNewCoupon] = useState({ code: '', discountValue: '', discountType: 'percentage', minOrderAmount: 0, expiryDate: '', bannerId: '', usageLimit: '' });
 
   const shopUrl = `${window.location.protocol}//${window.location.host}/shop/${vendorShop?.id || vendorShop?._id || ''}`;
 
@@ -433,7 +433,11 @@ const VendorProfile = () => {
       } else if (label === 'credit' || label === 'Credit Settings') {
         payload = { isPayLater: formData.isPayLater };
       } else if (label === 'payments' || label === 'Payment Settings') {
-        payload = { bankDetails: formData.bankDetails };
+        payload = { 
+          bankDetails: formData.bankDetails,
+          razorpayKeyId: formData.razorpayKeyId,
+          razorpayKeySecret: formData.razorpayKeySecret
+        };
       } else {
         // Fallback for any other updates like 'Profile'
         payload = { ...formData };
@@ -981,8 +985,8 @@ const VendorProfile = () => {
                         <div className="space-y-2">
                           <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Razorpay Key Id</label>
                           <input
-                            type="text" placeholder="rzp_test_..."
-                            value={formData.razorpayKeyId}
+                            type="text" placeholder="Enter Razorpay Key ID"
+                            value={formData.razorpayKeyId || ''}
                             onChange={(e) => setFormData({ ...formData, razorpayKeyId: e.target.value })}
                             className="w-full bg-white/80 border-2 border-sky-50 focus:border-sky-400 focus:bg-white rounded-xl p-3 text-[11px] font-bold text-gray-800 transition-all outline-none"
                           />
@@ -1134,20 +1138,31 @@ const VendorProfile = () => {
                                 className="w-full bg-white border border-sky-100 rounded-xl p-3 text-[10px] font-bold outline-none focus:border-sky-400 transition-all"
                               />
                             </div>
-                            <div className="space-y-1 col-span-2">
-                              <label className="text-[8px] font-black text-gray-500 uppercase tracking-widest ml-2">Restrict to Banner (Optional - Coupon will apply ONLY to this banner's products)</label>
-                              <select
-                                value={newCoupon.bannerId || ''}
-                                onChange={(e) => setNewCoupon({ ...newCoupon, bannerId: e.target.value || '' })}
+                            {vendorShop?.bannersEnabled && (
+                              <div className="space-y-1">
+                                <label className="text-[8px] font-black text-gray-500 uppercase tracking-widest ml-2">Restrict to Banner (Optional)</label>
+                                <select
+                                  value={newCoupon.bannerId || ''}
+                                  onChange={(e) => setNewCoupon({ ...newCoupon, bannerId: e.target.value || '' })}
+                                  className="w-full bg-white border border-sky-100 rounded-xl p-3 text-[10px] font-bold outline-none focus:border-sky-400 transition-all"
+                                >
+                                  <option value="">None (Applies to all products)</option>
+                                  {banners.map(b => (
+                                    <option key={b._id} value={b._id}>
+                                      {b.title} ({b.type})
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                            <div className="space-y-1">
+                              <label className="text-[8px] font-black text-gray-500 uppercase tracking-widest ml-2">Usage Limit (Optional)</label>
+                              <input
+                                type="number" placeholder="e.g. 10 (Leave blank for unlimited)" min="0"
+                                value={newCoupon.usageLimit}
+                                onChange={(e) => setNewCoupon({ ...newCoupon, usageLimit: Math.max(0, Number(e.target.value)) || '' })}
                                 className="w-full bg-white border border-sky-100 rounded-xl p-3 text-[10px] font-bold outline-none focus:border-sky-400 transition-all"
-                              >
-                                <option value="">None (Applies to all store products)</option>
-                                {banners.map(b => (
-                                  <option key={b._id} value={b._id}>
-                                    {b.title} ({b.type})
-                                  </option>
-                                ))}
-                              </select>
+                              />
                             </div>
                           </div>
                           <div className="flex items-center justify-between gap-4">
@@ -1173,6 +1188,7 @@ const VendorProfile = () => {
                                   ...newCoupon,
                                   discountValue: val,
                                   minOrderAmount: Number(newCoupon.minOrderAmount) || 0,
+                                  usageLimit: Number(newCoupon.usageLimit) || null,
                                   expiryDate: newCoupon.expiryDate || undefined,
                                   isActive: true
                                 }];
@@ -1184,7 +1200,7 @@ const VendorProfile = () => {
                                 }));
 
                                 // Clear form
-                                setNewCoupon({ code: '', discountValue: '', discountType: 'percentage', minOrderAmount: 0, expiryDate: '', bannerId: '' });
+                                setNewCoupon({ code: '', discountValue: '', discountType: 'percentage', minOrderAmount: 0, expiryDate: '', bannerId: '', usageLimit: '' });
                                 setShowCouponForm(false);
 
                                 // Persist to database
@@ -1235,6 +1251,7 @@ const VendorProfile = () => {
                                   <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest">
                                     {coupon.discountType === 'percentage' ? `${coupon.discountValue}% OFF` : `₹${coupon.discountValue} OFF`}
                                     {coupon.minOrderAmount > 0 && <span className="text-gray-400 ml-2"> • Above ₹{coupon.minOrderAmount}</span>}
+                                    {coupon.usageLimit && <span className="text-sky-500 ml-2"> • Limit: {coupon.usageLimit} uses</span>}
                                   </p>
                                   {coupon.bannerId && (
                                     <p className="text-[8px] font-black text-sky-500 uppercase tracking-widest mt-0.5">

@@ -54,15 +54,16 @@ const Profile = () => {
   const passStrength = getPasswordStrength(formData.password);
   const isPassValid = !formData.password || passStrength.isValid;
 
+  const userId = user?._id || user?.id;
+
   useEffect(() => {
-    if (token && user) fetchCredits();
-  }, [token, user]);
+    if (token && userId) fetchCredits();
+  }, [token, userId]);
 
   const fetchCredits = async () => {
     const userId = user?._id || user?.id;
     if (!userId) return;
     try {
-      refreshUser();
       const { data } = await api.get('/orders/my');
       if (data?.orders) {
         setCreditOrders(data.orders.filter(o =>
@@ -132,9 +133,6 @@ const Profile = () => {
     }
   };
 
-  const totalDues = creditOrders.reduce((s, o) => s + (o.balanceDue || o.totalPrice || 0), 0);
-  const initials = user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
-
   if (!user) return (
     <div className="flex flex-col h-screen items-center justify-center p-6 text-center"
       style={{ background: 'linear-gradient(135deg,#0f172a,#1e293b)' }}>
@@ -149,6 +147,9 @@ const Profile = () => {
       </button>
     </div>
   );
+
+  const totalDues = creditOrders.reduce((s, o) => s + (o.balanceDue || o.totalPrice || 0), 0);
+  const initials = (user?.name || '').split(' ').map(n => n?.[0] || '').join('').toUpperCase().slice(0, 2) || 'U';
 
   return (
     <div className="min-h-screen w-full bg-slate-50">
@@ -373,7 +374,7 @@ const Profile = () => {
                   className="rounded-2xl overflow-hidden h-48 border border-gray-50 cursor-pointer relative group"
                   onClick={() => setIsLocationModalOpen(true)}
                 >
-                  {user.location?.coordinates ? (
+                  {user.location?.coordinates?.length === 2 && user.location.coordinates[0] != null ? (
                     <>
                       <LeafletMap 
                         height="100%" 
@@ -439,7 +440,7 @@ const Profile = () => {
       <DeliveryLocationModal 
         isOpen={isLocationModalOpen}
         onClose={() => setIsLocationModalOpen(false)}
-        initialCoords={user.location?.coordinates ? {
+        initialCoords={user.location?.coordinates?.length === 2 && user.location.coordinates[0] != null ? {
           lat: user.location.coordinates[1],
           lng: user.location.coordinates[0]
         } : null}

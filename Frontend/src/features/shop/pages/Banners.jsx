@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, HelpCircle, Play, ExternalLink, Calendar, Sparkles, Clock, X, Check, AlertCircle, Loader2, Image as ImageIcon, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Edit2, Eye, Trash2, HelpCircle, Play, ExternalLink, Calendar, Sparkles, Clock, X, Check, AlertCircle, Loader2, Image as ImageIcon, ToggleLeft, ToggleRight } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../../config/api.js';
 import { useStore } from '../context/StoreContext';
@@ -10,6 +10,7 @@ const Banners = () => {
   const [loading, setLoading] = useState(true);
   const [isSubmitLoading, setIsSubmitLoading] = useState(false);
   const [isUploadLoading, setIsUploadLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(null);
 
   // Modals state
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -151,17 +152,30 @@ const Banners = () => {
   };
 
   // Delete banner
-  const handleDelete = async (bannerId) => {
-    if (!window.confirm('Are you sure you want to delete this promotional banner?')) return;
-    try {
-      const { data } = await api.delete(`/banners/${bannerId}`);
-      if (data?.success) {
-        toast.success('Banner deleted');
-        fetchBanners();
-      }
-    } catch (err) {
-      toast.error('Failed to delete banner');
-    }
+  const handleDelete = (bannerId) => {
+    toast('Delete this promotional banner?', {
+      description: 'This action cannot be undone.',
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          setIsDeleting(bannerId);
+          try {
+            const { data } = await api.delete(`/banners/${bannerId}`);
+            if (data?.success) {
+              toast.success('Banner deleted');
+              fetchBanners();
+            }
+          } catch (err) {
+            toast.error('Failed to delete banner');
+          } finally {
+            setIsDeleting(null);
+          }
+        }
+      },
+      cancel: {
+        label: 'Cancel',
+      },
+    });
   };
 
   // Quick toggle active status
@@ -385,16 +399,17 @@ const Banners = () => {
                           className="w-8 h-8 rounded-xl text-sky-600 bg-sky-50 hover:bg-sky-100 transition-all flex items-center justify-center"
                           title="Edit"
                         >
-                          <Edit2 size={14} />
+                          <Eye size={14} />
                         </button>
 
                         {/* Delete Button */}
                         <button
                           onClick={() => handleDelete(banner._id)}
-                          className="w-8 h-8 rounded-xl text-rose-500 bg-rose-50 hover:bg-rose-100 transition-all flex items-center justify-center"
+                          disabled={isDeleting === banner._id}
+                          className="w-8 h-8 rounded-xl text-rose-500 bg-rose-50 hover:bg-rose-100 transition-all flex items-center justify-center disabled:opacity-50"
                           title="Delete"
                         >
-                          <Trash2 size={14} />
+                          {isDeleting === banner._id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                         </button>
                       </div>
                     </div>

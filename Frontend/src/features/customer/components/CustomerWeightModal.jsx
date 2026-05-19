@@ -85,7 +85,7 @@ const CustomerWeightModal = ({ isOpen, onClose, product, onConfirm, initialValue
             </div>
             <input 
               ref={inputRef}
-              type="number" min="0" required placeholder={entryMode === 'weight' ? "0" : "₹ 0"}
+              type="number" min="0" step="any" required placeholder={entryMode === 'weight' ? "0" : "₹ 0"}
               className="w-full bg-slate-50 border-2 border-slate-100 rounded-[32px] py-8 px-8 text-5xl font-black text-slate-900 focus:border-sky-500 focus:ring-0 outline-none transition-all pr-24"
               value={inputVal} onChange={(e) => setInputVal(e.target.value)}
               onKeyDown={(e) => {

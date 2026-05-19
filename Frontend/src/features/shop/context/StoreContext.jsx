@@ -243,63 +243,29 @@ export const StoreProvider = ({ children }) => {
   // -- Real-time Order Alerts & Polling --
   useEffect(() => {
     if (!token || (user?.role !== 'admin' && user?.role !== 'vendor')) {
-      if (alertAudioRef.current) {
-        alertAudioRef.current.pause();
-        alertAudioRef.current = null;
-      }
       return;
     }
 
     const pollAndAlert = async () => {
       try {
-        let shouldAlert = false;
         let currentOrders = [];
 
         if (user.role === 'admin') {
           const { data } = await api.get('/orders?limit=50');
           currentOrders = data.orders || [];
           setOrders(currentOrders);
-          
-          // Admin alert: NEW delivery orders without partner assigned
-          shouldAlert = currentOrders.some(o => 
-            o.status === 'NEW' && 
-            o.orderType === 'DELIVERY' && 
-            !o.deliveryPartnerId
-          );
         } else if (user.role === 'vendor' && vendorShop?._id) {
           const { data } = await api.get(`/orders?shopId=${vendorShop._id}&limit=50`);
           currentOrders = data.orders || [];
           setOrders(currentOrders);
-
-          // Vendor alert: Any NEW orders waiting for acceptance
-          shouldAlert = currentOrders.some(o => o.status === 'NEW');
         }
 
-        // Sound Logic
-        if (shouldAlert) {
-          if (!alertAudioRef.current) {
-            // Distinct notification bell
-            alertAudioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-            alertAudioRef.current.loop = true;
-          }
-          
-          // Browser may block until first interaction
-          alertAudioRef.current.play().catch(() => {
-            // Silently fail if blocked; user interaction will enable it later
+        // Show toast if new order just arrived
+        if (prevOrderCountRef.current > 0 && currentOrders.length > prevOrderCountRef.current) {
+          toast.info("🔔 Unprocessed Orders Detected!", {
+            description: user.role === 'admin' ? "New delivery orders need partner assignment." : "New orders are waiting for your acceptance.",
+            duration: 5000
           });
-
-          // Show toast if new order just arrived
-          if (prevOrderCountRef.current > 0 && currentOrders.length > prevOrderCountRef.current) {
-            toast.info("🔔 Unprocessed Orders Detected!", {
-              description: user.role === 'admin' ? "New delivery orders need partner assignment." : "New orders are waiting for your acceptance.",
-              duration: 5000
-            });
-          }
-        } else {
-          if (alertAudioRef.current) {
-            alertAudioRef.current.pause();
-            alertAudioRef.current.currentTime = 0;
-          }
         }
 
         prevOrderCountRef.current = currentOrders.length;
@@ -313,12 +279,46 @@ export const StoreProvider = ({ children }) => {
 
     return () => {
       clearInterval(interval);
+    };
+  }, [user?.role, token, vendorShop?._id]);
+
+  // -- Reactive Sound Alert Controller --
+  useEffect(() => {
+    if (!token || (user?.role !== 'admin' && user?.role !== 'vendor')) {
       if (alertAudioRef.current) {
         alertAudioRef.current.pause();
         alertAudioRef.current = null;
       }
-    };
-  }, [user?.role, token, vendorShop?._id]);
+      return;
+    }
+
+    let shouldAlert = false;
+    if (user.role === 'admin') {
+      shouldAlert = orders.some(o => 
+        o.status === 'NEW' && 
+        o.orderType === 'DELIVERY' && 
+        !o.deliveryPartnerId
+      );
+    } else if (user.role === 'vendor' && vendorShop?._id) {
+      shouldAlert = orders.some(o => o.status === 'NEW');
+    }
+
+    if (shouldAlert) {
+      if (!alertAudioRef.current) {
+        // Distinct notification bell
+        alertAudioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        alertAudioRef.current.loop = true;
+      }
+      alertAudioRef.current.play().catch(() => {
+        // Silently catch browser autoplay restrictions
+      });
+    } else {
+      if (alertAudioRef.current) {
+        alertAudioRef.current.pause();
+        alertAudioRef.current.currentTime = 0;
+      }
+    }
+  }, [orders, user?.role, vendorShop?._id, token]);
 
   // -- Vendor Shop Fetch --
   const fetchVendorShop = useCallback(async () => {
@@ -970,6 +970,7 @@ export const StoreProvider = ({ children }) => {
     try {
       const { data } = await api.patch(`/orders/${orderId}/accept`);
       toast.success('Order assigned to you!');
+      setOrders(prev => prev.map(o => (o._id || o.id) === orderId ? data.order : o));
       return { success: true, order: data.order };
     } catch (err) {
       toast.error(err.response?.data?.error || err.message);
@@ -981,6 +982,7 @@ export const StoreProvider = ({ children }) => {
     try {
       const { data } = await api.patch(`/orders/${orderId}/assign`, { partnerId, deliveryFee, extraAmount });
       toast.success('Order assigned to partner');
+      setOrders(prev => prev.map(o => (o._id || o.id) === orderId ? data.order : o));
       return { success: true, order: data.order };
     } catch (err) {
       toast.error(err.message);
@@ -992,6 +994,7 @@ export const StoreProvider = ({ children }) => {
     try {
       const { data } = await api.patch(`/orders/${orderId}/reject`);
       toast.success('Order assignment rejected');
+      setOrders(prev => prev.map(o => (o._id || o.id) === orderId ? data.order : o));
       return { success: true, order: data.order };
     } catch (err) {
       toast.error(err.message);

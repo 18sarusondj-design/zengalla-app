@@ -176,7 +176,7 @@ const AdminLayout = () => {
                       </span>
                     )}
                   </div>
-                  <h2 className="text-lg font-black text-brand-primary tracking-tighter leading-tight truncate pr-1" title={isAdmin ? 'ADMIN' : vendorShopName}>
+                  <h2 className="text-lg font-black text-brand-primary tracking-tighter leading-tight break-words whitespace-normal pr-1 line-clamp-2" title={isAdmin ? 'ADMIN' : vendorShopName}>
                     {isAdmin ? 'ADMIN' : vendorShopName}
                   </h2>
                 </div>

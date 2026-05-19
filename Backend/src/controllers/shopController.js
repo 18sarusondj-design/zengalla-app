@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import Order from '../models/Order.js';
 import Shop from '../models/Shop.js';
 import { sendCouponEmail } from '../utils/mailer.js';
+import { broadcastPushNotification } from '../services/notificationService.js';
 
 // GET /api/shops/lookup?code=...
 export const lookupShopByCode = async (req, res) => {
@@ -197,7 +198,7 @@ export const getNearbyShops = async (req, res) => {
 // GET /api/shops/my — vendor's own shop
 export const getMyShop = async (req, res) => {
   try {
-    const shop = await Shop.findOne({ owner: req.user._id }).select('-razorpayKeySecret').lean();
+    const shop = await Shop.findOne({ owner: req.user._id }).lean();
     
     // Prevent browser caching so vendor always sees the latest updates after reload
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -208,6 +209,9 @@ export const getMyShop = async (req, res) => {
 
     // Add a flag so frontend knows if secret is already set
     shop.hasRazorpaySecret = !!shop.razorpayKeySecret;
+    
+    // Securely remove the secret before sending it to the frontend
+    delete shop.razorpayKeySecret;
 
     res.json({ success: true, shop });
   } catch (err) {
@@ -306,7 +310,12 @@ export const updateShop = async (req, res) => {
     if (updateData.fssai) updateData.fssai = updateData.fssai.toUpperCase();
     
     // Explicitly handle coupons to ensure they are NOT lost and are sanitized
+    let newCouponsDetected = [];
+
     if (req.body.coupons && Array.isArray(req.body.coupons)) {
+      // Detect newly added coupons (they won't have an _id yet from the frontend)
+      newCouponsDetected = req.body.coupons.filter(c => !c._id && c.isActive !== false);
+
       updateData.coupons = req.body.coupons.map(c => ({
         ...c,
         expiryDate: c.expiryDate === '' ? undefined : c.expiryDate
@@ -321,6 +330,19 @@ export const updateShop = async (req, res) => {
 
     if (!updated) return res.status(404).json({ error: 'Shop not found or unauthorized during update' });
     
+    // Trigger push notification if there are new coupons
+    if (newCouponsDetected.length > 0) {
+      const latestCoupon = newCouponsDetected[newCouponsDetected.length - 1];
+      const discountText = latestCoupon.discountType === 'percentage' ? `${latestCoupon.discountValue}%` : `₹${latestCoupon.discountValue}`;
+      
+      broadcastPushNotification({
+        title: `New Offer from ${updated.name || 'a nearby store'}! 🎉`,
+        body: `Use code ${latestCoupon.code} to get ${discountText} off your next order. Shop now!`,
+        url: `/shop/${updated._id}`,
+        icon: updated.imageUrl || '/icon-192x192.png'
+      }).catch(err => console.error("Broadcast failed:", err));
+    }
+
     res.json({ success: true, shop: updated });
   } catch (err) {
     res.status(500).json({ error: err.message });

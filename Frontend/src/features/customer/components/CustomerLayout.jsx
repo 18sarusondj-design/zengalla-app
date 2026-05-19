@@ -244,7 +244,7 @@ const CustomerLayout = () => {
         {!hideBottomNav && (
           <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 flex items-center h-16 sm:h-20 z-50 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)] animate-in slide-in-from-bottom duration-500">
             <div className="w-full max-w-[1600px] mx-auto flex justify-around items-center h-full">
-              {!token ? (
+              {!user ? (
                 // 🎁 Simplified Guest Navigation
                 <>
                   <NavItem to="/" icon={<Home size={22} />} label="Home" />
@@ -256,7 +256,6 @@ const CustomerLayout = () => {
                 // 👤 Full Navigation for Logged-in Users
                 <>
                   <NavItem to="/" icon={<Home size={22} />} label="Home" />
-                  <NavItem to="/my-shops" icon={<Clock size={22} />} label="Recent" />
                   <NavItem to="/shops" icon={<Store size={22} />} label="Shops" />
                   <NavItem to="/cart" icon={<ShoppingCart size={22} />} label="Cart" badge={totalCartItemCount > 0 ? Math.floor(totalCartItemCount) : null} />
                   <NavItem to="/orders" icon={<ClipboardList size={22} />} label="Orders" />
