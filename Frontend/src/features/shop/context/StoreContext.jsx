@@ -920,6 +920,14 @@ export const StoreProvider = ({ children }) => {
     });
   }, [currentShopId]);
 
+  const clearAllCart = useCallback(() => {
+    setCart({});
+    localStorage.removeItem('cart');
+    localStorage.removeItem('cart_guest');
+    localStorage.removeItem('currentShopId');
+    setCurrentShopId(null);
+  }, []);
+
   const cartTotal = useMemo(() => {
     return (cart[currentShopId] || []).reduce((sum, i) => sum + i.product.price * i.quantity, 0);
   }, [cart, currentShopId]);
@@ -1071,7 +1079,7 @@ export const StoreProvider = ({ children }) => {
     cartTotal, totalCartItemCount,
     fetchData, fetchShops, fetchVendorData, fetchCustomerOrders, fetchAdminOrders, fetchVendorShop, fetchNearbyShops,
     toggleShopStatus, updateShop,
-    addToCart, removeFromCart, clearCart, updateQuantity, setItemQuantity,
+    addToCart, removeFromCart, clearCart, clearAllCart, updateQuantity, setItemQuantity,
     placeOrder, cancelOrder,
     createProduct, updateProduct, deleteProduct, bulkUpdateStock, deleteCategory,
     fetchOrders, updateOrderStatus, updateOrderPayment, deleteOrder, createBill,
@@ -1085,7 +1093,7 @@ export const StoreProvider = ({ children }) => {
     customerGstin, cartTotal, totalCartItemCount,
     fetchData, fetchShops, fetchVendorData, fetchCustomerOrders, fetchAdminOrders, fetchVendorShop, fetchNearbyShops,
     toggleShopStatus, updateShop,
-    addToCart, removeFromCart, clearCart, updateQuantity, setItemQuantity,
+    addToCart, removeFromCart, clearCart, clearAllCart, updateQuantity, setItemQuantity,
     placeOrder, cancelOrder,
     fetchOrders, updateOrderStatus, updateOrderPayment, deleteOrder,
     getCustomers, getOrderTracking, submitReview, 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../auth/context/AuthContext';
+import { useStore } from '../../shop/context/StoreContext';
 import { Store, Mail, Lock, Phone, User, CheckCircle2, ArrowRight, Loader2, ShieldCheck, Smartphone, Eye, EyeOff, X, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import Logo from '../../common/components/Logo';
@@ -8,6 +9,7 @@ import Logo from '../../common/components/Logo';
 const Register = () => {
   const [step, setStep] = useState(1);
   const { register, verifyOtp } = useAuth();
+  const { clearAllCart } = useStore();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [otp, setOtp] = useState('');
@@ -18,6 +20,12 @@ const Register = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from || '/';
+
+  useEffect(() => {
+    if (clearAllCart) {
+      clearAllCart();
+    }
+  }, [clearAllCart]);
 
   useEffect(() => {
     setIsPassValid(/^(?=.*[0-9]).{7,}$/.test(formData.password));
