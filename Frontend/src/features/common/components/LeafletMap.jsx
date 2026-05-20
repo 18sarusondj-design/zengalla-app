@@ -255,11 +255,11 @@ const LeafletMap = ({
 
         {markers.map((m, idx) => {
           if (!isValidCoords(m)) return null;
-          const icon = m.iconUrl ? L.icon({
+          const icon = m.icon ? m.icon : (m.iconUrl ? L.icon({
             iconUrl: m.iconUrl,
             iconSize: m.iconSize || [40, 40],
             iconAnchor: m.iconAnchor || [20, 20],
-          }) : DefaultIcon;
+          }) : DefaultIcon);
 
           return (
             <Marker key={idx} position={getLatLngArray(m)} icon={icon}>

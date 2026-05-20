@@ -33,6 +33,7 @@ const ShopList = () => {
   const [topSponsoredShops, setTopSponsoredShops] = useState([]);
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [isFallbackActive, setIsFallbackActive] = useState(false);
   const { shops: contextShops, products, totalCartItemCount, fetchNearbyShops, fetchShops: fetchContextShops } = useStore();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -173,10 +174,12 @@ const ShopList = () => {
 
   const fetchShops = async (query = '') => {
     try {
+      setIsFallbackActive(false);
       if (shops.length === 0) setLoading(true);
       else setIsSearching(true);
 
       let data = [];
+      let isFallback = false;
       
       // Try to fetch nearby shops if coords available
       if (userCoords) {
@@ -207,6 +210,23 @@ const ShopList = () => {
         }
       }
 
+      // FALLBACK LOGIC: If no stores match current location or pincode, fetch all active shops
+      if (!data || data.length === 0) {
+        isFallback = true;
+        try {
+          if (query) {
+            const res = await api.get(`/shops/nearby?search=${encodeURIComponent(query)}`);
+            data = res.data?.shops || [];
+          } else {
+            const res = await api.get('/shops');
+            data = res.data?.shops || [];
+          }
+        } catch (fallbackErr) {
+          console.warn("Fallback fetch failed:", fallbackErr);
+        }
+      }
+
+      setIsFallbackActive(isFallback);
       setShops(data || []);
     } catch (err) {
       console.error("Search error:", err);
@@ -438,7 +458,10 @@ const ShopList = () => {
 
           <button
             type="button"
-            onClick={handleGetLocation}
+            onClick={() => {
+              handleGetLocation();
+              setIsMapOpen(true);
+            }}
             className="w-14 h-14 bg-sky-500 hover:bg-sky-600 text-white rounded-2xl flex items-center justify-center shadow-lg transition-all active:scale-95 shrink-0"
             title="Use My Location"
           >
@@ -556,14 +579,65 @@ const ShopList = () => {
             </div>
           </div>
 
-          {filteredShops.length === 0 ? (
+          {loading || isSearching ? (
+            <div className="space-y-6 max-w-[1400px] mx-auto w-full">
+              {/* Pulsating premium title */}
+              <div className="flex flex-col items-center justify-center py-10 text-center space-y-3">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-sky-500 rounded-full blur-xl opacity-30 animate-pulse" />
+                  <div className="relative w-16 h-16 bg-gradient-to-tr from-sky-500 to-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg animate-bounce">
+                    <Search className="w-8 h-8 animate-pulse" strokeWidth={2.5} />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-lg font-black text-gray-800 tracking-tight animate-pulse">Finding stores near you...</h3>
+                  <p className="text-xs text-gray-500 font-medium">Scanning local partners and checking coverage</p>
+                </div>
+              </div>
+
+              {/* Skeleton cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="bg-white border border-gray-100 rounded-3xl p-5 space-y-4 shadow-sm animate-pulse">
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 bg-gray-200 rounded-2xl shrink-0" />
+                      <div className="space-y-2 flex-1">
+                        <div className="h-4 bg-gray-200 rounded-lg w-3/4" />
+                        <div className="h-3 bg-gray-200 rounded-lg w-1/2" />
+                      </div>
+                    </div>
+                    <div className="space-y-2 pt-2">
+                      <div className="h-3 bg-gray-200 rounded-lg w-full" />
+                      <div className="h-3 bg-gray-200 rounded-lg w-5/6" />
+                    </div>
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                      <div className="h-4 bg-gray-200 rounded-lg w-1/4" />
+                      <div className="h-8 bg-gray-200 rounded-xl w-1/3" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : filteredShops.length === 0 ? (
             <div className="py-20 text-center flex flex-col items-center gap-4">
               <Search className="w-16 h-16 text-gray-100" strokeWidth={1} />
               <p className="text-gray-400 font-bold italic tracking-wide">No shops found matching "{searchTerm}"</p>
             </div>
           ) : (
             <div className="flex flex-col gap-10 w-full">
-              
+              {isFallbackActive && (
+                <div className="p-5 bg-amber-50 border border-amber-100 rounded-3xl flex flex-col sm:flex-row items-center gap-4 shadow-sm animate-in fade-in duration-300 animate-pulse">
+                  <div className="w-12 h-12 bg-amber-100 text-amber-700 rounded-2xl flex items-center justify-center shrink-0">
+                    <Sparkles className="w-6 h-6 text-amber-600 animate-spin" />
+                  </div>
+                  <div className="text-center sm:text-left">
+                    <h4 className="text-sm font-black text-amber-950 uppercase tracking-tight">No Stores Near You</h4>
+                    <p className="text-xs font-bold text-amber-700/90 mt-0.5">
+                      We couldn't find any stores near your location ({currentPincode || 'detected location'}). Showing all available stores in our network below.
+                    </p>
+                  </div>
+                </div>
+              )}
               {regularShops.length > 0 && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 max-w-[1400px] mx-auto w-full">
