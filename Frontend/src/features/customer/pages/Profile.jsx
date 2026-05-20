@@ -76,7 +76,7 @@ const Profile = () => {
     }
   };
 
-  const handleLogout = () => { logout(); navigate('/'); };
+  const handleLogout = async () => { await logout(); navigate('/'); };
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
@@ -371,7 +371,7 @@ const Profile = () => {
                   </div>
                 </div>
                 <div 
-                  className="rounded-2xl overflow-hidden h-48 border border-gray-50 cursor-pointer relative group"
+                  className="rounded-2xl overflow-hidden h-48 border border-gray-50 cursor-pointer relative group z-0"
                   onClick={() => setIsLocationModalOpen(true)}
                 >
                   {user.location?.coordinates?.length === 2 && user.location.coordinates[0] != null ? (

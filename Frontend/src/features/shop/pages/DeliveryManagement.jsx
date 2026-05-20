@@ -109,6 +109,7 @@ const DeliveryManagement = () => {
     name: '',
     password: '',
     phone: '',
+    email: '',
     photoUrl: '',
     documentUrl: '',
     accountName: '',
@@ -269,7 +270,7 @@ const DeliveryManagement = () => {
       // 3. Save Driver
       const payload = {
         name: formData.name,
-        email: formData.phone + '@gmail.com',
+        email: formData.email,
         password: formData.password || undefined,
         phone: formData.phone,
         photoUrl,
@@ -303,7 +304,7 @@ const DeliveryManagement = () => {
         setIsModalOpen(false);
         setEditingPartner(null);
         setFormData({ 
-          name: '', password: '', phone: '', photoUrl: '', documentUrl: '',
+          name: '', password: '', phone: '', email: '', photoUrl: '', documentUrl: '',
           accountName: '', accountNumber: '', ifscCode: '', bankName: ''
         });
         setPhotoFile(null);
@@ -430,7 +431,7 @@ const DeliveryManagement = () => {
                onClick={() => {
                  setEditingPartner(null);
                  setFormData({ 
-                   name: '', password: '', phone: '', photoUrl: '', documentUrl: '',
+                   name: '', password: '', phone: '', email: '', photoUrl: '', documentUrl: '',
                    accountName: '', accountNumber: '', ifscCode: '', bankName: ''
                  });
                  setPhotoFile(null);
@@ -557,6 +558,7 @@ const DeliveryManagement = () => {
                         setFormData({ 
                           name: partner.name, 
                           phone: partner.phone, 
+                          email: partner.email || '',
                           password: '',
                           photoUrl: partner.photoUrl || '',
                           documentUrl: partner.documentUrl || '',
@@ -643,13 +645,13 @@ const DeliveryManagement = () => {
                   </div>
                 </div>
 
-                <div className="space-y-2 opacity-80">
+                <div className="space-y-2">
                   <label className="text-[10px] font-black text-sky-500 uppercase tracking-[0.2em] ml-5 flex items-center gap-2">
-                    <Mail size={12} /> Generated Login Email
+                    <Mail size={12} /> Login Email Address
                   </label>
                   <div className="relative group">
                     <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-sky-400 transition-colors" size={18} />
-                    <input readOnly placeholder="Enter phone to generate email" className="w-full bg-sky-50/50 border-2 border-sky-100 rounded-[24px] py-4 md:py-5 pl-14 pr-6 font-bold text-sm text-sky-700 outline-none cursor-not-allowed" value={formData.phone ? `${formData.phone}@gmail.com` : ''} />
+                    <input type="email" required placeholder="driver@example.com" className="w-full bg-sky-50/50 border-2 border-sky-100 rounded-[24px] py-4 md:py-5 pl-14 pr-6 font-bold text-sm text-sky-700 outline-none focus:border-sky-300 focus:bg-white transition-all" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
                   </div>
                 </div>
 

@@ -27,7 +27,8 @@ const StaffManagement = () => {
   const [formData, setFormData] = useState({
     name: '',
     password: '',
-    phone: ''
+    phone: '',
+    email: ''
   });
 
   const passStrength = getPasswordStrength(formData.password);
@@ -81,7 +82,7 @@ const StaffManagement = () => {
           setStaffList(prev => prev.map(s => s.id === editingStaff.id ? res.staff : s));
           setIsModalOpen(false);
           setEditingStaff(null);
-          setFormData({ name: '', password: '', phone: '' });
+          setFormData({ name: '', password: '', phone: '', email: '' });
           toast.success('Staff credentials updated');
         } else {
           throw new Error(res.error || 'Update failed');
@@ -92,7 +93,7 @@ const StaffManagement = () => {
         if (res.success) {
           setStaffList(prev => [...prev, res.staff]);
           setIsModalOpen(false);
-          setFormData({ name: '', password: '', phone: '' });
+          setFormData({ name: '', password: '', phone: '', email: '' });
           toast.success('New assistant granted access');
         } else {
           throw new Error(res.error || 'Registration failed');
@@ -130,6 +131,7 @@ const StaffManagement = () => {
     setFormData({
       name: staff.name,
       phone: staff.phone,
+      email: staff.email || '',
       password: '' // Keep empty for security
     });
     setIsModalOpen(true);
@@ -174,7 +176,7 @@ const StaffManagement = () => {
         <button 
           onClick={() => {
             setEditingStaff(null);
-            setFormData({ name: '', phone: '', password: '' });
+            setFormData({ name: '', phone: '', password: '', email: '' });
             setIsModalOpen(true);
           }}
           className="h-12 md:h-14 px-8 bg-sky-600 text-white rounded-[22px] font-black uppercase text-[10px] tracking-[0.15em] flex items-center gap-4 hover:bg-sky-700 hover:shadow-2xl hover:shadow-sky-200 transition-all active:scale-95 group shadow-xl shadow-sky-100"
@@ -318,7 +320,7 @@ const StaffManagement = () => {
                 </div>
                 
                 <button 
-                  onClick={() => handleDeleteStaff(staff.id)}
+                  onClick={() => handleDeleteStaff(staff._id)}
                   className="w-10 md:w-12 h-10 md:h-12 rounded-[20px] flex items-center justify-center text-gray-200 hover:text-rose-500 hover:bg-rose-50 transition-all group/del"
                 >
                   <Trash2 size={20} className="group-hover/del:scale-110 transition-transform" />
@@ -360,13 +362,13 @@ const StaffManagement = () => {
                   </div>
                 </div>
 
-                <div className="space-y-2 opacity-80">
+                <div className="space-y-2">
                   <label className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] ml-5 flex items-center gap-2">
-                    <Mail size={12} /> Generated Login Email
+                    <Mail size={12} /> Login Email Address
                   </label>
                   <div className="relative group">
                     <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-indigo-400 transition-colors" size={18} />
-                    <input readOnly placeholder="Enter phone to generate email" className="w-full bg-indigo-50/50 border-2 border-indigo-100 rounded-[24px] py-4 md:py-5 pl-14 pr-6 font-bold text-sm text-indigo-700 outline-none cursor-not-allowed" value={formData.phone ? `${formData.phone}@gmail.com` : ''} />
+                    <input type="email" required placeholder="staff@example.com" className="w-full bg-indigo-50/50 border-2 border-indigo-100 rounded-[24px] py-4 md:py-5 pl-14 pr-6 font-bold text-sm text-indigo-700 outline-none focus:border-indigo-300 focus:bg-white transition-all" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
                   </div>
                 </div>
 

@@ -728,7 +728,7 @@ export const StoreProvider = ({ children }) => {
 
   const createStaff = async (staffData) => {
     try {
-      const email = staffData.email || `${staffData.phone}@gmail.com`;
+      const email = staffData.email || `${staffData.phone}@system.zengalla.local`;
       const { data } = await api.post('/auth/register', { 
         ...staffData, 
         email,
@@ -771,7 +771,7 @@ export const StoreProvider = ({ children }) => {
 
   const createDeliveryPartner = async (partnerData) => {
     try {
-      const email = partnerData.email || `${partnerData.phone}@gmail.com`;
+      const email = partnerData.email || `${partnerData.phone}@system.zengalla.local`;
       const { data } = await api.post('/auth/register', { 
         ...partnerData, 
         email,
