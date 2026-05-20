@@ -184,7 +184,7 @@ const ProductDetailsModal = ({ isOpen, onClose, product, cartItem, addToCart, up
                   : 'bg-rose-50 text-rose-600 border-rose-100'
               }`}>
                 {inStock
-                  ? <><CheckCircle2 size={10} /> {product.stockQuantity} left</>
+                  ? <><CheckCircle2 size={10} /> {Number(parseFloat(product.stockQuantity || product.stock || 0).toFixed(2))} left</>
                   : <><AlertCircle size={10} /> Out of stock</>
                 }
               </div>

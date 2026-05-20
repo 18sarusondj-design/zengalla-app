@@ -100,7 +100,8 @@ const LeafletMap = ({
   center = [15.3647, 75.1240], 
   zoom = 13, 
   markers = [], 
-  polyline = null, 
+  polyline = null,
+  polylines = [], 
   onLocationSelect, 
   userCoords = null,
   onUserLocationChange,
@@ -280,6 +281,16 @@ const LeafletMap = ({
             dashArray="10, 10"
           />
         )}
+
+        {polylines && Array.isArray(polylines) && polylines.map((pl, idx) => (
+          <Polyline 
+            key={idx}
+            positions={pl.filter(p => isValidCoords(p)).map(p => getLatLngArray(p))} 
+            color="#3b82f6" 
+            weight={4}
+            dashArray="10, 10"
+          />
+        ))}
 
         <MapEventsHandler onClick={handleMapClick} />
         <ChangeView center={mapCenter} zoom={zoom} />

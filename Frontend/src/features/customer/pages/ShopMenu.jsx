@@ -886,7 +886,7 @@ const ShopMenu = () => {
                       <div className="flex items-center gap-1.5 px-0.5">
                         <div className={`w-2 h-2 rounded-full ${outOfStock ? 'bg-rose-400' : 'bg-emerald-500 animate-pulse shadow-sm'}`} />
                         <span className={`text-[9px] font-black uppercase tracking-widest ${outOfStock ? 'text-rose-400' : 'text-emerald-600'}`}>
-                          {outOfStock ? '0 Left' : `${product.stockQuantity || product.stock || 0} Left`}
+                          {outOfStock ? '0 Left' : `${Number(parseFloat(product.stockQuantity || product.stock || 0).toFixed(2))} Left`}
                         </span>
                       </div>
                     </div>

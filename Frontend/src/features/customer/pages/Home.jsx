@@ -305,7 +305,7 @@ const Home = () => {
                       <div className="mt-auto flex items-center justify-between pt-2">
                         <div className="flex flex-col">
                           <span className="font-black text-lg md:text-xl text-slate-900 dark:text-white leading-none mb-1">₹{product.price}</span>
-                          {inStock && <span className="text-[9px] text-sky-600 dark:text-sky-400 font-bold tracking-widest uppercase">{product.stockQuantity} Left</span>}
+                          {inStock && <span className="text-[9px] text-sky-600 dark:text-sky-400 font-bold tracking-widest uppercase">{Number(parseFloat(product.stockQuantity || 0).toFixed(2))} Left</span>}
                         </div>
 
                         {cartItem ? (

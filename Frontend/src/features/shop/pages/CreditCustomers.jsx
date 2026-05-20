@@ -362,8 +362,8 @@ const CreditCustomers = () => {
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 items-center">
-            <div className="relative group">
+        <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center w-full lg:w-auto">
+            <div className="relative group w-full sm:w-auto">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-sky-600 transition-colors" size={18} />
                 <input 
                     type="text" 
@@ -375,14 +375,14 @@ const CreditCustomers = () => {
             </div>
             <button 
                 onClick={handleDownloadPDF}
-                className="h-14 px-6 bg-white border border-gray-200 text-gray-700 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                className="h-14 px-6 bg-white border border-gray-200 text-gray-700 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-2 w-full sm:w-auto shrink-0"
             >
                 <Download size={18} />
                 Download PDF
             </button>
             <button 
                 onClick={handleOpenAdd}
-                className="h-14 px-8 bg-sky-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3"
+                className="h-14 px-8 bg-sky-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 w-full sm:w-auto shrink-0"
             >
                 <UserPlus size={20} strokeWidth={3} />
                 Add Credit Customer
@@ -403,7 +403,8 @@ const CreditCustomers = () => {
 
               <div className="flex-1 overflow-y-auto custom-scrollbar">
                 {filteredItems.length > 0 ? (
-                    <table className="w-full text-left border-collapse">
+                  <div className="overflow-x-auto w-full">
+                    <table className="w-full text-left border-collapse min-w-[800px]">
                     <thead className="bg-slate-50/50 sticky top-0 z-10">
                         <tr>
                             <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Customer Identity</th>
@@ -496,7 +497,8 @@ const CreditCustomers = () => {
                             );
                         })}
                     </tbody>
-                </table>
+                    </table>
+                  </div>
             ) : (
                 <div className="h-full flex flex-col items-center justify-center p-20 text-center">
                     <div className="w-24 h-24 bg-gray-50 rounded-[40px] flex items-center justify-center mb-6">

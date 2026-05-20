@@ -234,7 +234,7 @@ const Banners = () => {
   return (
     <div className="flex-1 flex flex-col min-h-0 space-y-6">
       {/* Header Panel */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm shrink-0">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-[24px] sm:rounded-[32px] border border-gray-100 shadow-sm shrink-0">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[9px] font-black tracking-[0.2em] text-sky-500 uppercase leading-none">
@@ -242,7 +242,7 @@ const Banners = () => {
             </span>
             <Sparkles size={12} className="text-sky-500" />
           </div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tighter uppercase leading-none">
+          <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tighter uppercase leading-none">
             Offer Banners
           </h1>
           <p className="text-xs font-bold text-gray-400 mt-1">
@@ -250,22 +250,22 @@ const Banners = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 w-full md:w-auto">
           {/* Help Button */}
           <button
             onClick={() => setIsHelpOpen(true)}
-            className="h-12 px-5 flex items-center justify-center gap-2 bg-sky-50 hover:bg-sky-100/80 text-sky-600 rounded-2xl font-black text-xs uppercase tracking-widest border border-sky-100 transition-all active:scale-95 shrink-0"
+            className="flex-1 md:flex-initial h-11 sm:h-12 px-3 sm:px-5 flex items-center justify-center gap-1.5 bg-sky-50 hover:bg-sky-100/80 text-sky-600 rounded-xl sm:rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-wider sm:tracking-widest border border-sky-100 transition-all active:scale-95 shrink-0"
           >
-            <HelpCircle size={16} strokeWidth={2.5} />
+            <HelpCircle size={14} strokeWidth={2.5} />
             <span>How to Create?</span>
           </button>
 
           {/* Create Button */}
           <button
             onClick={() => openFormModal()}
-            className="h-12 px-6 flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-gray-200 transition-all active:scale-95 shrink-0"
+            className="flex-1 md:flex-initial h-11 sm:h-12 px-4 sm:px-6 flex items-center justify-center gap-1.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl sm:rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-wider sm:tracking-widest shadow-lg shadow-gray-200 transition-all active:scale-95 shrink-0"
           >
-            <Plus size={16} strokeWidth={3} />
+            <Plus size={14} strokeWidth={3} />
             <span>New Banner</span>
           </button>
         </div>

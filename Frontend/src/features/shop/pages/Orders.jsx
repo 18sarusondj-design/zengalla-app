@@ -12,10 +12,8 @@ import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import ReceiptTemplate from '../components/ReceiptTemplate';
 import Pagination from '../../common/components/Pagination';
-import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
+import LeafletMap from '../../common/components/LeafletMap';
 import api from '../../../config/api.js';
-
-const LIBRARIES = ['places', 'geometry'];
 
 const notifyPartner = (partner, ord) => {
   if (!partner?.phone) return;
@@ -131,11 +129,19 @@ const Orders = () => {
   const [extraAmount, setExtraAmount] = useState('');
   const [viewingImage, setViewingImage] = useState(null);
 
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
-    libraries: LIBRARIES
-  });
+  const isLoaded = true;
+
+  const activeDeliveries = React.useMemo(() => {
+    return orders.filter(o => 
+      ['ASSIGNED', 'PACKING', 'READY', 'OUT_FOR_DELIVERY'].includes(o.status) && 
+      o.deliveryPartnerId
+    );
+  }, [orders]);
+
+  const activeFleetPartners = React.useMemo(() => {
+    const activePartnerIds = new Set(activeDeliveries.map(o => o.deliveryPartnerId.toString()));
+    return partners.filter(p => activePartnerIds.has((p.id || p._id).toString()));
+  }, [activeDeliveries, partners]);
 
   const [activeStatus, setActiveStatus] = useState(user?.role === 'admin' ? 'PACKING' : 'NEW');
   const [pageStates, setPageStates] = useState({
@@ -1030,127 +1036,137 @@ const Orders = () => {
             </div>
 
             <div className="flex-1 flex flex-col lg:flex-row">
-              <div className="flex-1 relative bg-gray-100">
-                {isLoaded ? (
-                  <GoogleMap
-                    key={showFleetMap ? 'visible' : 'hidden'}
-                    mapContainerStyle={{ width: '100%', height: '100%' }}
+                <div className="w-full h-full relative" style={{ minHeight: '350px' }}>
+                  <LeafletMap
                     center={mapCenter}
-                    onLoad={(map) => {
-                      window.mapInstance = map;
-                      // Force a resize calculation after a short delay
-                      setTimeout(() => {
-                        window.google.maps.event.trigger(map, 'resize');
-                      }, 100);
-                    }}
-                    onDragEnd={() => {
-                      if (window.mapInstance) {
-                        const newCenter = window.mapInstance.getCenter();
-                        setMapCenter({ lat: newCenter.lat(), lng: newCenter.lng() });
-                      }
-                    }}
                     zoom={14}
-                    options={{
-                      mapTypeId: 'roadmap',
-                      styles: [
-                        { "featureType": "administrative", "elementType": "geometry", "stylers": [{ "visibility": "off" }] },
-                        { "featureType": "poi", "stylers": [{ "visibility": "off" }] },
-                        { "featureType": "road", "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] },
-                        { "featureType": "transit", "stylers": [{ "visibility": "off" }] }
-                      ],
-                      disableDefaultUI: false,
-                      zoomControl: true,
-                      mapTypeControl: true,
-                      streetViewControl: true,
-                      fullscreenControl: true
-                    }}
-                  >
-                    {vendorShop?.location && (
-                      <Marker
-                        position={vendorShop.location}
-                        icon="https://cdn-icons-png.flaticon.com/512/619/619153.png"
-                      />
-                    )}
-
-                    {partners.map(p => (
-                      p.location?.coordinates?.[0] !== 0 && (
-                        <Marker
-                          key={p._id}
-                          position={{ lat: p.location.coordinates[1], lng: p.location.coordinates[0] }}
-                          title={p.name}
-                          icon={{
-                            url: "https://cdn-icons-png.flaticon.com/512/2972/2972185.png",
-                            scaledSize: new window.google.maps.Size(40, 40)
-                          }}
-                        />
-                      )
-                    ))}
-
-                    {selectedPartner && (
-                      <InfoWindow
-                        position={selectedPartner.currentLocation}
-                        onCloseClick={() => setSelectedPartner(null)}
-                      >
-                        <div className="p-2 min-w-[150px]">
-                          <p className="font-black text-gray-900 uppercase text-[10px] tracking-tight">{selectedPartner.name}</p>
-                          <p className="text-[9px] font-bold text-gray-500 uppercase mt-0.5">{selectedPartner.phone}</p>
-                          <div className="mt-2 pt-2 border-t flex items-center justify-between">
-                            <span className="text-[8px] font-black text-emerald-500 uppercase">Live Now</span>
-                            <span className="text-[7px] text-gray-400">{new Date(selectedPartner.currentLocation.lastUpdated).toLocaleTimeString()}</span>
+                    polylines={activeDeliveries
+                      .filter(d => d.customerLocation && d.customerLocation.lat && activeFleetPartners.find(p => (p.id || p._id) === d.deliveryPartnerId)?.location?.coordinates?.[0] !== 0)
+                      .map(d => {
+                         const partner = activeFleetPartners.find(p => (p.id || p._id) === d.deliveryPartnerId);
+                         return [
+                           { lat: partner.location.coordinates[1], lng: partner.location.coordinates[0] },
+                           { lat: d.customerLocation.lat, lng: d.customerLocation.lng }
+                         ];
+                      })
+                    }
+                    markers={[
+                      ...(vendorShop?.location ? [{
+                        lat: vendorShop.location.lat,
+                        lng: vendorShop.location.lng,
+                        iconUrl: "https://cdn-icons-png.flaticon.com/512/619/619153.png",
+                        iconSize: [40, 40],
+                        content: (
+                          <div className="p-2 min-w-[150px] font-sans">
+                            <p className="font-black text-gray-900 uppercase text-[10px] tracking-tight">{vendorShop.name || "Shop"}</p>
+                            <p className="text-[9px] font-bold text-gray-500 uppercase mt-0.5">{vendorShop.address || "Dispatching Center"}</p>
                           </div>
-                        </div>
-                      </InfoWindow>
-                    )}
-                  </GoogleMap>
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest animate-pulse">Initializing Global Feed...</p>
-                  </div>
-                )}
-              </div>
+                        )
+                      }] : []),
+                      ...activeFleetPartners
+                        .filter(p => p.location?.coordinates?.[0] !== 0)
+                        .map(p => ({
+                          lat: p.location.coordinates[1],
+                          lng: p.location.coordinates[0],
+                          iconUrl: "https://cdn-icons-png.flaticon.com/512/2972/2972185.png",
+                          iconSize: [40, 40],
+                          content: (
+                            <div className="p-2 min-w-[150px] font-sans">
+                              <p className="font-black text-gray-900 uppercase text-[10px] tracking-tight">{p.name}</p>
+                              <p className="text-[9px] font-bold text-gray-500 uppercase mt-0.5">{p.phone}</p>
+                              <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between">
+                                <span className="text-[8px] font-black text-emerald-500 uppercase">Live Tracking</span>
+                                {p.location.lastUpdated && (
+                                  <span className="text-[7px] text-gray-400">{new Date(p.location.lastUpdated).toLocaleTimeString()}</span>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })),
+                      ...activeDeliveries
+                        .filter(d => d.customerLocation && d.customerLocation.lat)
+                        .map(d => ({
+                           lat: d.customerLocation.lat,
+                           lng: d.customerLocation.lng,
+                           iconUrl: "https://cdn-icons-png.flaticon.com/512/2555/2555572.png",
+                           iconSize: [30, 30],
+                           content: (
+                              <div className="p-2 min-w-[120px] font-sans">
+                                 <p className="font-black text-gray-900 uppercase text-[10px] tracking-tight">{d.customerName}</p>
+                                 <p className="text-[9px] font-bold text-gray-500 uppercase mt-0.5">Order #{ (d._id || d.id || '').toString().slice(-6) }</p>
+                              </div>
+                           )
+                        }))
+                    ]}
+                    height="100%"
+                  />
+                </div>
 
-              <div className="w-full lg:w-80 bg-gray-50 border-l border-gray-100 overflow-y-auto p-6">
-                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Active Fleet ({partners.length})</h4>
+              <div className="w-full lg:w-96 bg-gray-50 border-l border-gray-100 overflow-y-auto p-6">
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Active Deliveries ({activeDeliveries.length})</h4>
                 <div className="space-y-4">
-                  {partners.length === 0 && (
+                  {activeDeliveries.length === 0 && (
                     <div className="p-8 text-center bg-white rounded-3xl border border-dashed border-gray-200">
-                      <Truck size={32} className="text-gray-200 mx-auto mb-3" />
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">No active partners found</p>
+                      <Package size={32} className="text-gray-200 mx-auto mb-3" />
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">No active deliveries</p>
                     </div>
                   )}
-                  {partners.map(p => (
-                    <div
-                      key={p._id}
-                      onClick={() => p.location?.coordinates?.[0] !== 0 && setMapCenter({ lat: p.location.coordinates[1], lng: p.location.coordinates[0] })}
-                      className={`p-4 rounded-3xl border transition-all cursor-pointer ${mapCenter.lat === p.location?.coordinates?.[1] ? 'bg-gray-900 border-gray-900 text-white shadow-xl scale-[1.02]' : 'bg-white border-gray-100 hover:border-sky-500 shadow-sm'}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm ${mapCenter.lat === p.location?.coordinates?.[1] ? 'bg-sky-500 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                          {p.name?.charAt(0).toUpperCase()}
+                  {activeDeliveries.map(delivery => {
+                    const partner = activeFleetPartners.find(p => (p.id || p._id) === delivery.deliveryPartnerId);
+                    if (!partner) return null;
+                    const partnerLat = partner.location?.coordinates?.[1];
+                    const partnerLng = partner.location?.coordinates?.[0];
+                    const hasPartnerLoc = partnerLng !== 0;
+                    
+                    const distToCustomer = getDistance(
+                       { lat: partnerLat, lng: partnerLng },
+                       delivery.customerLocation
+                    );
+                    const etaMinutes = distToCustomer ? Math.ceil(distToCustomer * 3) : 0;
+
+                    return (
+                      <div
+                        key={delivery._id || delivery.id}
+                        onClick={() => hasPartnerLoc && setMapCenter({ lat: partnerLat, lng: partnerLng })}
+                        className={`p-4 rounded-3xl border transition-all cursor-pointer ${mapCenter.lat === partnerLat ? 'bg-gray-900 border-gray-900 text-white shadow-xl scale-[1.02]' : 'bg-white border-gray-100 hover:border-sky-500 shadow-sm'}`}
+                      >
+                        <div className="flex justify-between items-start mb-3">
+                           <div>
+                             <p className={`font-black uppercase text-xs tracking-tight ${mapCenter.lat === partnerLat ? 'text-white' : 'text-gray-900'}`}>{partner.name}</p>
+                             <p className={`text-[9px] font-bold uppercase mt-0.5 ${mapCenter.lat === partnerLat ? 'text-gray-400' : 'text-gray-500'}`}>To: {delivery.customerName}</p>
+                           </div>
+                           <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-md border ${
+                             delivery.status === 'OUT_FOR_DELIVERY' ? 'bg-amber-50 text-amber-600 border-amber-100 animate-pulse' : 'bg-sky-50 text-sky-600 border-sky-100'
+                           }`}>
+                              {delivery.status.replace(/_/g, ' ')}
+                           </span>
                         </div>
-                        <div>
-                          <p className={`font-black uppercase text-xs tracking-tight ${mapCenter.lat === p.location?.coordinates?.[1] ? 'text-white' : 'text-gray-900'}`}>{p.name}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className={`w-1.5 h-1.5 rounded-full ${(p.isOnline || p.is_online) ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`} />
-                            <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">
-                              {(p.isOnline || p.is_online) ? 'Live Tracking' : 'Offline'}
-                            </span>
+                        
+                        <div className="flex items-center gap-4 py-2 border-t border-b border-gray-100/10 my-3">
+                           <div className="flex-1">
+                              <p className="text-[8px] font-black uppercase tracking-widest opacity-50 mb-0.5">Remaining</p>
+                              <p className="text-sm font-black">{distToCustomer ? `${distToCustomer} KM` : '--'}</p>
+                           </div>
+                           <div className="flex-1 text-right">
+                              <p className="text-[8px] font-black uppercase tracking-widest opacity-50 mb-0.5">Est. Arrival</p>
+                              <p className="text-sm font-black text-emerald-500">{etaMinutes ? `${etaMinutes} Min` : '--'}</p>
+                           </div>
+                        </div>
+
+                        {hasPartnerLoc && (
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">Live Location</span>
+                            </div>
+                            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-gray-100/20">
+                              <MapPin size={12} className={mapCenter.lat === partnerLat ? "text-white" : "text-gray-400"} />
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
-                      {p.location?.coordinates?.[0] !== 0 && (
-                        <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
-                          <div className="flex flex-col">
-                            <span className="text-[7px] uppercase font-black opacity-50 mb-0.5">Location ID</span>
-                            <span className="text-[9px] font-black truncate max-w-[100px]">{p.location.coordinates[1].toFixed(4)}, {p.location.coordinates[0].toFixed(4)}</span>
-                          </div>
-                          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-                            <Smartphone size={14} className={ (p.isOnline || p.is_online) ? "text-emerald-400" : "text-gray-400"} />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>

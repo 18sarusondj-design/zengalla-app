@@ -44,7 +44,7 @@ const StaffManagement = lazy(() => import('./features/shop/pages/StaffManagement
 const DeliveryManagement = lazy(() => import('./features/shop/pages/DeliveryManagement'));
 const B2BPartners = lazy(() => import('./features/shop/pages/B2BPartners'));
 const OrderBillingManagement = lazy(() => import('./features/shop/pages/OrderBillingManagement'));
-const CreditLedger = lazy(() => import('./features/shop/pages/CreditLedger'));
+const CreditLedger = lazy(() => import('./features/shop/pages/CreditCustomers'));
 const B2BProcurement = lazy(() => import('./features/shop/pages/B2BProcurement'));
 const DeliveryDashboard = lazy(() => import('./features/shop/pages/DeliveryDashboard'));
 const Banners = lazy(() => import('./features/shop/pages/Banners'));
