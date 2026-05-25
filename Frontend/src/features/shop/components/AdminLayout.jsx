@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, ShoppingCart, Package, Users, LogOut, Receipt, Menu, X, Store as StoreIconCustom, AlertCircle, User, Loader2, Phone, Shield, Truck, Wallet, History as HistoryIcon, ShoppingBag, Sparkles, Scan } from 'lucide-react';
 import { useStore } from '../../shop/context/StoreContext';
@@ -513,7 +513,14 @@ const AdminLayout = () => {
 
         <div className="flex-1 flex flex-col min-h-0 bg-gray-50/50 relative">
           <div className="flex-1 p-4 md:p-8 md:overflow-hidden md:overflow-y-auto flex flex-col">
-            <Outlet />
+            <Suspense fallback={
+              <div className="flex-1 flex flex-col items-center justify-center h-full min-h-[300px]">
+                <Loader2 size={32} className="animate-spin text-sky-500 mb-4" />
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Loading section...</p>
+              </div>
+            }>
+              <Outlet />
+            </Suspense>
           </div>
         </div>
 

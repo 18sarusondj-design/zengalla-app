@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema({
 
   role: { type: String, enum: ['customer', 'vendor', 'staff', 'delivery', 'admin'], default: 'customer' },
 
-  status: { type: String, enum: ['active', 'pending', 'suspended'], default: 'active' },
+  status: { type: String, enum: ['active', 'pending', 'suspended', 'rejected', 'inactive'], default: 'active' },
   shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', default: null },
   walletBalance: { type: Number, default: 0 },
   shopBalances: [
@@ -29,6 +29,7 @@ const userSchema = new mongoose.Schema({
   otpExpires: { type: Date, default: null },
   photoUrl: { type: String, default: '' },
   documentUrl: { type: String, default: '' },
+  selfieUrl: { type: String, default: '' },
   location: {
     type: { type: String, enum: ['Point'], default: 'Point' },
     coordinates: { type: [Number], default: [0, 0] }

@@ -126,7 +126,7 @@ const Login = () => {
               <div className="h-10 w-10 bg-sky-500 rounded-xl flex items-center justify-center shadow-xl shadow-sky-100 border border-sky-400 mb-2">
                 <Logo className="h-6" variant="icon" white />
               </div>
-              <h1 className="text-xl font-black text-gray-900 tracking-tighter uppercase leading-none">Welcome Back</h1>
+              <h1 className="text-xl font-black text-gray-900 tracking-tighter uppercase leading-none">Customer Login</h1>
             </div>
 
             <div className="bg-white py-4 px-6 sm:px-10 shadow-[0_30px_100px_-20px_rgba(0,0,0,0.1)] rounded-[32px] border border-gray-100 flex flex-col gap-4 relative overflow-hidden group">
@@ -185,43 +185,7 @@ const Login = () => {
                 </p>
               </form>
 
-              <div className="pt-2 border-t border-gray-50">
-                <div className="bg-slate-900 p-3 lg:p-4 rounded-[20px] lg:rounded-[24px] border border-slate-800 shadow-2xl relative overflow-hidden group">
-                   {/* Security Background Pattern */}
-                   <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:16px_16px]" />
-                   
-                   <div className="flex items-center justify-between mb-2 lg:mb-3 relative z-10">
-                      <div className="flex items-center gap-2 lg:gap-3">
-                        <div className="w-8 h-8 bg-sky-500/10 rounded-xl flex items-center justify-center text-sky-400 border border-sky-500/20">
-                          <ShieldCheck size={16} />
-                        </div>
-                        <div>
-                          <h3 className="text-[9px] font-black text-white uppercase tracking-widest leading-none">Secure Business Node</h3>
-                          <p className="text-[7px] text-sky-400/70 font-bold mt-1 tracking-tight uppercase">Authorized Personnel Only</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 rounded-full border border-emerald-500/20">
-                        <div className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse" />
-                        <span className="text-[6px] font-black text-emerald-400 uppercase tracking-tighter">Encrypted</span>
-                      </div>
-                   </div>
-                   
-                   <div className="grid grid-cols-2 gap-2 relative z-10">
-                      <Link 
-                        to="/register"
-                        className="h-8 lg:h-9 bg-slate-800 text-white border border-slate-700 rounded-xl flex items-center justify-center text-[6.5px] lg:text-[7px] font-black uppercase tracking-widest hover:bg-slate-700 hover:border-sky-500 transition-all active:scale-95"
-                      >
-                        Create User Account
-                      </Link>
-                      <Link 
-                        to="/vendor-signup"
-                        className="h-8 lg:h-9 bg-sky-600 text-white rounded-xl flex items-center justify-center text-[6.5px] lg:text-[7px] font-black uppercase tracking-widest hover:bg-sky-700 transition-all shadow-lg shadow-sky-900/20 active:scale-95"
-                      >
-                        Register Your Shop
-                      </Link>
-                   </div>
-                </div>
-              </div>
+              {/* Removed Secure Business Node */}
             </div>
 
             <p className="mt-3 text-center text-[8px] text-gray-300 font-medium uppercase tracking-[0.2em]">

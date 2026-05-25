@@ -289,6 +289,7 @@ const VendorProfile = () => {
     };
 
     loadInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const lastLoadedShopId = React.useRef(null);
@@ -300,6 +301,7 @@ const VendorProfile = () => {
         setFormData(prev => formatShopDataForForm(vendorShop, prev, user));
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendorShop, user]);
 
   const handleImageUpload = async (e) => {

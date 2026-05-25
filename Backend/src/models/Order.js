@@ -24,6 +24,7 @@ const orderSchema = new mongoose.Schema({
     enum: ['NEW', 'ASSIGNED', 'PACKING', 'READY', 'OUT_FOR_DELIVERY', 'COMPLETED', 'CANCELLED'],
     default: 'NEW'
   },
+  isDeliveryRejected: { type: Boolean, default: false },
   orderType: { type: String, enum: ['PICKUP', 'DELIVERY', 'IN_STORE_BILL', 'B2B_PROCUREMENT'], default: 'PICKUP' },
   paymentMethod: { type: String, enum: ['COD', 'RAZORPAY', 'UPI', 'PAY_LATER', 'CREDIT', 'CASH', 'CARD', 'ONLINE', 'SPLIT', 'PARTIAL'], default: 'COD' },
   cashAmount: { type: Number, default: 0 },

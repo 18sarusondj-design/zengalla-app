@@ -28,23 +28,31 @@ const generateTokens = (user) => {
 // POST /api/auth/register
 export const register = async (req, res) => {
   try {
-    const { 
+    let { 
       name, email, password, phone, role = 'customer', shopId,
       shop_address, shop_lat, shop_lng, pinCode,
-      photoUrl, documentUrl, accountName, accountNumber, ifscCode, bankName
+      photoUrl, documentUrl, selfieUrl, accountName, accountNumber, ifscCode, bankName
     } = req.body;
     
-    if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required' });
-    
-    if (!isValidPassword(password)) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, and a number.' });
+    if (role === 'delivery') {
+      if (!name || !phone || !photoUrl || !documentUrl || !selfieUrl) {
+        return res.status(400).json({ error: 'Name, phone, profile photo, document, and selfie are required for delivery boy registration' });
+      }
+      email = email || `${phone}@delivery.zengalla.com`;
+      password = password || Math.random().toString(36).slice(-10) + 'A1!'; // Dummy strong password
+    } else {
+      if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required' });
+      
+      if (!isValidPassword(password)) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, and a number.' });
+      }
     }
 
     if (role === 'admin') {
       return res.status(403).json({ error: 'Admin registration via API is strictly forbidden' });
     }
 
-    if (['staff', 'delivery'].includes(role)) {
+    if (['staff'].includes(role)) {
       let requestingUser = null;
       if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         const token = req.headers.authorization.split(' ')[1];
@@ -59,9 +67,6 @@ export const register = async (req, res) => {
 
       if (role === 'staff' && requestingUser.role !== 'vendor') {
         return res.status(403).json({ error: 'Only vendors can create staff accounts' });
-      }
-      if (role === 'delivery' && requestingUser.role !== 'admin') {
-        return res.status(403).json({ error: 'Only administrators can create delivery accounts' });
       }
     }
 
@@ -124,17 +129,18 @@ export const register = async (req, res) => {
       }
     }
 
-    const isInternal = ['staff', 'delivery'].includes(role);
-    const status = role === 'vendor' ? 'pending' : 'active';
+    const isInternal = ['staff'].includes(role); // Delivery is no longer internal, requires OTP
+    const status = (role === 'vendor' || role === 'delivery') ? 'pending' : 'active';
     
     user = await User.create({ 
-      name, email, password, phone, role, status, 
+      name, email: email.toLowerCase(), password, phone, role, status, 
       shopId: shopId || null,
       otp: isInternal ? null : otp,
       otpExpires: isInternal ? null : otpExpires,
       isVerified: isInternal,
       photoUrl: photoUrl || '',
       documentUrl: documentUrl || '',
+      selfieUrl: selfieUrl || '',
       accountName: accountName || '',
       accountNumber: accountNumber || '',
       ifscCode: ifscCode || '',
@@ -161,18 +167,22 @@ export const register = async (req, res) => {
       await user.save();
     }
 
-    // Only send OTP for non-internal users (Customers/Vendors)
+    // Only send OTP for non-internal users (Customers/Vendors/Delivery)
     if (!isInternal) {
-      try {
-        await sendOTP(email, otp);
-      } catch (mailErr) {
-        console.log(`⚠️ Initial Mail failed for ${email}. Code: ${otp}`);
+      if (role === 'delivery') {
+        console.log(`\n\n[DELIVERY REGISTRATION OTP]: ${otp} for phone ${phone}\n\n`);
+      } else {
+        try {
+          await sendOTP(email, otp);
+        } catch (mailErr) {
+          console.log(`⚠️ Initial Mail failed for ${email}. Code: ${otp}`);
+        }
       }
     }
 
     res.status(201).json({ 
       success: true, 
-      message: isInternal ? 'Registration successful.' : 'Registration successful. Please verify your email.',
+      message: isInternal ? 'Registration successful.' : 'Registration successful. Please verify your OTP.',
       email: user.email,
       requiresOtp: !isInternal,
       user: isInternal ? user : undefined
@@ -185,14 +195,17 @@ export const register = async (req, res) => {
 // POST /api/auth/verify-otp
 export const verifyOTP = async (req, res) => {
   try {
-    const { email, otp } = req.body;
-    if (!email || !otp) return res.status(400).json({ error: 'Email and OTP required' });
+    const { email, phone, otp } = req.body;
+    if ((!email && !phone) || !otp) return res.status(400).json({ error: 'Email/Phone and OTP required' });
 
-    const user = await User.findOne({ 
-      email: email.toLowerCase(),
-      otp,
-      otpExpires: { $gt: Date.now() }
-    });
+    let query = { otp, otpExpires: { $gt: Date.now() } };
+    if (phone) {
+      query.phone = phone;
+    } else if (email) {
+      query.email = email.toLowerCase();
+    }
+
+    const user = await User.findOne(query);
 
     if (!user) return res.status(400).json({ error: 'Invalid or expired OTP' });
 
@@ -217,8 +230,16 @@ export const login = async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
     if (!user) return res.status(401).json({ error: 'Email not registered' });
 
+    if (user.role === 'delivery') {
+      return res.status(403).json({ error: 'Delivery partners must log in using Phone Number and OTP.' });
+    }
+
     if (!user.isVerified && user.role !== 'staff' && user.role !== 'delivery') {
       return res.status(403).json({ error: 'Please verify your email before logging in' });
+    }
+
+    if (user.status === 'suspended' || user.status === 'rejected' || user.status === 'inactive') {
+      return res.status(403).json({ error: `Account is ${user.status}` });
     }
 
     const isMatch = await user.comparePassword(password);
@@ -231,6 +252,64 @@ export const login = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// POST /api/auth/send-login-otp
+export const sendLoginOTP = async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ error: 'Phone number is required' });
+
+    const user = await User.findOne({ phone, role: 'delivery' });
+    if (!user) return res.status(404).json({ error: 'No delivery partner found with this phone number' });
+
+    if (user.status === 'suspended' || user.status === 'rejected' || user.status === 'inactive') {
+      return res.status(403).json({ error: `Account is ${user.status}` });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.otp = otp;
+    user.otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
+    await user.save();
+
+    console.log(`\n\n[DELIVERY LOGIN OTP]: ${otp} for phone ${phone}\n\n`);
+
+    res.json({ success: true, message: 'OTP sent successfully to your phone number.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /api/auth/verify-login-otp
+export const verifyLoginOTP = async (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+    if (!phone || !otp) return res.status(400).json({ error: 'Phone and OTP required' });
+
+    const user = await User.findOne({ 
+      phone,
+      role: 'delivery',
+      otp,
+      otpExpires: { $gt: Date.now() }
+    });
+
+    if (!user) return res.status(400).json({ error: 'Invalid or expired OTP' });
+
+    if (user.status === 'suspended' || user.status === 'rejected' || user.status === 'inactive') {
+      return res.status(403).json({ error: `Account is ${user.status}` });
+    }
+
+    user.otp = null;
+    user.otpExpires = null;
+    if (!user.isVerified) user.isVerified = true;
+    await user.save();
+
+    const { accessToken, refreshToken } = generateTokens(user);
+    res.json({ success: true, token: accessToken, refreshToken, user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 
 // POST /api/auth/forgot-password
 export const forgotPassword = async (req, res) => {

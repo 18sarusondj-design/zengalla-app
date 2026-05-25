@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { createContext, useState, useEffect, useContext, useMemo } from 'react';
 import { toast } from 'sonner';
 import api from '../../../config/api.js';
@@ -84,9 +85,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const verifyOtp = async (email, otp) => {
+  const verifyOtp = async (email, otp, phone = null) => {
     try {
-      const { data } = await api.post('/auth/verify-otp', { email, otp });
+      const payload = email ? { email, otp } : { phone, otp };
+      const { data } = await api.post('/auth/verify-otp', payload);
       localStorage.setItem('token', data.token);
       localStorage.setItem('refreshToken', data.refreshToken);
       localStorage.setItem('cached_user', JSON.stringify(data.user));
@@ -94,6 +96,30 @@ export const AuthProvider = ({ children }) => {
       setRefreshToken(data.refreshToken);
       setUser(data.user);
       return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const sendLoginOtp = async (phone) => {
+    try {
+      const { data } = await api.post('/auth/send-login-otp', { phone });
+      return { success: true, message: data.message };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const verifyLoginOtp = async (phone, otp) => {
+    try {
+      const { data } = await api.post('/auth/verify-login-otp', { phone, otp });
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('refreshToken', data.refreshToken);
+      localStorage.setItem('cached_user', JSON.stringify(data.user));
+      setToken(data.token);
+      setRefreshToken(data.refreshToken);
+      setUser(data.user);
+      return { success: true, user: data.user };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -156,7 +182,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = useMemo(() => ({
     user, token, refreshToken, loading,
-    login, register, logout, updateProfile, resetPassword, finalizePasswordReset, refreshUser, verifyOtp, changePassword,
+    login, register, logout, updateProfile, resetPassword, finalizePasswordReset, refreshUser, verifyOtp, changePassword, sendLoginOtp, verifyLoginOtp,
     session: token ? { access_token: token, refresh_token: refreshToken } : null,
   }), [user, token, refreshToken, loading]);
 

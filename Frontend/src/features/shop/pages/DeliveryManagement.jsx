@@ -8,79 +8,13 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import SafeDeleteModal from '../../common/components/SafeDeleteModal';
 
-const compressImage = (file, maxWidth = 1000, maxQuality = 0.7) => {
-  return new Promise((resolve) => {
-    if (!file || !file.type.startsWith('image/')) {
-      resolve(file);
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target.result;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxWidth) {
-            width = Math.round((width * maxWidth) / height);
-            height = maxWidth;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              resolve(file);
-              return;
-            }
-            const compressedFile = new File([blob], file.name, {
-              type: 'image/jpeg',
-              lastModified: Date.now(),
-            });
-            if (compressedFile.size > file.size) {
-              resolve(file);
-            } else {
-              resolve(compressedFile);
-            }
-          },
-          'image/jpeg',
-          maxQuality
-        );
-      };
-      img.onerror = () => resolve(file);
-    };
-    reader.onerror = () => resolve(file);
-  });
-};
-
 const DeliveryManagement = () => {
-  const { getDeliveryPartners, createDeliveryPartner, updateDeliveryPartner, deleteDeliveryPartner, vendorShop, updateShop } = useStore();
+  const { getDeliveryPartners, updateDeliveryPartner, deleteDeliveryPartner, vendorShop, updateShop } = useStore();
   const { user } = useAuth();
   const [partners, setPartners] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [isUpdatingShop, setIsUpdatingShop] = useState(false);
-  const [editingPartner, setEditingPartner] = useState(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [docFile, setDocFile] = useState(null);
-  const [photoFile, setPhotoFile] = useState(null);
   const [viewingDocs, setViewingDocs] = useState(null);
   const [isSafeDeleteOpen, setIsSafeDeleteOpen] = useState(false);
   const [partnerToDelete, setPartnerToDelete] = useState(null);
@@ -105,19 +39,6 @@ const DeliveryManagement = () => {
     endDate: new Date().toISOString().split('T')[0]
   });
 
-  const [formData, setFormData] = useState({
-    name: '',
-    password: '',
-    phone: '',
-    email: '',
-    photoUrl: '',
-    documentUrl: '',
-    accountName: '',
-    accountNumber: '',
-    ifscCode: '',
-    bankName: ''
-  });
-
   useEffect(() => {
     if (vendorShop) {
       setShopConfig({
@@ -127,16 +48,16 @@ const DeliveryManagement = () => {
     }
   }, [vendorShop]);
 
-  useEffect(() => {
-    fetchPartners();
-  }, [vendorShop?._id, user?.role]);
-
-  const fetchPartners = async () => {
+  const fetchPartners = React.useCallback(async () => {
     setLoading(true);
     const data = await getDeliveryPartners();
     setPartners(data || []);
     setLoading(false);
-  };
+  }, [getDeliveryPartners]);
+
+  useEffect(() => {
+    fetchPartners();
+  }, [vendorShop?._id, user?.role, fetchPartners]);
 
   const handleDownloadPDF = async () => {
     setIsDownloadingPdf(true);
@@ -221,111 +142,17 @@ const DeliveryManagement = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    
+
+  const toggleStatus = async (partner, newStatus) => {
+    setActionLoading(true);
     try {
-      // 0. Validation
-      if (!formData.name.trim()) throw new Error('Driver name is required');
-      if (!formData.phone || formData.phone.length !== 10) throw new Error('Mobile number must be exactly 10 digits');
-      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
-      if (!editingPartner && (!formData.password || !passwordRegex.test(formData.password))) {
-        throw new Error('Security password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a number');
-      }
-      if (!editingPartner && (!photoFile || !docFile)) throw new Error('Both Recent Photo and ID Document are mandatory for new drivers');
-
-      let photoUrl = formData.photoUrl;
-      let documentUrl = formData.documentUrl;
-
-      // 1 & 2. Upload Files in Parallel
-      const uploadPromises = [];
-      
-      if (photoFile) {
-        uploadPromises.push(
-          compressImage(photoFile).then(compressedPhoto => {
-            const pData = new FormData();
-            pData.append('image', compressedPhoto);
-            return api.post('/upload/image', pData, { headers: { 'Content-Type': 'multipart/form-data' } })
-              .then(res => photoUrl = res.data.url);
-          })
-        );
-      }
-
-      if (docFile) {
-        uploadPromises.push(
-          compressImage(docFile).then(compressedDoc => {
-            const dData = new FormData();
-            dData.append('image', compressedDoc);
-            return api.post('/upload/image', dData, { headers: { 'Content-Type': 'multipart/form-data' } })
-              .then(res => documentUrl = res.data.url);
-          })
-        );
-      }
-
-      if (uploadPromises.length > 0) {
-        await Promise.all(uploadPromises);
-      }
-
-      // 3. Save Driver
-      const payload = {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password || undefined,
-        phone: formData.phone,
-        photoUrl,
-        documentUrl,
-        accountName: formData.accountName,
-        accountNumber: formData.accountNumber,
-        ifscCode: formData.ifscCode,
-        bankName: formData.bankName
-      };
-
-      let res;
-      if (editingPartner) {
-        res = await updateDeliveryPartner(editingPartner._id, {
-          name: payload.name,
-          phone: payload.phone,
-          password: payload.password,
-          photoUrl: payload.photoUrl,
-          documentUrl: payload.documentUrl,
-          accountName: payload.accountName,
-          accountNumber: payload.accountNumber,
-          ifscCode: payload.ifscCode,
-          bankName: payload.bankName,
-          status: editingPartner.status
-        });
-      } else {
-        res = await createDeliveryPartner(payload);
-      }
-
-      if (res.success) {
-        toast.success(editingPartner ? 'Driver profile updated' : 'Driver successfully recruited');
-        setIsModalOpen(false);
-        setEditingPartner(null);
-        setFormData({ 
-          name: '', password: '', phone: '', email: '', photoUrl: '', documentUrl: '',
-          accountName: '', accountNumber: '', ifscCode: '', bankName: ''
-        });
-        setPhotoFile(null);
-        setDocFile(null);
-        fetchPartners(); // Refresh list
-      } else {
-        throw new Error(res.error || 'Failed to save driver details');
-      }
-    } catch (err) {
-      const errorMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Verification failed';
-      toast.error(errorMsg);
+      await updateDeliveryPartner(partner._id, { status: newStatus });
+      toast.success(`Partner status updated to ${newStatus}`);
+      fetchPartners();
+    } catch {
+      toast.error('Failed to update status');
     } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const toggleStatus = async (partner) => {
-    const newStatus = partner.status === 'active' ? 'suspended' : 'active';
-    const res = await updateDeliveryPartner(partner._id, { status: newStatus });
-    if (res.success) {
-      setPartners(prev => prev.map(p => p._id === partner._id ? { ...p, status: newStatus } : p));
+      setActionLoading(false);
     }
   };
 
@@ -336,11 +163,17 @@ const DeliveryManagement = () => {
 
   const confirmDelete = async () => {
     if (!partnerToDelete) return;
-    const res = await deleteDeliveryPartner(partnerToDelete._id);
-    if (res.success) {
-      setPartners(prev => prev.filter(p => p._id !== partnerToDelete._id));
+    setActionLoading(true);
+    try {
+      await deleteDeliveryPartner(partnerToDelete._id);
+      toast.success('Partner deleted successfully');
+      fetchPartners();
+    } catch {
+      toast.error('Failed to delete partner');
+    } finally {
+      setActionLoading(false);
+      setIsSafeDeleteOpen(false);
       setPartnerToDelete(null);
-      toast.success('Driver removed from fleet');
     }
   };
 
@@ -356,7 +189,7 @@ const DeliveryManagement = () => {
     setIsUpdatingShop(false);
   };
 
-  const fetchPartnerReport = async () => {
+  const fetchPartnerReport = React.useCallback(async () => {
     if (!selectedPartnerForReport) return;
     setIsFetchingReport(true);
     try {
@@ -364,7 +197,7 @@ const DeliveryManagement = () => {
         params: {
           deliveryPartnerId: selectedPartnerForReport._id,
           startDate: reportDateRange.startDate,
-          endDate: new Date(new Date(reportDateRange.endDate).getTime() + 86400000).toISOString().split('T')[0], // Include end date fully
+          endDate: new Date(new Date(reportDateRange.endDate).getTime() + 86400000).toISOString().split('T')[0],
           status: 'COMPLETED'
         }
       });
@@ -374,13 +207,13 @@ const DeliveryManagement = () => {
     } finally {
       setIsFetchingReport(false);
     }
-  };
+  }, [selectedPartnerForReport, reportDateRange]);
 
   useEffect(() => {
     if (selectedPartnerForReport) {
       fetchPartnerReport();
     }
-  }, [selectedPartnerForReport, reportDateRange]);
+  }, [selectedPartnerForReport, fetchPartnerReport]);
 
   if (loading) return (
     <div className="flex items-center justify-center h-full">
@@ -426,23 +259,6 @@ const DeliveryManagement = () => {
                   Download PDF
                 </button>
              </div>
-
-             <button
-               onClick={() => {
-                 setEditingPartner(null);
-                 setFormData({ 
-                   name: '', password: '', phone: '', email: '', photoUrl: '', documentUrl: '',
-                   accountName: '', accountNumber: '', ifscCode: '', bankName: ''
-                 });
-                 setPhotoFile(null);
-                 setDocFile(null);
-                 setIsModalOpen(true);
-               }}
-               className="flex items-center gap-2 px-6 py-3.5 bg-sky-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-sky-700 transition-all shadow-lg shadow-sky-100"
-             >
-               <UserPlus size={16} />
-               Onboard Driver
-             </button>
         </div>
       </div>
 
@@ -503,7 +319,6 @@ const DeliveryManagement = () => {
                      <Truck size={40} />
                   </div>
                   <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter mb-2">No Active Fleet</h3>
-                  <p className="text-xs text-gray-400 font-medium max-w-[200px]">Recruit your first delivery partner using the button above.</p>
                </div>
             )}
             
@@ -528,7 +343,10 @@ const DeliveryManagement = () => {
                 </div>
                 
                 <div>
-                  <h4 className="font-black text-gray-900 uppercase tracking-wide text-lg leading-tight mb-2 group-hover:text-sky-600 transition-colors">{partner.name}</h4>
+                  <div className="flex items-center gap-2 mb-2">
+                    <h4 className="font-black text-gray-900 uppercase tracking-wide text-lg leading-tight group-hover:text-sky-600 transition-colors">{partner.name}</h4>
+                    <span className="px-2 py-0.5 bg-gray-900 text-white rounded-lg text-[8px] font-black uppercase tracking-widest shadow-lg">Token: #{partner._id.slice(-6).toUpperCase()}</span>
+                  </div>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2 px-2.5 py-1 bg-gray-50 rounded-xl border border-gray-100">
                       <Smartphone size={10} className="text-gray-400" />
@@ -540,42 +358,12 @@ const DeliveryManagement = () => {
                        <div className={`w-1.5 h-1.5 rounded-full ${partner.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-400'}`} />
                        <span className="text-[9px] font-black uppercase tracking-widest">{partner.status}</span>
                     </div>
-                    {partner.isOnline && (
-                      <div className="px-3 py-1 bg-sky-50 border border-sky-100 text-sky-600 rounded-full flex items-center gap-2 shadow-sm">
-                         <div className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse" />
-                         <span className="text-[9px] font-black uppercase tracking-widest">Online</span>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
               
               <div className="flex items-center gap-4">
                 <div className="flex items-center bg-gray-50/50 p-1.5 rounded-[22px] border border-gray-100">
-                  <button 
-                    onClick={() => {
-                        setEditingPartner(partner);
-                        setFormData({ 
-                          name: partner.name, 
-                          phone: partner.phone, 
-                          email: partner.email || '',
-                          password: '',
-                          photoUrl: partner.photoUrl || '',
-                          documentUrl: partner.documentUrl || '',
-                          accountName: partner.accountName || '',
-                          accountNumber: partner.accountNumber || '',
-                          ifscCode: partner.ifscCode || '',
-                          bankName: partner.bankName || ''
-                        });
-                        setPhotoFile(null);
-                        setDocFile(null);
-                        setIsModalOpen(true);
-                    }}
-                    className="p-3 bg-white rounded-2xl text-gray-400 hover:text-sky-600 transition-all hover:shadow-md border border-transparent hover:border-sky-100 flex items-center gap-2"
-                  >
-                    <Eye size={16} />
-                    <span className="text-[9px] font-black uppercase hidden md:inline ml-1">Manage</span>
-                  </button>
                   <button 
                     onClick={() => setSelectedPartnerForReport(partner)}
                     className="p-3 bg-white rounded-2xl text-gray-400 hover:text-sky-600 transition-all hover:shadow-md border border-transparent hover:border-sky-100 flex items-center gap-2"
@@ -590,23 +378,44 @@ const DeliveryManagement = () => {
                     <Shield size={16} />
                     <span className="text-[9px] font-black uppercase hidden md:inline ml-1">Docs</span>
                   </button>
-                  <div className="w-[1px] h-4 bg-gray-200 mx-1" />
-                  <button 
-                    onClick={() => toggleStatus(partner)}
-                    className={`px-4 py-3 rounded-2xl text-[9px] font-black uppercase transition-all flex items-center gap-2 ${
-                      partner.status === 'active' ? 'text-rose-400 hover:text-rose-600' : 'text-emerald-400 hover:text-emerald-600'
-                    }`}
-                  >
-                    {partner.status === 'active' ? <Lock size={14} /> : <UserCheck size={14} />}
-                    {partner.status === 'active' ? 'Suspend' : 'Activate'}
-                  </button>
+                  {partner.status === 'pending' && user?.role === 'admin' && (
+                    <>
+                      <button 
+                        disabled={actionLoading}
+                        onClick={() => toggleStatus(partner, 'active')}
+                        className="px-4 py-3 rounded-2xl text-[9px] font-black uppercase transition-all flex items-center gap-2 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+                      >
+                        {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <UserCheck size={14} />} Approve
+                      </button>
+                      <button 
+                        disabled={actionLoading}
+                        onClick={() => toggleStatus(partner, 'rejected')}
+                        className="px-4 py-3 rounded-2xl text-[9px] font-black uppercase transition-all flex items-center gap-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                      >
+                        {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />} Reject
+                      </button>
+                    </>
+                  )}
+                  {partner.status !== 'pending' && user?.role === 'admin' && (
+                    <button 
+                      disabled={actionLoading}
+                      onClick={() => toggleStatus(partner, partner.status === 'active' ? 'suspended' : 'active')}
+                      className={`px-4 py-3 rounded-2xl text-[9px] font-black uppercase transition-all flex items-center gap-2 ${
+                        partner.status === 'active' ? 'text-amber-500 hover:text-amber-700 hover:bg-amber-50' : 'text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50'
+                      } disabled:opacity-50`}
+                    >
+                      {actionLoading ? <Loader2 size={14} className="animate-spin" /> : (partner.status === 'active' ? <Lock size={14} /> : <UserCheck size={14} />)}
+                      {partner.status === 'active' ? 'Suspend' : 'Reactivate'}
+                    </button>
+                  )}
                 </div>
                 
                 <button 
+                  disabled={actionLoading}
                   onClick={() => handleDelete(partner)}
-                  className="w-12 h-12 rounded-[20px] flex items-center justify-center text-gray-200 hover:text-rose-500 hover:bg-rose-50 transition-all"
+                  className="w-12 h-12 rounded-[20px] flex items-center justify-center text-gray-200 hover:text-rose-500 hover:bg-rose-50 transition-all disabled:opacity-50"
                 >
-                  <Trash2 size={20} />
+                  {actionLoading ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
                 </button>
               </div>
             </div>
@@ -614,132 +423,6 @@ const DeliveryManagement = () => {
           </div>
         </div>
       </div>
-
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[500] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-            <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 shrink-0">
-               <div>
-                 <h2 className="text-xl font-black text-gray-900 tracking-tight uppercase">{editingPartner ? 'Modify Driver' : 'New Driver'}</h2>
-                 <p className="text-[9px] font-black text-sky-400 uppercase tracking-widest mt-0.5">Delivery Boy Credentials</p>
-               </div>
-               <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors"><XCircle size={24}/></button>
-            </div>
-            
-            <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto flex-1">
-              <div className="space-y-5">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-5">Driver Name</label>
-                  <div className="relative group">
-                    <User className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-sky-500 transition-colors" size={18} />
-                    <input required placeholder="John Doe" className="w-full bg-gray-50 border-2 border-transparent rounded-[24px] py-5 pl-14 pr-6 font-bold text-sm focus:border-sky-100 focus:bg-white transition-all outline-none" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-5">Mobile Number</label>
-                  <div className="relative group">
-                    <Smartphone className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-sky-500 transition-colors" size={18} />
-                    <input required maxLength="10" placeholder="Driver's Phone" className="w-full bg-gray-50 border-2 border-transparent rounded-[24px] py-5 pl-14 pr-6 font-bold text-sm focus:border-sky-100 focus:bg-white transition-all outline-none" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-sky-500 uppercase tracking-[0.2em] ml-5 flex items-center gap-2">
-                    <Mail size={12} /> Login Email Address
-                  </label>
-                  <div className="relative group">
-                    <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-sky-400 transition-colors" size={18} />
-                    <input type="email" required placeholder="driver@example.com" className="w-full bg-sky-50/50 border-2 border-sky-100 rounded-[24px] py-4 md:py-5 pl-14 pr-6 font-bold text-sm text-sky-700 outline-none focus:border-sky-300 focus:bg-white transition-all" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-5">Access Password</label>
-                  <div className="relative group">
-                    <Key className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-sky-500 transition-colors" size={18} />
-                    <input 
-                       required={!editingPartner}
-                       type={showPassword ? "text" : "password"} 
-                       placeholder={editingPartner ? "••••••••" : "Driver Password"} 
-                       className="w-full bg-gray-50 border-2 border-transparent rounded-[24px] py-5 pl-14 pr-14 font-bold text-sm focus:border-sky-100 focus:bg-white transition-all outline-none" 
-                       value={formData.password} 
-                       onChange={e => setFormData({...formData, password: e.target.value})} 
-                    />
-                    <button 
-                       type="button"
-                       onClick={() => setShowPassword(!showPassword)}
-                       className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-300 hover:text-sky-600"
-                    >
-                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-sky-600 uppercase tracking-widest ml-5">Recent Photo <span className="text-rose-500">*</span></label>
-                    <div className="relative">
-                      <input 
-                        type="file" id="photo-upload" accept="image/*" className="hidden"
-                        onChange={e => setPhotoFile(e.target.files[0])}
-                      />
-                      <label htmlFor="photo-upload" className={`w-full h-14 rounded-2xl border-2 border-dashed flex items-center justify-center cursor-pointer transition-all ${photoFile || formData.photoUrl ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-sky-300'}`}>
-                        <span className="text-[10px] font-bold truncate px-4">{photoFile ? photoFile.name : formData.photoUrl ? 'Change Photo' : 'Upload Photo'}</span>
-                      </label>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-sky-600 uppercase tracking-widest ml-5">ID Document <span className="text-rose-500">*</span></label>
-                    <div className="relative">
-                      <input 
-                        type="file" id="doc-upload" accept="image/*" className="hidden"
-                        onChange={e => setDocFile(e.target.files[0])}
-                      />
-                      <label htmlFor="doc-upload" className={`w-full h-14 rounded-2xl border-2 border-dashed flex items-center justify-center cursor-pointer transition-all ${docFile || formData.documentUrl ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-sky-300'}`}>
-                        <span className="text-[10px] font-bold truncate px-4">{docFile ? docFile.name : formData.documentUrl ? 'Change ID' : 'PAN/Aadhaar'}</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                {user?.role !== 'admin' && (
-                  <div className="p-6 bg-slate-50 rounded-[32px] border border-slate-100 space-y-4">
-                    <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 text-center">Settlement Account Details</h5>
-                    <div className="grid grid-cols-2 gap-4 opacity-75">
-                      <div className="space-y-1.5">
-                         <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4">Account Holder</label>
-                         <input readOnly placeholder="Not Provided" className="w-full bg-gray-100 border border-gray-200 rounded-xl py-2.5 px-4 font-bold text-xs outline-none text-gray-500 cursor-not-allowed" value={formData.accountName} />
-                      </div>
-                      <div className="space-y-1.5">
-                         <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4">Account Number</label>
-                         <input readOnly placeholder="Not Provided" className="w-full bg-gray-100 border border-gray-200 rounded-xl py-2.5 px-4 font-bold text-xs outline-none text-gray-500 cursor-not-allowed" value={formData.accountNumber} />
-                      </div>
-                      <div className="space-y-1.5">
-                         <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4">IFSC Code</label>
-                         <input readOnly placeholder="Not Provided" className="w-full bg-gray-100 border border-gray-200 rounded-xl py-2.5 px-4 font-bold text-xs outline-none text-gray-500 cursor-not-allowed uppercase" value={formData.ifscCode} />
-                      </div>
-                      <div className="space-y-1.5">
-                         <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest ml-4">Bank Name</label>
-                         <input readOnly placeholder="Not Provided" className="w-full bg-gray-100 border border-gray-200 rounded-xl py-2.5 px-4 font-bold text-xs outline-none text-gray-500 cursor-not-allowed" value={formData.bankName} />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <button 
-                type="submit" 
-                disabled={isSubmitting}
-                className="w-full h-18 py-5 bg-sky-600 text-white rounded-[28px] font-black uppercase text-[11px] tracking-[0.2em] shadow-2xl shadow-sky-100 hover:bg-sky-700 transition-all flex items-center justify-center gap-4 disabled:opacity-50"
-              >
-                {isSubmitting ? <Loader2 className="animate-spin" size={24} /> : (editingPartner ? <Check size={20} /> : <UserPlus size={20} />)}
-                {editingPartner ? 'Save Changes' : 'Register Driver'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Docs Viewer Modal */}
       {viewingDocs && (
@@ -757,17 +440,29 @@ const DeliveryManagement = () => {
                </div>
                <button onClick={() => setViewingDocs(null)} className="w-10 h-10 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-gray-400 hover:text-rose-500 transition-all"><XCircle size={20}/></button>
             </div>
-            <div className="p-10 grid grid-cols-2 gap-10">
+            <div className="p-10 grid grid-cols-1 md:grid-cols-2 gap-8">
                <div className="space-y-4">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Recent Photo</p>
-                  <div className="aspect-square rounded-[32px] overflow-hidden border-8 border-gray-50 shadow-inner">
-                     <img src={viewingDocs.photoUrl} alt="Photo" className="w-full h-full object-cover" />
+                  <h3 className="text-[10px] font-black text-gray-400 text-center uppercase tracking-[0.3em]">ID Proof</h3>
+                  <div className="aspect-[3/4] bg-gray-100 rounded-[32px] overflow-hidden border-4 border-white shadow-xl relative group">
+                     <img src={viewingDocs.documentUrl} alt="ID" className="w-full h-full object-cover" />
+                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                        <a href={viewingDocs.documentUrl} target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-white text-gray-900 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:scale-105 transition-transform"><Download size={14}/> Download ID</a>
+                     </div>
                   </div>
                </div>
                <div className="space-y-4">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">ID Proof (PAN/Aadhaar)</p>
-                  <div className="aspect-[3/4] rounded-[32px] overflow-hidden border-8 border-gray-50 shadow-inner">
-                     <img src={viewingDocs.documentUrl} alt="ID" className="w-full h-full object-cover" />
+                  <h3 className="text-[10px] font-black text-emerald-500 text-center uppercase tracking-[0.3em]">Live Selfie</h3>
+                  <div className="aspect-[3/4] bg-gray-100 rounded-[32px] overflow-hidden border-4 border-white shadow-xl relative group">
+                     {viewingDocs.selfieUrl ? (
+                       <>
+                         <img src={viewingDocs.selfieUrl} alt="Selfie" className="w-full h-full object-cover" />
+                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                            <a href={viewingDocs.selfieUrl} target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-white text-gray-900 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:scale-105 transition-transform"><Download size={14}/> Download Selfie</a>
+                         </div>
+                       </>
+                     ) : (
+                       <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold text-[10px] uppercase">No Selfie</div>
+                     )}
                   </div>
                </div>
             </div>

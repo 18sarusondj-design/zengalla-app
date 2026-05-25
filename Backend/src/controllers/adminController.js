@@ -327,31 +327,7 @@ export const getAllDeliveryPartners = async (req, res) => {
 };
 
 
-// POST /api/admin/delivery-partners
-export const createGlobalDeliveryPartner = async (req, res) => {
-  try {
-    const { name, phone, password, photoUrl, documentUrl, email } = req.body;
-    
-    // Check if phone already exists
-    const existing = await User.findOne({ phone });
-    if (existing) return res.status(400).json({ error: 'A user with this phone number already exists' });
-
-    const user = await User.create({
-      name,
-      phone,
-      password,
-      email: email || `${phone}@gmail.com`,
-      role: 'delivery',
-      status: 'active',
-      photoUrl,
-      documentUrl
-    });
-
-    res.status(201).json({ success: true, user });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+// Removed createGlobalDeliveryPartner as per user request to only allow self-registration
 
 // PUT /api/admin/delivery-partners/:id
 export const updateDeliveryPartner = async (req, res) => {

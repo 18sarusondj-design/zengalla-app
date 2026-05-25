@@ -363,15 +363,14 @@ const Orders = () => {
 
     const isBill = o.orderType === 'IN_STORE_BILL' || o.order_type === 'IN_STORE_BILL';
     
-    // 🛡️ SECURITY: Admin does not see NEW orders (waiting for vendor acceptance)
-    if (user?.role === 'admin' && o.status === 'NEW') return false;
+    // (Removed admin NEW filter to allow assignments)
 
     // 🚚 FLOW: NEW tab includes NEW, ASSIGNED (Vendor sees these)
     // PACKING tab includes PACKING (Vendor accepted), READY (Packed), and OUT_FOR_DELIVERY
     const statusMatch = activeStatus === 'NEW' 
       ? ['NEW', 'ASSIGNED'].includes(o.status) 
       : activeStatus === 'PACKING'
-        ? ['PACKING', 'READY', 'OUT_FOR_DELIVERY'].includes(o.status)
+        ? (user?.role === 'admin' ? ['NEW', 'ASSIGNED', 'PACKING', 'READY', 'OUT_FOR_DELIVERY'] : ['PACKING', 'READY', 'OUT_FOR_DELIVERY']).includes(o.status)
         : o.status === activeStatus;
 
     if (!statusMatch) return false;
@@ -386,7 +385,6 @@ const Orders = () => {
     const isB2B = o.orderType === 'B2B_PROCUREMENT' || o.order_type === 'B2B_PROCUREMENT';
     if (user?.role === 'admin' && isB2B) return false;
     const isBill = o.orderType === 'IN_STORE_BILL' || o.order_type === 'IN_STORE_BILL';
-    if (user?.role === 'admin' && o.status === 'NEW') return false;
     return ['NEW', 'PACKING', 'READY', 'ASSIGNED', 'OUT_FOR_DELIVERY'].includes(o.status) && !isBill;
   }).length;
 
@@ -477,13 +475,12 @@ const Orders = () => {
                 
                 const isBill = o.orderType === 'IN_STORE_BILL' || o.order_type === 'IN_STORE_BILL';
 
-                // 🛡️ SECURITY: Admin does not see NEW orders
-                if (user?.role === 'admin' && o.status === 'NEW') return false;
+                // (Removed admin NEW filter)
                 
                 const match = status.id === 'NEW' 
                   ? ['NEW', 'ASSIGNED'].includes(o.status) 
                   : status.id === 'PACKING'
-                    ? ['PACKING', 'READY', 'OUT_FOR_DELIVERY'].includes(o.status)
+                    ? (user?.role === 'admin' ? ['NEW', 'ASSIGNED', 'PACKING', 'READY', 'OUT_FOR_DELIVERY'] : ['PACKING', 'READY', 'OUT_FOR_DELIVERY']).includes(o.status)
                     : o.status === status.id;
 
                 if (!match) return false;
@@ -1403,11 +1400,17 @@ function OrderCard({ order, updateOrderStatus, updateOrderPayment, currentStatus
   return (
     <div 
       onClick={() => setSelectedOrder(order)}
-      className="bg-white rounded-[24px] border border-gray-100 p-4 shadow-sm hover:shadow-xl hover:shadow-sky-900/5 transition-all group flex flex-col relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 cursor-pointer"
+      className={`bg-white rounded-[24px] border p-4 shadow-sm hover:shadow-xl transition-all group flex flex-col relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 cursor-pointer ${order.isDeliveryRejected ? 'border-rose-300 hover:shadow-rose-900/5' : 'border-gray-100 hover:shadow-sky-900/5'}`}
     >
+      {order.isDeliveryRejected && (
+        <div className="absolute top-0 left-0 w-full bg-rose-500 text-white text-[9px] font-black uppercase tracking-[0.2em] text-center py-1 z-10 animate-pulse shadow-sm shadow-rose-500/20">
+          ⚠️ Rejected by Delivery Boy
+        </div>
+      )}
+
       {/* Type Indicator Bar */}
       <div className={`absolute top-0 left-0 right-0 h-1 ${
-        isB2B ? 'bg-indigo-500' : isBill ? 'bg-amber-500' : 'bg-sky-500'
+        isB2B ? 'bg-indigo-500' : isBill ? 'bg-amber-500' : order.isDeliveryRejected ? 'bg-rose-500' : 'bg-sky-500'
       }`} />
 
       {/* Header Row */}

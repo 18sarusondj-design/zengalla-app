@@ -33,6 +33,7 @@ const Profile = () => {
       document.body.style.overflow = 'unset';
     }
     return () => { document.body.style.overflow = 'unset'; };
+     
   }, [isWalletModalOpen]);
 
   const [formData, setFormData] = useState({
@@ -58,6 +59,7 @@ const Profile = () => {
 
   useEffect(() => {
     if (token && userId) fetchCredits();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, userId]);
 
   const fetchCredits = async () => {

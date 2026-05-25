@@ -1,8 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../shop/context/StoreContext';
 import { useAuth } from '../../auth/context/AuthContext';
-import { Package, Truck, CheckCircle, Clock, MapPin, Phone, ArrowRight, Loader2, Navigation, Navigation2, CheckCircle2, XCircle, LogOut, User, Zap, ShieldCheck, MessageSquare, ChevronRight, ChevronDown } from 'lucide-react';
+import { Package, Truck, CheckCircle, Clock, MapPin, Phone, ArrowRight, Loader2, Navigation, Navigation2, CheckCircle2, XCircle, LogOut, User, Zap, ShieldCheck, MessageSquare, ChevronRight, ChevronDown, Lock } from 'lucide-react';
 import { toast } from 'sonner';
+import api from '../../../config/api';
+
+const urlBase64ToUint8Array = (base64String) => {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+};
 
 const DeliveryDashboard = () => {
   const { getAvailableOrders, getMyActiveOrder, acceptOrder, rejectOrder, updateDeliveryStatus, getDeliveryHistory, updateDriverLocation, toggleOnlineStatus } = useStore();
@@ -12,9 +24,35 @@ const DeliveryDashboard = () => {
   const [historyOrders, setHistoryOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('orders');
+  const [locationGranted, setLocationGranted] = useState(false);
+  const [locationError, setLocationError] = useState(false);
+  
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setLocationError(true);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      () => setLocationGranted(true),
+      () => {
+        setLocationError(true);
+        setLocationGranted(false);
+      },
+      { enableHighAccuracy: true, timeout: 5000 }
+    );
+  }, []);
+
+  const [activeTab, setActiveTab] = useState(() => {
+    return sessionStorage.getItem('deliveryActiveTab') || 'orders';
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem('deliveryActiveTab', activeTab);
+  }, [activeTab]);
+
   const [showItemsFor, setShowItemsFor] = useState(null);
   const [currentCoords, setCurrentCoords] = useState(null);
+  const [trainingLang, setTrainingLang] = useState('english');
 
   const getDistance = (lat1, lon1, lat2, lon2) => {
     if (!lat1 || !lon1 || !lat2 || !lon2) return null;
@@ -75,7 +113,6 @@ const DeliveryDashboard = () => {
       if (showItemsFor) {
         e.preventDefault();
         setShowItemsFor(null);
-        window.history.pushState(null, null, window.location.pathname);
       }
     };
 
@@ -89,8 +126,34 @@ const DeliveryDashboard = () => {
     };
   }, [showItemsFor]);
 
+  const subscribeToPush = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return;
+
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      let subscription = await registration.pushManager.getSubscription();
+      
+      if (!subscription) {
+        const { data } = await api.get('/notifications/vapid-key');
+        const convertedVapidKey = urlBase64ToUint8Array(data.publicKey);
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: convertedVapidKey
+        });
+      }
+      
+      await api.post('/notifications/subscribe', { subscription });
+    } catch (err) {
+      console.error("Push subscription failed", err);
+    }
+  };
+
   useEffect(() => {
-    fetchData(true);
+    if (!isOnline) return;
+
+    subscribeToPush();fetchData(true);
     const interval = setInterval(() => fetchData(false), 8000); // Faster sync for notifications
 
     // Live Location Tracking
@@ -112,6 +175,7 @@ const DeliveryDashboard = () => {
       if (watchId) navigator.geolocation.clearWatch(watchId);
       if (alertAudio) alertAudio.pause();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnline]);
 
   const fetchData = async (showLoading = true) => {
@@ -128,6 +192,7 @@ const DeliveryDashboard = () => {
       // 🚀 TRIGGER: NEW MISSION ASSIGNED
       const newMission = newActive.find(o =>
         o.status === 'ASSIGNED' &&
+        !o.isPartnerAccepted &&
         !notifiedOrders.current.has(`${o._id}-assigned`)
       );
 
@@ -179,6 +244,7 @@ const DeliveryDashboard = () => {
     if (!isOnline) return toast.error("Go online to accept orders!");
     if (activeOrders.length >= 3) return toast.error("Active limit reached (3/3)");
     stopAlert();
+    toast.dismiss(`mission-${orderId}`);
     setActionLoading(true);
     const res = await acceptOrder(orderId);
     if (res.success) {
@@ -190,6 +256,7 @@ const DeliveryDashboard = () => {
 
   const handleRejectOrder = async (orderId) => {
     stopAlert();
+    toast.dismiss(`mission-${orderId}`);
     setActionLoading(true);
     const res = await rejectOrder(orderId);
     if (res.success) {
@@ -245,15 +312,113 @@ const DeliveryDashboard = () => {
   };
 
   const totalEarnings = historyOrders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
-  const todayEarnings = historyOrders
-    .filter(o => new Date(o.updatedAt).toDateString() === new Date().toDateString())
-    .reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
+    const todayEarnings = historyOrders
+      .filter(o => new Date(o.updatedAt).toDateString() === new Date().toDateString())
+      .reduce((sum, order) => sum + (order.deliveryFee || 0), 0);
 
-  if (loading && activeOrders.length === 0 && availableOrders.length === 0 && historyOrders.length === 0) {
+    if (!locationGranted) {
+      return (
+        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center z-[9999] fixed inset-0">
+          <div className="w-24 h-24 bg-rose-500 rounded-3xl flex items-center justify-center text-white shadow-2xl shadow-rose-500/20 mb-8 animate-bounce">
+            <MapPin size={48} />
+          </div>
+          <h1 className="text-3xl font-black text-white uppercase tracking-widest mb-4">Live Location Required</h1>
+          <p className="text-slate-400 text-sm max-w-sm mb-8 font-bold leading-relaxed">
+            You must grant location access to use the App. This allows us to track deliveries and show you on the radar. Please allow location access and click below.
+          </p>
+          <div className="flex gap-4">
+            <button onClick={() => window.location.reload()} className="h-14 px-8 bg-sky-500 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-sky-400 transition-all shadow-xl shadow-sky-500/20">
+              I've Enabled It
+            </button>
+            <button onClick={() => { logout(); window.location.href = '/login'; }} className="h-14 px-8 bg-slate-800 text-slate-300 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-700 transition-all border border-slate-700">
+              Logout
+            </button>
+          </div>
+        </div>
+      );
+    }
+  
+    if (loading && activeOrders.length === 0 && availableOrders.length === 0 && historyOrders.length === 0) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-4">
         <Loader2 className="animate-spin text-sky-600" size={48} />
         <p className="text-[10px] font-black text-sky-400 uppercase tracking-widest animate-pulse">Syncing Hub...</p>
+      </div>
+    );
+  }
+
+  if (user && user.status !== 'active') {
+    let title = "Account Pending Review";
+    let msg = "Your application is currently being reviewed by the admin. You will be notified once approved.";
+    let iconClass = "text-amber-500 bg-amber-50 border-amber-100";
+    let icon = <Clock size={48} className="animate-pulse" />;
+
+    if (user.status === 'suspended') {
+       title = "Account Suspended";
+       msg = "Your delivery partner account has been suspended due to policy violations. Please contact support.";
+       iconClass = "text-rose-500 bg-rose-50 border-rose-100";
+       icon = <XCircle size={48} />;
+    } else if (user.status === 'rejected') {
+       title = "Application Rejected";
+       msg = "Your application to join the fleet has been rejected. Please contact support for more details.";
+       iconClass = "text-rose-500 bg-rose-50 border-rose-100";
+       icon = <XCircle size={48} />;
+    }
+
+    const trainingVideos = {
+      english: 'https://www.youtube.com/embed/rP-z0M16RAs', // Random placeholders
+      hindi: 'https://www.youtube.com/embed/s2h28p4s-Xs',
+      kannada: 'https://www.youtube.com/embed/1vRzT_0eO1E'
+    };
+
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center font-sans overflow-y-auto">
+         <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 shadow-sm border ${iconClass}`}>
+            {icon}
+         </div>
+         <h1 className="text-xl font-black text-gray-900 tracking-tight uppercase mb-2">{title}</h1>
+         <p className="text-[10px] text-gray-500 font-bold max-w-sm leading-relaxed uppercase tracking-widest mb-6">
+            {msg}
+         </p>
+
+         {/* Training Video Section */}
+         <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-8">
+            <h2 className="text-sm font-black text-gray-800 uppercase tracking-widest mb-3 flex items-center justify-center gap-2">
+              <Package size={16} className="text-sky-500" />
+              Delivery Training
+            </h2>
+            
+            <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-gray-900 shadow-inner mb-4">
+               <iframe 
+                 className="absolute inset-0 w-full h-full"
+                 src={trainingVideos[trainingLang]}
+                 title="Training Video"
+                 frameBorder="0"
+                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                 allowFullScreen
+               ></iframe>
+            </div>
+
+            <div className="flex justify-center gap-2">
+              {['english', 'hindi', 'kannada'].map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => setTrainingLang(lang)}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                    trainingLang === lang 
+                      ? 'bg-sky-500 text-white shadow-md' 
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
+                >
+                  {lang}
+                </button>
+              ))}
+            </div>
+         </div>
+
+         <button onClick={() => { logout(); window.location.href = '/delivery/login'; }} className="h-12 px-8 bg-rose-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-rose-600 transition-all">
+            Logout & Exit
+         </button>
       </div>
     );
   }
@@ -397,7 +562,7 @@ const DeliveryDashboard = () => {
                       <div className="grid grid-cols-1 gap-3 mb-5">
                         <button
                           onClick={() => window.open(`tel:${order.phone}`)}
-                          className="flex items-center justify-center gap-3 h-10 bg-emerald-50 text-emerald-600 rounded-xl font-black text-[9px] uppercase tracking-widest border border-emerald-100 hover:bg-emerald-100 transition-all active:scale-95 shadow-sm"
+                          className="flex items-center justify-center gap-3 h-10 bg-sky-50 text-sky-600 rounded-xl font-black text-[9px] uppercase tracking-widest border border-sky-100 hover:bg-sky-100 transition-all active:scale-95 shadow-sm"
                         >
                           <Phone size={14} /> Contact Client
                         </button>
@@ -532,16 +697,19 @@ const DeliveryDashboard = () => {
             <div className="bg-white rounded-[48px] p-10 border border-sky-100 shadow-xl relative overflow-hidden">
                <div className="absolute top-0 right-0 w-32 h-32 bg-sky-50 rounded-full -mr-16 -mt-16" />
                
-               <div className="flex flex-col items-center mb-10 relative z-10">
-                 <div className="w-24 h-24 bg-sky-50 rounded-[32px] flex items-center justify-center text-sky-600 shadow-inner border border-sky-100 mb-6 group hover:scale-105 transition-transform duration-500">
-                   <User size={48} />
-                 </div>
-                 <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tightest italic">{user?.name}</h2>
-                 <p className="text-[10px] font-black text-sky-400 uppercase tracking-[0.4em] mt-2">Logistics Specialist</p>
-                 <div className="flex items-center gap-2 mt-4 px-4 py-2 bg-emerald-50 rounded-2xl border border-emerald-100">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Account Active</span>
-                 </div>
+                 <div className="flex flex-col items-center mb-10 relative z-10">
+                   <div className="w-24 h-24 bg-sky-50 rounded-[32px] flex items-center justify-center text-sky-600 shadow-inner border border-sky-100 mb-6 group hover:scale-105 transition-transform duration-500">
+                     <User size={48} />
+                   </div>
+                   <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tightest italic">{user?.name}</h2>
+                   <div className="flex items-center gap-2 mt-2">
+                     <p className="text-[10px] font-black text-sky-400 uppercase tracking-[0.4em]">Logistics Specialist</p>
+                     <span className="px-2 py-0.5 bg-gray-900 text-white rounded-lg text-[8px] font-black uppercase tracking-widest shadow-lg">Token: #{user?._id?.slice(-6).toUpperCase()}</span>
+                   </div>
+                   <div className="flex items-center gap-2 mt-4 px-4 py-2 bg-emerald-50 rounded-2xl border border-emerald-100">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                      <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Account Active</span>
+                   </div>
                  </div>
 
                  {/* Settlement Account Section */}
@@ -602,79 +770,13 @@ const DeliveryDashboard = () => {
                    <button 
                      type="submit"
                      disabled={actionLoading}
-                     className="w-full h-14 bg-emerald-600 text-white rounded-[20px] font-black uppercase text-[10px] tracking-[0.3em] shadow-lg shadow-emerald-200 active:scale-95 transition-all flex items-center justify-center gap-3"
+                     className="w-full h-14 bg-sky-500 text-white rounded-[20px] font-black uppercase text-[10px] tracking-[0.3em] shadow-lg shadow-sky-200 active:scale-95 transition-all flex items-center justify-center gap-3"
                    >
                      {actionLoading ? <Loader2 className="animate-spin" size={16} /> : "Save Bank Details"}
                    </button>
                  </form>
-
-                 <form onSubmit={handleChangePassword} className="space-y-6 relative z-10">
-                 <div className="flex items-center gap-3 px-2 mb-2">
-                    <div className="w-1 h-3 bg-sky-500 rounded-full" />
-                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Security Update</h4>
-                 </div>
-
-                 <div className="space-y-4">
-                   <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none text-gray-300">
-                        <Lock size={18} />
-                      </div>
-                      <input 
-                        type="password" required
-                        placeholder="Current Password"
-                        className="w-full pl-14 pr-4 h-16 bg-gray-50 border-2 border-transparent focus:border-sky-500/20 focus:bg-white rounded-[24px] text-xs font-bold transition-all"
-                        value={oldPassword}
-                        onChange={e => setOldPassword(e.target.value)}
-                      />
-                   </div>
-
-                   <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none text-gray-300">
-                        <ShieldCheck size={18} />
-                      </div>
-                      <input 
-                        type="password" required
-                        placeholder="New Private Password"
-                        className="w-full pl-14 pr-4 h-16 bg-gray-50 border-2 border-transparent focus:border-sky-500/20 focus:bg-white rounded-[24px] text-xs font-bold transition-all"
-                        value={newPassword}
-                        onChange={e => setNewPassword(e.target.value)}
-                      />
-                   </div>
-
-                   <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none text-gray-300">
-                        <CheckCircle2 size={18} />
-                      </div>
-                      <input 
-                        type="password" required
-                        placeholder="Confirm New Password"
-                        className="w-full pl-14 pr-4 h-16 bg-gray-50 border-2 border-transparent focus:border-sky-500/20 focus:bg-white rounded-[24px] text-xs font-bold transition-all"
-                        value={confirmPassword}
-                        onChange={e => setConfirmPassword(e.target.value)}
-                      />
-                   </div>
-                 </div>
-
-                 <button 
-                   type="submit"
-                   disabled={actionLoading}
-                   className="w-full h-16 bg-gray-900 text-white rounded-[28px] font-black uppercase text-[11px] tracking-[0.3em] shadow-2xl shadow-gray-200 active:scale-95 transition-all flex items-center justify-center gap-3"
-                 >
-                   {actionLoading ? <Loader2 className="animate-spin" size={20} /> : "Update Security Shield"}
-                 </button>
-               </form>
+              </div>
             </div>
-
-            <div className="bg-sky-50 rounded-[32px] p-6 border border-sky-100 flex items-center gap-4">
-               <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-sky-600 shadow-sm shrink-0">
-                  <ShieldCheck size={24} />
-               </div>
-               <div>
-                  <p className="text-[10px] font-black text-sky-900 uppercase tracking-widest leading-none mb-1">Privacy Guarantee</p>
-                  <p className="text-[9px] font-bold text-sky-500 uppercase tracking-tight">Your password is encrypted. Even the store vendor cannot see your private credentials.</p>
-               </div>
-            </div>
-          </div>
         ) : (
           /* History View - Dark Minimalist */
           <div className="space-y-6 animate-in fade-in duration-700">

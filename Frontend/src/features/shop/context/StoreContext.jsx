@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { createContext, useState, useContext, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '../../auth/context/AuthContext';
 import { toast } from 'sonner';

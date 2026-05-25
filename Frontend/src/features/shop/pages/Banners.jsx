@@ -55,6 +55,17 @@ const Banners = () => {
     fetchBanners();
   }, []);
 
+  useEffect(() => {
+    if (isFormOpen || isHelpOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isFormOpen, isHelpOpen]);
+
   // Image Upload handler
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
@@ -263,7 +274,7 @@ const Banners = () => {
           {/* Create Button */}
           <button
             onClick={() => openFormModal()}
-            className="flex-1 md:flex-initial h-11 sm:h-12 px-4 sm:px-6 flex items-center justify-center gap-1.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl sm:rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-wider sm:tracking-widest shadow-lg shadow-gray-200 transition-all active:scale-95 shrink-0"
+            className="flex-1 md:flex-initial h-11 sm:h-12 px-4 sm:px-6 flex items-center justify-center gap-1.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl sm:rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-wider sm:tracking-widest shadow-lg shadow-sky-200 transition-all active:scale-95 shrink-0"
           >
             <Plus size={14} strokeWidth={3} />
             <span>New Banner</span>
@@ -423,9 +434,9 @@ const Banners = () => {
 
       {/* Tutorial Video Modal */}
       {isHelpOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-3xl overflow-hidden border border-gray-100" onClick={e => e.stopPropagation()}>
-            <div className="p-8 pb-4 flex justify-between items-center border-b">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-[32px] sm:rounded-[40px] shadow-2xl w-full max-w-xl border border-gray-100 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <div className="p-6 pb-4 flex justify-between items-center border-b shrink-0">
               <div>
                 <h3 className="text-xl font-black text-gray-900 tracking-tighter uppercase flex items-center gap-2">
                   <Play size={18} fill="currentColor" className="text-sky-500" />
@@ -443,21 +454,23 @@ const Banners = () => {
               </button>
             </div>
 
-            <div className="p-8 space-y-6">
+            <div className="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-1">
               {/* Video Embed Frame */}
-              <div className="aspect-video w-full rounded-2xl overflow-hidden bg-gray-150 relative shadow-inner border">
-                <iframe
-                  className="w-full h-full"
-                  src="https://www.youtube.com/embed/dQw4w9WgXcQ"
-                  title="Banner Configuration Tutorial"
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                ></iframe>
+              <div className="p-3 bg-gray-50 border border-gray-100 rounded-3xl shrink-0">
+                <div className="aspect-video w-full rounded-2xl overflow-hidden bg-gray-150 relative shadow-inner border">
+                  <iframe
+                    className="w-full h-full"
+                    src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                    title="Banner Configuration Tutorial"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  ></iframe>
+                </div>
               </div>
 
               {/* Helpful instructions list */}
-              <div className="p-5 bg-sky-50 rounded-3xl border border-sky-100 flex items-start gap-4">
+              <div className="p-4 bg-sky-50 rounded-2xl border border-sky-100 flex items-start gap-4 shrink-0">
                 <div className="w-10 h-10 rounded-2xl bg-sky-500 flex items-center justify-center text-white shrink-0 shadow-md shadow-sky-100">
                   <Sparkles size={18} />
                 </div>
@@ -469,19 +482,19 @@ const Banners = () => {
                 </div>
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex gap-4 shrink-0">
                 <a
                   href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
                   target="_blank"
                   rel="noreferrer"
-                  className="flex-1 h-14 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 border border-gray-250"
+                  className="flex-1 h-12 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 border border-gray-250"
                 >
                   <ExternalLink size={14} />
-                  <span>Open in YouTube</span>
+                  <span>YouTube</span>
                 </a>
                 <button
                   onClick={() => setIsHelpOpen(false)}
-                  className="flex-[2] h-14 bg-gray-900 hover:bg-gray-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-gray-200 transition-all flex items-center justify-center"
+                  className="flex-[2] h-12 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-sky-200 transition-all flex items-center justify-center"
                 >
                   Got It, Thanks!
                 </button>
@@ -493,9 +506,9 @@ const Banners = () => {
 
       {/* Create / Edit Form Modal */}
       {isFormOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-300">
-          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-100 my-8" onClick={e => e.stopPropagation()}>
-            <div className="p-8 pb-4 flex justify-between items-center border-b">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-[32px] sm:rounded-[40px] shadow-2xl w-full max-w-2xl border border-gray-100 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <div className="p-6 pb-4 flex justify-between items-center border-b shrink-0">
               <div>
                 <h3 className="text-xl font-black text-gray-900 tracking-tighter uppercase flex items-center gap-2">
                   <Sparkles size={18} className="text-sky-500" />
@@ -513,8 +526,8 @@ const Banners = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-8 space-y-6">
-              <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+              <div className="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-1">
                 {/* Banner Message / Title */}
                 <div className="space-y-2">
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">
@@ -523,8 +536,8 @@ const Banners = () => {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. End Month Savings! Flat 20% Off"
-                    className="w-full bg-gray-50 border-2 border-transparent focus:border-sky-500/30 focus:bg-white rounded-2xl h-14 px-5 text-sm font-bold text-gray-800 focus:outline-none transition-all"
+                    placeholder="Enter banner title"
+                    className="w-full bg-gray-50 border-2 border-gray-300 focus:border-sky-500/50 focus:bg-white rounded-2xl h-14 px-5 text-sm font-bold text-gray-800 focus:outline-none transition-all"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                   />
@@ -537,8 +550,8 @@ const Banners = () => {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Stock up on fresh vegetables and monthly groceries"
-                    className="w-full bg-gray-50 border-2 border-transparent focus:border-sky-500/30 focus:bg-white rounded-2xl h-14 px-5 text-sm font-bold text-gray-800 focus:outline-none transition-all"
+                    placeholder="Enter subtitle (optional)"
+                    className="w-full bg-gray-50 border-2 border-gray-300 focus:border-sky-500/50 focus:bg-white rounded-2xl h-14 px-5 text-sm font-bold text-gray-800 focus:outline-none transition-all"
                     value={subtitle}
                     onChange={(e) => setSubtitle(e.target.value)}
                   />
@@ -550,7 +563,7 @@ const Banners = () => {
                     Banner Category / Position Type *
                   </label>
                   <select
-                    className="w-full bg-gray-50 border-2 border-transparent focus:border-sky-500/30 focus:bg-white rounded-2xl h-14 px-5 text-sm font-bold text-gray-800 focus:outline-none transition-all"
+                    className="w-full bg-gray-50 border-2 border-gray-300 focus:border-sky-500/50 focus:bg-white rounded-2xl h-14 px-5 text-sm font-bold text-gray-800 focus:outline-none transition-all"
                     value={type}
                     onChange={(e) => setType(e.target.value)}
                   >
@@ -571,7 +584,7 @@ const Banners = () => {
                       <input
                         type="url"
                         placeholder="Paste image URL here..."
-                        className="flex-1 bg-gray-50 border-2 border-transparent focus:border-sky-500/30 focus:bg-white rounded-2xl h-14 px-5 text-sm font-bold text-gray-800 focus:outline-none transition-all"
+                        className="flex-1 bg-gray-50 border-2 border-gray-300 focus:border-sky-500/50 focus:bg-white rounded-2xl h-14 px-5 text-sm font-bold text-gray-800 focus:outline-none transition-all"
                         value={image}
                         onChange={(e) => setImage(e.target.value)}
                       />
@@ -618,7 +631,7 @@ const Banners = () => {
                     <input
                       type="date"
                       required
-                      className="w-full bg-gray-50 border-2 border-transparent focus:border-sky-500/30 focus:bg-white rounded-2xl h-14 px-5 text-sm font-bold text-gray-800 focus:outline-none transition-all"
+                      className="w-full bg-gray-50 border-2 border-gray-300 focus:border-sky-500/50 focus:bg-white rounded-2xl h-14 px-5 text-sm font-bold text-gray-800 focus:outline-none transition-all"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
                     />
@@ -631,7 +644,7 @@ const Banners = () => {
                     <input
                       type="date"
                       required
-                      className="w-full bg-gray-50 border-2 border-transparent focus:border-sky-500/30 focus:bg-white rounded-2xl h-14 px-5 text-sm font-bold text-gray-800 focus:outline-none transition-all"
+                      className="w-full bg-gray-50 border-2 border-gray-300 focus:border-sky-500/50 focus:bg-white rounded-2xl h-14 px-5 text-sm font-bold text-gray-800 focus:outline-none transition-all"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
                     />
@@ -659,7 +672,7 @@ const Banners = () => {
               </div>
 
               {/* Form Buttons */}
-              <div className="flex gap-4 border-t pt-6">
+              <div className="flex gap-4 border-t p-6 shrink-0 bg-white rounded-b-[32px] sm:rounded-b-[40px]">
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(false)}
@@ -670,7 +683,7 @@ const Banners = () => {
                 <button
                   type="submit"
                   disabled={isSubmitLoading}
-                  className="flex-[2] h-14 bg-gray-900 hover:bg-gray-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-gray-250 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="flex-[2] h-14 bg-sky-500 hover:bg-sky-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-sky-250 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {isSubmitLoading ? (
                     <Loader2 size={16} className="animate-spin" />

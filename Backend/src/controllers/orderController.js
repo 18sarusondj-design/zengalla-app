@@ -509,6 +509,7 @@ export const rejectOrder = async (req, res) => {
     order.deliveryPartnerId = null;
     order.status = 'NEW'; // Return to pool for reassignment
     order.isPartnerAccepted = false;
+    order.isDeliveryRejected = true;
     await order.save();
     res.json({ success: true, order });
   } catch (err) {
@@ -583,6 +584,7 @@ export const assignOrder = async (req, res) => {
 
     order.deliveryPartnerId = partnerId;
     order.status = 'ASSIGNED'; // Move to assigned status
+    order.isDeliveryRejected = false;
     
     if (deliveryFee !== undefined) order.deliveryFee = deliveryFee;
     if (extraAmount !== undefined) order.extraAmount = extraAmount;

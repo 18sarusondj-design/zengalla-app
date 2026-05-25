@@ -16,8 +16,11 @@ import PageLoader from './features/common/components/PageLoader';
 const Login = lazy(() => import('./features/auth/pages/Login'));
 const Register = lazy(() => import('./features/auth/pages/Register'));
 const ForgotPassword = lazy(() => import('./features/auth/pages/ForgotPassword'));
+const VendorLogin = lazy(() => import('./features/auth/pages/VendorLogin'));
 const VendorSignup = lazy(() => import('./features/auth/pages/VendorSignup'));
 const VendorPending = lazy(() => import('./features/auth/pages/VendorPending'));
+const DeliveryLogin = lazy(() => import('./features/auth/pages/DeliveryLogin'));
+const DeliveryRegister = lazy(() => import('./features/auth/pages/DeliveryRegister'));
 
 // Lazy Loaded Pages (Customer)
 const Landing = lazy(() => import('./features/customer/pages/Landing'));
@@ -106,8 +109,12 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/vendor-signup" element={<VendorSignup />} />
+              <Route path="/vendor/login" element={<VendorLogin />} />
+              <Route path="/vendor/register" element={<VendorSignup />} />
+              <Route path="/vendor-signup" element={<Navigate to="/vendor/register" replace />} />
               <Route path="/vendor-pending" element={<ProtectedRoute requireRole="vendor" allowPending={true}><VendorPending /></ProtectedRoute>} />
+              <Route path="/delivery/login" element={<DeliveryLogin />} />
+              <Route path="/delivery/register" element={<DeliveryRegister />} />
               <Route path="/delivery/dashboard" element={<ProtectedRoute requireRole="delivery"><DeliveryDashboard /></ProtectedRoute>} />
               <Route path="/vendor-dashboard-redirect" element={<VendorDashboardRedirect />} />
 
