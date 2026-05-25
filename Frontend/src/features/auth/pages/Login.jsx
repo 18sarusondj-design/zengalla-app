@@ -4,12 +4,13 @@ import { useAuth } from '../../auth/context/AuthContext';
 import { toast } from 'sonner';
 import { Store, Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, ShieldCheck, Truck } from 'lucide-react';
 import Logo from '../../common/components/Logo';
+import { GoogleLogin } from '@react-oauth/google';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const { login, logout, loading, user } = useAuth();
+  const { login, googleLogin, loading, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -179,6 +180,30 @@ const Login = () => {
                     <>Sign in to Account <ArrowRight size={16} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" /></>
                   )}
                 </button>
+                
+                <div className="relative flex items-center py-2">
+                  <div className="flex-grow border-t border-gray-100"></div>
+                  <span className="flex-shrink-0 mx-4 text-gray-400 text-[10px] font-bold uppercase tracking-widest">or</span>
+                  <div className="flex-grow border-t border-gray-100"></div>
+                </div>
+
+                <div className="flex justify-center w-full">
+                  <GoogleLogin
+                    onSuccess={async (credentialResponse) => {
+                      const result = await googleLogin(credentialResponse.credential, 'customer');
+                      if (result.success) {
+                        toast.success('Successfully logged in with Google');
+                        navigate(from, { replace: true });
+                      } else {
+                        toast.error(result.error);
+                      }
+                    }}
+                    onError={() => toast.error('Google Sign-In failed')}
+                    useOneTap
+                    shape="pill"
+                    theme="filled_blue"
+                  />
+                </div>
                 
                 <p className="text-center text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">
                   No account? <Link to="/register" state={{ from }} className="text-sky-600 font-black hover:underline underline-offset-4 decoration-2">Get Started</Link>

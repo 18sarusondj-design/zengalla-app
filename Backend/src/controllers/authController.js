@@ -2,6 +2,9 @@ import User from '../models/User.js';
 import Shop from '../models/Shop.js';
 import jwt from 'jsonwebtoken';
 import { sendOTP } from '../utils/mailer.js';
+import { OAuth2Client } from 'google-auth-library';
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const isValidPassword = (password) => {
   // Min 8 chars, at least 1 uppercase, 1 lowercase, 1 number
@@ -222,6 +225,70 @@ export const verifyOTP = async (req, res) => {
 };
 
 // POST /api/auth/login
+export const googleAuth = async (req, res) => {
+  try {
+    const { token, role = 'customer' } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token is required' });
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name, picture } = payload;
+
+    let user = await User.findOne({ email: email.toLowerCase() });
+
+    if (user) {
+      if (user.status === 'suspended' || user.status === 'rejected' || user.status === 'inactive') {
+        return res.status(403).json({ error: `Account is ${user.status}` });
+      }
+      if (!user.googleId) {
+        user.googleId = googleId;
+        user.isVerified = true;
+        if (picture && !user.photoUrl) user.photoUrl = picture;
+        await user.save();
+      }
+    } else {
+      user = new User({
+        name,
+        email: email.toLowerCase(),
+        googleId,
+        role,
+        isVerified: true,
+        photoUrl: picture || '',
+      });
+      await user.save();
+    }
+
+    const { accessToken, refreshToken } = generateTokens(user);
+
+    let shopDetails = null;
+    if (user.role === 'vendor' && user.shopId) {
+      shopDetails = await Shop.findById(user.shopId);
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        photoUrl: user.photoUrl,
+        shopId: user.shopId,
+        shop: shopDetails
+      },
+      accessToken,
+      refreshToken
+    });
+  } catch (error) {
+    console.error('Google Auth Error:', error);
+    res.status(401).json({ error: 'Invalid Google token' });
+  }
+};
+
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;

@@ -75,6 +75,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const googleLogin = async (credential, role = 'customer') => {
+    try {
+      const { data } = await api.post('/auth/google', { token: credential, role });
+      localStorage.setItem('token', data.accessToken);
+      localStorage.setItem('refreshToken', data.refreshToken);
+      localStorage.setItem('cached_user', JSON.stringify(data.user));
+      setToken(data.accessToken);
+      setRefreshToken(data.refreshToken);
+      setUser(data.user);
+      return { success: true, user: data.user };
+    } catch (err) {
+      return { success: false, error: err.message || 'Google Login failed' };
+    }
+  };
+
   const register = async (userData) => {
     try {
       const { data } = await api.post('/auth/register', userData);
@@ -182,7 +197,19 @@ export const AuthProvider = ({ children }) => {
 
   const value = useMemo(() => ({
     user, token, refreshToken, loading,
-    login, register, logout, updateProfile, resetPassword, finalizePasswordReset, refreshUser, verifyOtp, changePassword, sendLoginOtp, verifyLoginOtp,
+      login,
+      googleLogin,
+      register,
+      logout,
+      verifyOTP: verifyOtp,
+      updateProfile,
+      resetPassword,
+      finalizePasswordReset,
+      refreshUser,
+      verifyOtp,
+      changePassword,
+      sendLoginOtp,
+      verifyLoginOtp,
     session: token ? { access_token: token, refresh_token: refreshToken } : null,
   }), [user, token, refreshToken, loading]);
 

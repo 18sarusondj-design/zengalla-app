@@ -4,7 +4,8 @@ import bcrypt from 'bcryptjs';
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true, lowercase: true },
-  password: { type: String, required: true },
+  password: { type: String, required: function() { return !this.googleId; } },
+  googleId: { type: String, default: null },
   phone: { type: String, default: '' },
 
   role: { type: String, enum: ['customer', 'vendor', 'staff', 'delivery', 'admin'], default: 'customer' },
@@ -44,7 +45,7 @@ const userSchema = new mongoose.Schema({
 
 
 userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password') || !this.password) return next();
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });

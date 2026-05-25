@@ -4,12 +4,11 @@ import { useAuth } from '../../auth/context/AuthContext';
 import { toast } from 'sonner';
 import { Store, Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, ShieldCheck, Truck } from 'lucide-react';
 import Logo from '../../common/components/Logo';
-
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const { login, logout, loading, user } = useAuth();
+  const { login, loading, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -180,6 +179,12 @@ const Login = () => {
                   )}
                 </button>
                 
+                <div className="relative flex items-center py-2">
+                  <div className="flex-grow border-t border-gray-100"></div>
+                  <span className="flex-shrink-0 mx-4 text-gray-400 text-[10px] font-bold uppercase tracking-widest">or</span>
+                  <div className="flex-grow border-t border-gray-100"></div>
+                </div>
+
                 <p className="text-center text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">
                   No vendor account? <Link to="/vendor/register" state={{ from }} className="text-sky-600 font-black hover:underline underline-offset-4 decoration-2">Register Shop</Link>
                 </p>

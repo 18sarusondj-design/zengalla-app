@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 import { HelmetProvider } from 'react-helmet-async'
 
@@ -29,7 +30,9 @@ if ('caches' in window) {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <HelmetProvider>
-      <App />
+      <GoogleOAuthProvider clientId="754525931946-v6i0rtlvac4d53menr9tqml3f1iu55ds.apps.googleusercontent.com">
+        <App />
+      </GoogleOAuthProvider>
     </HelmetProvider>
   </StrictMode>,
 )

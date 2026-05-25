@@ -7,6 +7,7 @@ import ProductDetailsModal from '../components/ProductDetailsModal';
 import CustomerWeightModal from '../components/CustomerWeightModal';
 import PWAInstallButton from '../../common/components/PWAInstallButton';
 import { ProductSkeleton } from '../components/Skeleton';
+import BannerCarousel from '../components/BannerCarousel';
 
 const Home = () => {
   const { products, cart: allCarts, addToCart, updateQuantity, setItemQuantity } = useStore();
@@ -157,6 +158,9 @@ const Home = () => {
           )}
         </div>
       </div>
+      
+      {/* Banner Carousel */}
+      <BannerCarousel />
 
       <div className="flex-1 overflow-y-auto pb-4">
         <div className="px-4 py-4 flex flex-col gap-3">

@@ -5,10 +5,11 @@ import { useStore } from '../../shop/context/StoreContext';
 import { Store, Mail, Lock, Phone, User, CheckCircle2, ArrowRight, Loader2, ShieldCheck, Smartphone, Eye, EyeOff, X, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import Logo from '../../common/components/Logo';
+import { GoogleLogin } from '@react-oauth/google';
 
 const Register = () => {
   const [step, setStep] = useState(1);
-  const { register, verifyOtp } = useAuth();
+  const { register, verifyOtp, googleLogin } = useAuth();
   const { clearAllCart } = useStore();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -210,6 +211,30 @@ const Register = () => {
                       <>Complete Setup <ArrowRight size={16} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" /></>
                     )}
                   </button>
+                  
+                  <div className="relative flex items-center py-2">
+                    <div className="flex-grow border-t border-gray-100"></div>
+                    <span className="flex-shrink-0 mx-4 text-gray-400 text-[10px] font-bold uppercase tracking-widest">or</span>
+                    <div className="flex-grow border-t border-gray-100"></div>
+                  </div>
+
+                  <div className="flex justify-center w-full">
+                    <GoogleLogin
+                      onSuccess={async (credentialResponse) => {
+                        const result = await googleLogin(credentialResponse.credential, 'customer');
+                        if (result.success) {
+                          toast.success('Successfully logged in with Google');
+                          navigate(from, { replace: true });
+                        } else {
+                          toast.error(result.error || 'Google login failed');
+                        }
+                      }}
+                      onError={() => toast.error('Google Sign-In failed')}
+                      useOneTap
+                      shape="pill"
+                      theme="filled_blue"
+                    />
+                  </div>
                 </form>
               ) : (
                 <form className="space-y-4" onSubmit={handleVerifyOtp}>
