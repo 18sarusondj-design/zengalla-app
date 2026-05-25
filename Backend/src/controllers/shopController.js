@@ -390,7 +390,8 @@ export const updateShop = async (req, res) => {
 
       updateData.coupons = req.body.coupons.map(c => ({
         ...c,
-        expiryDate: c.expiryDate === '' ? undefined : c.expiryDate
+        expiryDate: c.expiryDate === '' ? undefined : c.expiryDate,
+        bannerId: (c.bannerId === '' || c.bannerId === undefined) ? null : c.bannerId
       }));
     }
 

@@ -29,6 +29,13 @@ export const uploadImage = async (req, res) => {
     
     console.log(`[UPLOAD] Processing: ${req.file.originalname} (${req.file.mimetype})`);
 
+    // Use Base64 string for local development if Cloudinary is not configured
+    if (process.env.CLOUDINARY_API_KEY === 'YOUR_API_KEY' || !process.env.CLOUDINARY_API_KEY) {
+      console.log(`[UPLOAD] Using Base64 fallback since Cloudinary is not configured`);
+      const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      return res.json({ success: true, url: base64Image });
+    }
+
     // Standard Cloudinary Upload using Stream (Most robust for binary)
     const result = await new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
@@ -61,6 +68,11 @@ export const uploadReceipt = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, error: 'No file provided' });
     
+    if (process.env.CLOUDINARY_API_KEY === 'YOUR_API_KEY' || !process.env.CLOUDINARY_API_KEY) {
+      const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      return res.json({ success: true, url: base64Image });
+    }
+
     const result = await new Promise((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           {
