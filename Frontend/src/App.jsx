@@ -60,6 +60,33 @@ const SupportInbox = lazy(() => import('./features/admin/pages/SupportInbox'));
 const AdminProfile = lazy(() => import('./features/admin/pages/AdminProfile'));
 const SponsorshipManagement = lazy(() => import('./features/admin/pages/SponsorshipManagement'));
 
+const AppTypeRestrictor = ({ children }) => {
+  const appType = import.meta.env.VITE_APP_TYPE || 'all'; // 'customer', 'vendor', 'delivery', or 'all'
+  const location = useLocation();
+  const path = location.pathname.toLowerCase();
+
+  // If this deployment is marked as "vendor", block non-vendor routes
+  if (appType === 'vendor') {
+    if (!path.startsWith('/vendor') && !path.startsWith('/super-admin') && !path.startsWith('/login') && !path.startsWith('/forgot-password')) {
+      return <Navigate to="/vendor/login" replace />;
+    }
+  }
+  // If this deployment is marked as "delivery", block non-delivery routes
+  if (appType === 'delivery') {
+    if (!path.startsWith('/delivery')) {
+      return <Navigate to="/delivery/login" replace />;
+    }
+  }
+  // If this deployment is marked as "customer", block vendor and delivery routes
+  if (appType === 'customer') {
+    if (path.startsWith('/vendor') || path.startsWith('/super-admin') || path.startsWith('/delivery')) {
+      return <Navigate to="/" replace />;
+    }
+  }
+
+  return children;
+};
+
 const ProtectedRoute = ({ children, requireRole, allowPending }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -104,7 +131,8 @@ function App() {
           <SystemUpdateBanner />
           <NotificationRegistrar />
           <Suspense fallback={<PageLoader />}>
-            <Routes>
+            <AppTypeRestrictor>
+              <Routes>
               {/* Auth */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
@@ -166,7 +194,8 @@ function App() {
               </Route>
 
               <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+              </Routes>
+            </AppTypeRestrictor>
           </Suspense>
         </StoreProvider>
       </BrowserRouter>
