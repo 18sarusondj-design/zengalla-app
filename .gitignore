@@ -8,3 +8,5 @@ dist
 Backend/node_modules
 Frontend/node_modules
 Frontend/dist
+
+.vercel
