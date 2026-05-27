@@ -1,5 +1,8 @@
 {
   "dependencies": {
     "axios": "^1.13.6"
+  },
+  "scripts": {
+    "build": "cd Frontend && npm install && npm run build && cd .. && rm -rf dist && cp -r Frontend/dist dist"
   }
 }
