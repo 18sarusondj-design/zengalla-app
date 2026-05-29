@@ -174,14 +174,18 @@ export const register = async (req, res) => {
     if (!isInternal) {
       if (role === 'delivery') {
         console.log(`\n\n[DELIVERY REGISTRATION OTP]: ${otp} for phone ${phone}\n\n`);
+        /*
         try {
           if (process.env.FAST2SMS_API_KEY) {
-            const fast2smsUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${process.env.FAST2SMS_API_KEY}&route=otp&variables_values=${otp}&numbers=${phone}`;
-            await fetch(fast2smsUrl, { method: 'GET' });
+            const fast2smsUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${process.env.FAST2SMS_API_KEY}&route=q&message=Your login OTP is ${otp}&flash=0&numbers=${phone}`;
+            const response = await fetch(fast2smsUrl, { method: 'GET' });
+            const data = await response.json();
+            console.log('[Fast2SMS Response (Reg)]:', data);
           }
         } catch (smsErr) {
           console.error('Fast2SMS Error:', smsErr);
         }
+        */
       } else {
         try {
           await sendOTP(email, otp);
@@ -348,14 +352,18 @@ export const sendLoginOTP = async (req, res) => {
 
     console.log(`\n\n[DELIVERY LOGIN OTP]: ${otp} for phone ${phone}\n\n`);
 
+    /*
     try {
       if (process.env.FAST2SMS_API_KEY) {
-        const fast2smsUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${process.env.FAST2SMS_API_KEY}&route=otp&variables_values=${otp}&numbers=${phone}`;
-        await fetch(fast2smsUrl, { method: 'GET' });
+        const fast2smsUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${process.env.FAST2SMS_API_KEY}&route=q&message=Your login OTP is ${otp}&flash=0&numbers=${phone}`;
+        const response = await fetch(fast2smsUrl, { method: 'GET' });
+        const data = await response.json();
+        console.log('[Fast2SMS Response]:', data);
       }
     } catch (smsErr) {
       console.error('Fast2SMS Error:', smsErr);
     }
+    */
 
     res.json({ success: true, message: 'OTP sent successfully to your phone number.' });
   } catch (err) {

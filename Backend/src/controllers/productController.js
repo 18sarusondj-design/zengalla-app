@@ -14,7 +14,7 @@ export const getProducts = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
     const [products, total] = await Promise.all([
-      Product.find(filter).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)),
+      Product.find(filter).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)).lean(),
       Product.countDocuments(filter)
     ]);
     
@@ -37,7 +37,7 @@ export const getProducts = async (req, res) => {
 // GET /api/products/:id
 export const getProductById = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id).lean();
     if (!product) return res.status(404).json({ error: 'Product not found' });
     res.json({ success: true, product });
   } catch (err) {
@@ -184,7 +184,8 @@ export const getProductLogs = async (req, res) => {
   try {
     const logs = await InventoryLog.find({ productId: req.params.id })
       .sort({ createdAt: -1 })
-      .limit(50);
+      .limit(50)
+      .lean();
     res.json({ success: true, logs });
   } catch (err) {
     res.status(500).json({ error: err.message });

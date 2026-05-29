@@ -47,6 +47,8 @@ productSchema.index({ category: 1 });
 productSchema.index({ name: 'text', description: 'text' });
 productSchema.index({ isActive: 1 });
 productSchema.index({ barcode: 1 });
+productSchema.index({ shopId: 1, isActive: 1 });
+productSchema.index({ shopId: 1, category: 1 });
 
 export default mongoose.model('Product', productSchema);
 

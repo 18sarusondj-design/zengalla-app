@@ -101,6 +101,8 @@ shopSchema.index({ category: 1 });
 shopSchema.index({ isActive: 1 });
 shopSchema.index({ isSponsored: 1 });
 shopSchema.index({ location: '2dsphere' });
+shopSchema.index({ isActive: 1, category: 1 });
+shopSchema.index({ isActive: 1, hasHomeDelivery: 1 });
 
 export default mongoose.model('Shop', shopSchema);
 

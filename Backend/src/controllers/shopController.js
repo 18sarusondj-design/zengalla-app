@@ -9,15 +9,15 @@ import { broadcastPushNotification } from '../services/notificationService.js';
 export const lookupShopByCode = async (req, res) => {
   try {
     const { code } = req.query;
-    const shop = await Shop.findOne({ storeCode: code });
+    const shop = await Shop.findOne({ storeCode: code }).lean();
     if (!shop) return res.status(404).json({ error: 'Invalid store code' });
 
     if (shop.subscriptionPlan === 'basic') {
       return res.status(403).json({ error: 'This shop is in offline-management mode and not visible online.' });
     }
 
-    const staff = await User.find({ shopId: shop._id, role: 'staff' });
-    const delivery = await User.find({ shopId: shop._id, role: 'delivery' });
+    const staff = await User.find({ shopId: shop._id, role: 'staff' }).lean();
+    const delivery = await User.find({ shopId: shop._id, role: 'delivery' }).lean();
     res.json({ success: true, shop, staff, delivery });
 
   } catch (err) {
@@ -294,7 +294,7 @@ export const getMyShop = async (req, res) => {
 // GET /api/shops/:id — public single shop
 export const getShopById = async (req, res) => {
   try {
-    const shop = await Shop.findById(req.params.id).select('-razorpayKeySecret');
+    const shop = await Shop.findById(req.params.id).select('-razorpayKeySecret').lean();
     if (!shop) return res.status(404).json({ error: 'Shop not found' });
 
     // If shop is offline-only (basic), only owner/staff can view it
@@ -488,7 +488,8 @@ export const getShopStaff = async (req, res) => {
     const staff = await User.find({ shopId: shop._id, role: 'staff' })
       .select('-password')
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
       
     res.json({ success: true, users: staff });
   } catch (err) {
@@ -508,7 +509,8 @@ export const getShopDelivery = async (req, res) => {
     const delivery = await User.find({ shopId: shop._id, role: 'delivery' })
       .select('-password')
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
 
     res.json({ success: true, users: delivery });
   } catch (err) {
@@ -623,7 +625,7 @@ export const getB2BSuppliers = async (req, res) => {
     // Find shops that have added this phone as a B2B partner
     const suppliers = await Shop.find({
       'b2bPartners.phone': phone
-    }).select('name phone imageUrl address gstin isWholesale storeCode bankDetails');
+    }).select('name phone imageUrl address gstin isWholesale storeCode bankDetails').lean();
 
     res.json({ success: true, shops: suppliers });
   } catch (err) {
@@ -638,7 +640,7 @@ export const lookupShop = async (req, res) => {
     if (!phone) return res.status(400).json({ error: 'Phone number required' });
 
     // Find a shop where the owner's phone or shop phone matches
-    const shop = await Shop.findOne({ phone }).populate('owner', 'name email');
+    const shop = await Shop.findOne({ phone }).populate('owner', 'name email').lean();
     if (!shop) return res.status(404).json({ error: 'No registered shop found with this phone' });
 
     res.json({

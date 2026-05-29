@@ -58,4 +58,9 @@ userSchema.set('toJSON', {
   transform: (doc, ret) => { delete ret.password; return ret; }
 });
 
+userSchema.index({ role: 1 });
+userSchema.index({ shopId: 1 });
+userSchema.index({ phone: 1 });
+userSchema.index({ status: 1 });
+
 export default mongoose.model('User', userSchema);

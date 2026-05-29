@@ -163,7 +163,11 @@ const DeliveryDashboard = () => {
         (pos) => {
           const { latitude, longitude } = pos.coords;
           setCurrentCoords({ lat: latitude, lng: longitude });
-          updateDriverLocation(latitude, longitude);
+          const now = Date.now();
+          if (!window.lastLocationUpdate || now - window.lastLocationUpdate > 10000) {
+            window.lastLocationUpdate = now;
+            updateDriverLocation(latitude, longitude);
+          }
         },
         (err) => console.error("Geo error:", err),
         { enableHighAccuracy: true, distanceFilter: 10 }
