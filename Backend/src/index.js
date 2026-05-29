@@ -22,6 +22,9 @@ import bannerRoutes from './routes/banners.js';
 
 const app = express();
 
+// Enable trust proxy to get client's real IP address behind Vercel/Render proxies
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(cors());
 app.use(helmet()); // Secure HTTP headers
