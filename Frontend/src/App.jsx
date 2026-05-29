@@ -94,7 +94,14 @@ const ProtectedRoute = ({ children, requireRole, allowPending }) => {
   if (loading) return null;
   if (!user) {
     sessionStorage.setItem('redirectUrl', location.pathname);
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    const path = location.pathname.toLowerCase();
+    let loginRoute = '/login';
+    if (path.startsWith('/vendor') || path.startsWith('/super-admin') || path.startsWith('/vendor-pending')) {
+      loginRoute = '/vendor/login';
+    } else if (path.startsWith('/delivery')) {
+      loginRoute = '/delivery/login';
+    }
+    return <Navigate to={loginRoute} state={{ from: location.pathname }} replace />;
   }
 
   if (requireRole) {

@@ -334,7 +334,7 @@ const DeliveryDashboard = () => {
             <button onClick={() => window.location.reload()} className="h-14 px-8 bg-sky-500 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-sky-400 transition-all shadow-xl shadow-sky-500/20">
               I've Enabled It
             </button>
-            <button onClick={() => { logout(); window.location.href = '/login'; }} className="h-14 px-8 bg-slate-800 text-slate-300 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-700 transition-all border border-slate-700">
+            <button onClick={() => { logout(); window.location.href = '/delivery/login'; }} className="h-14 px-8 bg-slate-800 text-slate-300 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-700 transition-all border border-slate-700">
               Logout
             </button>
           </div>
@@ -460,7 +460,7 @@ const DeliveryDashboard = () => {
           </button>
 
           <button
-            onClick={() => { logout(); window.location.href = '/login'; }}
+            onClick={() => { logout(); window.location.href = '/delivery/login'; }}
             className="w-9 h-9 sm:w-11 sm:h-11 bg-white rounded-xl sm:rounded-2xl flex items-center justify-center text-gray-300 hover:text-rose-500 transition-all border border-gray-100"
           >
             <LogOut size={16} />

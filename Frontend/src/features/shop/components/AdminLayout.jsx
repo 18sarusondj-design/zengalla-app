@@ -216,7 +216,7 @@ const AdminLayout = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/vendor/login');
   };
 
   // Global HID Barcode Listener
