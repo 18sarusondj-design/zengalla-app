@@ -93,12 +93,12 @@ const MONGODB_URI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb
 
 // Mask URI for safe logging (hides password)
 const maskedUri = MONGODB_URI.replace(/:([^@]+)@/, ':****@');
-console.log(`📡 Attempting to connect to MongoDB: ${maskedUri}`);
+// Start Express Server immediately (prevents port-binding and health-check timeouts on Render)
+const server = app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server running on http://0.0.0.0:${PORT}`));
 
 mongoose.connect(MONGODB_URI)
   .then(() => {
     console.log('✅ MongoDB connected successfully');
-    app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server running on http://0.0.0.0:${PORT}`));
   })
   .catch((err) => {
     console.error('❌ MongoDB connection failed!');
@@ -107,7 +107,6 @@ mongoose.connect(MONGODB_URI)
     if (err.message.includes('authentication failed')) {
       console.error('👉 Tip: Check your MONGO_URI credentials and authSource.');
     }
-    process.exit(1);
   });
 
 // Handle Unhandled Rejections

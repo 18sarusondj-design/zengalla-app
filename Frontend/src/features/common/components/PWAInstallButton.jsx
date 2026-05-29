@@ -16,7 +16,8 @@ const PWAInstallButton = ({ variant = 'default', className = "" }) => {
     default: `px-4 py-2.5 rounded-xl text-sky-600 bg-sky-50 hover:bg-sky-100 border border-sky-100 shadow-sm ${baseStyles}`,
     hero: `h-10 px-8 bg-sky-500 hover:bg-sky-600 text-white rounded-xl shadow-2xl shadow-sky-900/40 text-[9px] border border-sky-400/30 whitespace-nowrap ${baseStyles}`,
     banner: `w-full h-full px-5 py-4 bg-gradient-to-br from-sky-500 to-sky-600 text-white rounded-3xl shadow-lg flex-col ${baseStyles}`,
-    sidebar: `px-4 py-3.5 rounded-2xl w-full text-sky-600 bg-sky-50 hover:bg-sky-100 text-xs tracking-tight border border-sky-100 shadow-sm flex-col ${baseStyles}`
+    sidebar: `px-4 py-3.5 rounded-2xl w-full text-sky-600 bg-sky-50 hover:bg-sky-100 text-xs tracking-tight border border-sky-100 shadow-sm flex-col ${baseStyles}`,
+    brand: `px-6 py-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white backdrop-blur-md text-[10px] whitespace-nowrap shadow-xl hover:shadow-white/5 active:scale-95 ${baseStyles}`
   };
 
   const handleAction = () => {

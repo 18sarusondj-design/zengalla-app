@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/context/AuthContext';
 import { toast } from 'sonner';
 import { Store, Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, ShieldCheck, Truck } from 'lucide-react';
 import Logo from '../../common/components/Logo';
+import PWAInstallButton from '../../common/components/PWAInstallButton';
 import { GoogleLogin } from '@react-oauth/google';
 
 const Login = () => {
@@ -92,9 +93,12 @@ const Login = () => {
               <Logo className="w-20 h-20" variant="full" white />
             </div>
             <h2 className="text-5xl font-black text-white tracking-tighter uppercase mb-4 leading-[0.85]">Pure<br/>Simplicity.</h2>
-            <p className="text-sm text-white/70 font-medium leading-relaxed mb-10 max-w-xs">
+            <p className="text-sm text-white/70 font-medium leading-relaxed mb-6 max-w-xs">
               Welcome back to Zengalla. Your premium marketplace experience awaits.
             </p>
+            <div className="flex justify-start w-fit">
+              <PWAInstallButton variant="brand" />
+            </div>
           </div>
         </div>
       </div>
