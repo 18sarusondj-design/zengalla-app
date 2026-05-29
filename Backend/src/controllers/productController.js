@@ -48,7 +48,7 @@ export const getProductById = async (req, res) => {
 // POST /api/products
 export const createProduct = async (req, res) => {
   try {
-    const shop = await Shop.findOne({ owner: req.user._id });
+    const shop = await Shop.findById(req.user.shopId);
     if (!shop) return res.status(404).json({ error: 'Shop not found. Please create your shop profile first.' });
     
     // Calculate total stock from batches if provided
@@ -88,10 +88,10 @@ export const updateProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: 'Product not found' });
-    const shop = await Shop.findOne({ owner: req.user._id });
-    if (!shop || product.shopId.toString() !== shop._id.toString()) {
-      return res.status(403).json({ error: 'Unauthorized' });
+    if (!req.user.shopId || product.shopId.toString() !== req.user.shopId.toString()) {
+      return res.status(403).json({ error: 'Access denied: You can only update products for your shop.' });
     }
+    const shop = await Shop.findById(req.user.shopId);
     
     const prevStock = product.stock || 0;
     const prevBatchesCount = product.batches?.length || 0;
@@ -135,9 +135,8 @@ export const deleteProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: 'Product not found' });
-    const shop = await Shop.findOne({ owner: req.user._id });
-    if (!shop || product.shopId.toString() !== shop._id.toString()) {
-      return res.status(403).json({ error: 'Unauthorized' });
+    if (!req.user.shopId || product.shopId.toString() !== req.user.shopId.toString()) {
+      return res.status(403).json({ error: 'Access denied: You can only delete products from your shop.' });
     }
     await Product.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'Product deleted' });
@@ -151,9 +150,15 @@ export const bulkUpdateStock = async (req, res) => {
   try {
     const { updates } = req.body; // [{ id, stock }]
     if (!Array.isArray(updates)) return res.status(400).json({ error: 'updates must be an array' });
-    const ops = updates.map(({ id, stock }) =>
-      Product.findByIdAndUpdate(id, { stock: parseFloat(stock) || 0 }, { new: true })
-    );
+    if (!req.user.shopId) return res.status(403).json({ error: 'No shop associated with user' });
+
+    const ops = updates.map(async ({ id, stock }) => {
+      const p = await Product.findById(id);
+      if (p && p.shopId.toString() === req.user.shopId.toString()) {
+        return Product.findByIdAndUpdate(id, { stock: parseFloat(stock) || 0 }, { new: true });
+      }
+      return null;
+    });
     await Promise.all(ops);
     res.json({ success: true, message: 'Stock updated' });
   } catch (err) {
@@ -167,6 +172,12 @@ export const decrementStock = async (req, res) => {
     const { amount = 1 } = req.body;
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: 'Product not found' });
+    
+    // RBAC: Only allow if it's the vendor's own shop, or block it entirely if it's meant for internal use.
+    // Assuming staff/vendor can manually decrement:
+    if (!req.user || !req.user.shopId || req.user.shopId.toString() !== product.shopId.toString()) {
+      return res.status(403).json({ error: 'Access denied: You can only decrement stock for your own shop.' });
+    }
     
     // Prevent negative stock
     const newStock = Math.max(0, (product.stock || 0) - amount);

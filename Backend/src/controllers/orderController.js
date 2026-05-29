@@ -300,6 +300,18 @@ export const getOrderById = async (req, res) => {
     const order = await Order.findById(req.params.id).populate('deliveryPartnerId', 'name phone location isOnline');
     if (!order) return res.status(404).json({ error: 'Order not found' });
     
+    // RBAC: Check ownership
+    const { role, _id, shopId } = req.user || {};
+    if (role === 'customer' && order.userId?.toString() !== _id.toString()) {
+      return res.status(403).json({ error: 'Access denied: You can only view your own orders.' });
+    }
+    if ((role === 'vendor' || role === 'staff') && order.shopId?.toString() !== shopId?.toString()) {
+      return res.status(403).json({ error: 'Access denied: You can only view orders for your shop.' });
+    }
+    if (role === 'delivery' && order.deliveryPartnerId?._id?.toString() !== _id.toString() && order.status !== 'NEW' && order.status !== 'PACKING' && order.status !== 'READY') {
+      return res.status(403).json({ error: 'Access denied: You can only view orders assigned to you or available in the pool.' });
+    }
+
     // Virtual field for frontend convenience
     const orderObj = order.toObject();
     if (order.deliveryPartnerId && order.deliveryPartnerId.location) {
@@ -370,6 +382,18 @@ export const cancelOrder = async (req, res) => {
     const { reason } = req.body;
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    // RBAC: Check ownership
+    const { role, _id, shopId } = req.user || {};
+    if (role === 'customer' && order.userId?.toString() !== _id.toString()) {
+      return res.status(403).json({ error: 'Access denied: You can only cancel your own orders.' });
+    }
+    if ((role === 'vendor' || role === 'staff') && order.shopId?.toString() !== shopId?.toString()) {
+      return res.status(403).json({ error: 'Access denied: You can only cancel orders for your shop.' });
+    }
+    if (role === 'delivery') {
+      return res.status(403).json({ error: 'Access denied: Delivery partners cannot cancel orders.' });
+    }
 
     const oldStatus = order.status;
     if (oldStatus !== 'CANCELLED') {
