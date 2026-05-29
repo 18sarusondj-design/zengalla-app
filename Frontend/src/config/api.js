@@ -2,7 +2,7 @@ import axios from 'axios';
 import axiosRetry from 'axios-retry';
 
 
-const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000/api`;
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : `http://${window.location.hostname}:5000/api`);
 
 let isRefreshing = false;
 let failedQueue = [];
