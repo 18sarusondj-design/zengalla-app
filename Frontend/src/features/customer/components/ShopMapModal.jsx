@@ -210,6 +210,7 @@ const ShopMapModal = ({ isOpen, onClose, shops: propShops, userCoords, onUserLoc
             height="100%"
             userCoords={userCoords}
             onUserLocationChange={onUserLocationChange}
+            onLocationSelect={onUserLocationChange}
             markers={markers}
             showSatellite={showSatellite}
             zoom={13}

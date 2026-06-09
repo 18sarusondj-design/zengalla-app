@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQueryParam } from '../../../hooks/useQueryParam';
 import { useStore } from '../../shop/context/StoreContext';
 import { useAuth } from '../../auth/context/AuthContext';
-import { Store, MapPin, ChevronLeft, ChevronRight, ShoppingBag, Plus, Minus, Loader2, ArrowRight, Search, X, Info, Gift, Bell, Copy, Check, Phone, Clock, Eye, ShoppingCart, Trash2, Sparkles, Ticket, Star } from 'lucide-react';
+import { Store, MapPin, ChevronLeft, ChevronRight, ShoppingBag, Plus, Minus, Loader2, ArrowRight, Search, X, Info, Gift, Bell, Copy, Check, Phone, Clock, Eye, ShoppingCart, Trash2, Sparkles, Ticket, Star, SlidersHorizontal } from 'lucide-react';
 import api from '../../../config/api.js';
 import { toast } from 'sonner';
 import FullScreenLoader from '../components/FullScreenLoader';
@@ -18,9 +18,28 @@ import { ProductSkeleton } from '../components/Skeleton';
 
 // Product Ratings & Reviews Integration
 
-/**
- * ShopMenu Component - Displays products for a specific shop
- */
+const getProductBrand = (p) => {
+  if (!p || !p.name) return 'Generic';
+  const firstWord = p.name.trim().split(/\s+/)[0];
+  const cleaned = firstWord.replace(/[^a-zA-Z0-9]/g, '');
+  return cleaned || 'Generic';
+};
+
+const FilterChip = ({ label, onClear }) => {
+  return (
+    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 border border-sky-100 text-sky-700 rounded-full text-[9px] font-black uppercase tracking-wider shadow-sm animate-in zoom-in duration-200">
+      <span>{label}</span>
+      <button
+        type="button"
+        onClick={onClear}
+        className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-sky-200/50 transition-colors text-sky-500"
+      >
+        <X size={10} strokeWidth={3} />
+      </button>
+    </div>
+  );
+};
+
 const ShopMenu = () => {
   const isShopOpen = (s) => {
     if (!s) return false;
@@ -49,6 +68,18 @@ const ShopMenu = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [weighingProduct, setWeighingProduct] = useState(null);
   const [isPromoModalOpen, setIsPromoModalOpen] = useState(false);
+
+  // -- Advanced Product Filters & Sort States --
+  const [sortBy, setSortBy] = useState('recommended');
+  const [selectedBrands, setSelectedBrands] = useState([]);
+  const [priceMinFilter, setPriceMinFilter] = useState('');
+  const [priceMaxFilter, setPriceMaxFilter] = useState('');
+  const [inStockOnly, setInStockOnly] = useState(false);
+  const [hideOutOfStock, setHideOutOfStock] = useState(false);
+  const [discountedOnly, setDiscountedOnly] = useState(false);
+  const [newArrivalsOnly, setNewArrivalsOnly] = useState(false);
+  const [bestSellersOnly, setBestSellersOnly] = useState(false);
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const { cart: allCarts, addToCart, removeFromCart, updateQuantity, setItemQuantity, cartTotal, orders, deleteProduct, deleteCategory, setCurrentShopId, customerGstin } = useStore();
   const cart = allCarts[shopId] || [];
   const { user } = useAuth();
@@ -150,7 +181,10 @@ const ShopMenu = () => {
       const pDesc = (p.description || '').toLowerCase();
       const pCat = (p.category || '').toLowerCase();
 
+      // Search matching (partial, case-insensitive)
       const matchesSearch = pName.includes(query) || pDesc.includes(query) || pCat.includes(query);
+      
+      // Category Filter (both quick category and drawer selection)
       const matchesCategory = activeCategory === 'All' || p.category === activeCategory;
       
       // If 'For You' is active, only show items previously ordered
@@ -159,9 +193,32 @@ const ShopMenu = () => {
         if (!orderedProductCounts[pId]) return false;
       }
 
-      return matchesSearch && matchesCategory;
+      // Brand Filter
+      const pBrand = getProductBrand(p);
+      const matchesBrand = selectedBrands.length === 0 || selectedBrands.includes(pBrand);
+
+      // Price Range Filter
+      const matchesMinPrice = priceMinFilter === '' || p.price >= Number(priceMinFilter);
+      const matchesMaxPrice = priceMaxFilter === '' || p.price <= Number(priceMaxFilter);
+
+      // Stock Filter
+      const pStock = p.stockQuantity ?? p.stock ?? 0;
+      const matchesStock = (!inStockOnly && !hideOutOfStock) || pStock > 0;
+
+      // Discounted Products
+      const matchesDiscount = !discountedOnly || (p.mrp > p.price);
+
+      // New Arrivals (created within last 90 days)
+      const isNewArrival = p.createdAt && (new Date() - new Date(p.createdAt) < 90 * 24 * 60 * 60 * 1000);
+      const matchesNewArrivals = !newArrivalsOnly || isNewArrival;
+
+      // Best Sellers
+      const isBestSeller = (orderedProductCounts[String(p._id || p.id)] || 0) > 0 || (p.rating >= 4.0 && p.numReviews > 0);
+      const matchesBestSellers = !bestSellersOnly || isBestSeller;
+
+      return matchesSearch && matchesCategory && matchesBrand && matchesMinPrice && matchesMaxPrice && matchesStock && matchesDiscount && matchesNewArrivals && matchesBestSellers;
     }).sort((a, b) => {
-      // Rule 1: Move items with exactly 0 stock to the bottom
+      // Sold out products go to the bottom for all sorts, unless filtered out
       const aStock = a.stockQuantity ?? a.stock ?? 0;
       const bStock = b.stockQuantity ?? b.stock ?? 0;
       const aIsZero = (aStock === 0);
@@ -170,37 +227,79 @@ const ShopMenu = () => {
       if (!aIsZero && bIsZero) return -1;
       if (aIsZero && !bIsZero) return 1;
 
-      // Rule 2: Top Rated
-      if (sortOrder === 'top-rated') {
+      // Apply Sort Options
+      if (sortBy === 'recommended') {
+        // Rule 2: Top Rated (if sortOrder is 'top-rated')
+        if (sortOrder === 'top-rated') {
+          if ((b.rating || 0) !== (a.rating || 0)) return (b.rating || 0) - (a.rating || 0);
+          return (b.numReviews || 0) - (a.numReviews || 0);
+        }
+
+        // Rule 3: If 'For You' is selected, prioritize by order frequency and recency
+        if (sortOrder === 'relevant') {
+          const aId = String(a._id || a.id);
+          const bId = String(b._id || b.id);
+          const aCount = orderedProductCounts[aId] || 0;
+          const bCount = orderedProductCounts[bId] || 0;
+          
+          // Priority 1: Use order frequency
+          if (aCount !== bCount) return bCount - aCount; 
+          
+          // Priority 2: Recency bonus (if frequency is same, check if it was in the last order)
+          if (shopOrders.length > 0) {
+             const lastOrderItems = shopOrders[0].items || [];
+             const aInLast = lastOrderItems.some(i => String(i.product?._id || i.product) === aId);
+             const bInLast = lastOrderItems.some(i => String(i.product?._id || i.product) === bId);
+             if (aInLast && !bInLast) return -1;
+             if (!aInLast && bInLast) return 1;
+          }
+        }
+        
+        // Default / Tie-breaker: Alphabetical (A-Z)
+        return (a.name || '').localeCompare(b.name || '');
+      } else if (sortBy === 'priceAsc') {
+        return a.price - b.price;
+      } else if (sortBy === 'priceDesc') {
+        return b.price - a.price;
+      } else if (sortBy === 'newArrivals') {
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      } else if (sortBy === 'bestSelling') {
+        const aCount = orderedProductCounts[String(a._id || a.id)] || 0;
+        const bCount = orderedProductCounts[String(b._id || b.id)] || 0;
+        return bCount - aCount;
+      } else if (sortBy === 'popularity') {
         if ((b.rating || 0) !== (a.rating || 0)) return (b.rating || 0) - (a.rating || 0);
         return (b.numReviews || 0) - (a.numReviews || 0);
+      } else if (sortBy === 'highestDiscount') {
+        const getDiscount = p => p.mrp > p.price ? ((p.mrp - p.price) / p.mrp) : 0;
+        return getDiscount(b) - getDiscount(a);
+      } else if (sortBy === 'aToZ') {
+        return (a.name || '').localeCompare(b.name || '');
+      } else if (sortBy === 'zToA') {
+        return (b.name || '').localeCompare(a.name || '');
       }
 
-      // Rule 3: If 'For You' is selected, prioritize by order frequency and recency
-      if (sortOrder === 'relevant') {
-        const aId = String(a._id || a.id);
-        const bId = String(b._id || b.id);
-        const aCount = orderedProductCounts[aId] || 0;
-        const bCount = orderedProductCounts[bId] || 0;
-        
-        // Priority 1: Use order frequency
-        if (aCount !== bCount) return bCount - aCount; 
-        
-        // Priority 2: Recency bonus (if frequency is same, check if it was in the last order)
-        if (shopOrders.length > 0) {
-           const lastOrderItems = shopOrders[0].items || [];
-           const aInLast = lastOrderItems.some(i => String(i.product?._id || i.product) === aId);
-           const bInLast = lastOrderItems.some(i => String(i.product?._id || i.product) === bId);
-           if (aInLast && !bInLast) return -1;
-           if (!aInLast && bInLast) return 1;
-        }
-      }
-      
-      // Default / Tie-breaker: Alphabetical (A-Z)
-      return (a.name || '').localeCompare(b.name || '');
+      return 0;
     });
+
     setFilteredProducts(filtered);
-  }, [searchQuery, products, activeCategory, sortOrder, orders, shopId]);
+  }, [
+    searchQuery,
+    products,
+    activeCategory,
+    sortOrder,
+    sortBy,
+    selectedBrands,
+    priceMinFilter,
+    priceMaxFilter,
+    inStockOnly,
+    hideOutOfStock,
+    discountedOnly,
+    newArrivalsOnly,
+    bestSellersOnly,
+    orders,
+    shopId
+  ]);
 
   // 🎯 Auto-scroll and Highlight searched item
   useEffect(() => {
@@ -239,7 +338,20 @@ const ShopMenu = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, activeCategory, sortOrder]);
+  }, [
+    searchQuery,
+    activeCategory,
+    sortOrder,
+    sortBy,
+    selectedBrands,
+    priceMinFilter,
+    priceMaxFilter,
+    inStockOnly,
+    hideOutOfStock,
+    discountedOnly,
+    newArrivalsOnly,
+    bestSellersOnly
+  ]);
 
   // Scroll to top when page changes
   useEffect(() => {
@@ -250,6 +362,215 @@ const ShopMenu = () => {
   const paginatedProducts = (filteredProducts || []).slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const categories = ['All', ...new Set((products || []).map(p => p.category).filter(Boolean))];
+  const brands = useMemo(() => {
+    const list = new Set((products || []).map(p => getProductBrand(p)).filter(Boolean));
+    return Array.from(list).sort();
+  }, [products]);
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (selectedBrands.length > 0) count += selectedBrands.length;
+    if (priceMinFilter !== '') count++;
+    if (priceMaxFilter !== '') count++;
+    if (inStockOnly) count++;
+    if (hideOutOfStock) count++;
+    if (discountedOnly) count++;
+    if (newArrivalsOnly) count++;
+    if (bestSellersOnly) count++;
+    if (sortBy !== 'recommended') count++;
+    return count;
+  }, [selectedBrands, priceMinFilter, priceMaxFilter, inStockOnly, hideOutOfStock, discountedOnly, newArrivalsOnly, bestSellersOnly, sortBy]);
+
+  const handleClearAllFilters = () => {
+    setSelectedBrands([]);
+    setPriceMinFilter('');
+    setPriceMaxFilter('');
+    setInStockOnly(false);
+    setHideOutOfStock(false);
+    setDiscountedOnly(false);
+    setNewArrivalsOnly(false);
+    setBestSellersOnly(false);
+    setSortBy('recommended');
+  };
+
+  const renderFilterContent = () => {
+    return (
+      <div className="space-y-6">
+        {/* Category Selection */}
+        <div className="space-y-2">
+          <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Category</h4>
+          <div className="flex flex-wrap gap-1.5">
+            {categories.map((cat) => {
+              const isActive = activeCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => {
+                    setActiveCategory(cat);
+                    setSortOrder(cat === 'All' ? 'alpha' : 'alpha');
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
+                    isActive 
+                      ? 'bg-sky-600 text-white border-sky-600 shadow-sm' 
+                      : 'bg-gray-50 hover:bg-gray-100 text-gray-600 border-gray-200'
+                  }`}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Brand Selection */}
+        {brands.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Brand</h4>
+            <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto custom-scrollbar pr-1">
+              {brands.map((br) => {
+                const isSelected = selectedBrands.includes(br);
+                return (
+                  <button
+                    key={br}
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) {
+                        setSelectedBrands(selectedBrands.filter(b => b !== br));
+                      } else {
+                        setSelectedBrands([...selectedBrands, br]);
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
+                      isSelected 
+                        ? 'bg-sky-600 text-white border-sky-600 shadow-sm' 
+                        : 'bg-gray-50 hover:bg-gray-100 text-gray-600 border-gray-200'
+                    }`}
+                  >
+                    {br}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Price Range */}
+        <div className="space-y-2">
+          <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Price Range</h4>
+          <div className="flex gap-2 items-center">
+            <input
+              type="number"
+              placeholder="Min"
+              value={priceMinFilter}
+              onChange={(e) => setPriceMinFilter(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-[10px] font-bold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all no-spinner"
+            />
+            <span className="text-gray-400 text-xs font-bold">-</span>
+            <input
+              type="number"
+              placeholder="Max"
+              value={priceMaxFilter}
+              onChange={(e) => setPriceMaxFilter(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-[10px] font-bold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all no-spinner"
+            />
+          </div>
+        </div>
+
+        {/* Toggles */}
+        <div className="space-y-4 pt-4 border-t border-gray-100">
+          <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Availability & Offers</h4>
+          
+          {/* Hide Out of Stock / In Stock Only */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black text-gray-800 uppercase tracking-tight">Hide Out of Stock</p>
+              <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Only show available items</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setHideOutOfStock(!hideOutOfStock);
+                setInStockOnly(!hideOutOfStock);
+              }}
+              className={`w-9 h-5.5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none ${
+                hideOutOfStock ? 'bg-sky-600' : 'bg-gray-200'
+              }`}
+            >
+              <div
+                className={`w-4.5 h-4.5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
+                  hideOutOfStock ? 'translate-x-3.5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Discounted Only */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black text-gray-800 uppercase tracking-tight">On Discount Only</p>
+              <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Show items with offers</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDiscountedOnly(!discountedOnly)}
+              className={`w-9 h-5.5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none ${
+                discountedOnly ? 'bg-sky-600' : 'bg-gray-200'
+              }`}
+            >
+              <div
+                className={`w-4.5 h-4.5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
+                  discountedOnly ? 'translate-x-3.5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* New Arrivals */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black text-gray-800 uppercase tracking-tight">New Arrivals</p>
+              <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Show recently added products</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setNewArrivalsOnly(!newArrivalsOnly)}
+              className={`w-9 h-5.5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none ${
+                newArrivalsOnly ? 'bg-sky-600' : 'bg-gray-200'
+              }`}
+            >
+              <div
+                className={`w-4.5 h-4.5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
+                  newArrivalsOnly ? 'translate-x-3.5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Best Sellers */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black text-gray-800 uppercase tracking-tight">Best Sellers Only</p>
+              <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Show top-selling items</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setBestSellersOnly(!bestSellersOnly)}
+              className={`w-9 h-5.5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none ${
+                bestSellersOnly ? 'bg-sky-600' : 'bg-gray-200'
+              }`}
+            >
+              <div
+                className={`w-4.5 h-4.5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
+                  bestSellersOnly ? 'translate-x-3.5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const fetchShopProducts = async () => {
     try {
@@ -647,9 +968,48 @@ const ShopMenu = () => {
           </div>
         )}
 
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xs font-black text-gray-900 uppercase tracking-[0.25em]">Exclusive Menu</h3>
-          <p className="text-[10px] font-black text-sky-500 bg-sky-50 border border-sky-100 px-3 py-1 rounded-full uppercase tracking-widest">{filteredProducts.length} Results</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div className="flex items-center justify-between sm:justify-start gap-4">
+            <h3 className="text-xs font-black text-gray-900 uppercase tracking-[0.25em]">Exclusive Menu</h3>
+            <p className="text-[10px] font-black text-sky-500 bg-sky-50 border border-sky-100 px-3 py-1 rounded-full uppercase tracking-widest">{filteredProducts.length} Results</p>
+          </div>
+          
+          <div className="flex items-center justify-between sm:justify-end gap-2">
+            {/* Quick Sort Dropdown */}
+            <div className="relative">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="pl-3 pr-8 py-2 bg-white border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-wider text-gray-700 outline-none cursor-pointer appearance-none shadow-sm hover:border-gray-300 transition-all"
+              >
+                <option value="recommended">Sort: Recommended</option>
+                <option value="priceAsc">Price: Low to High</option>
+                <option value="priceDesc">Price: High to Low</option>
+                <option value="newArrivals">New Arrivals</option>
+                <option value="bestSelling">Best Selling</option>
+                <option value="popularity">Most Popular</option>
+                <option value="highestDiscount">Highest Discount</option>
+                <option value="aToZ">Name: A to Z</option>
+                <option value="zToA">Name: Z to A</option>
+              </select>
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                <ChevronRight size={10} className="rotate-90" />
+              </div>
+            </div>
+
+            {/* Filters Button */}
+            <button
+              onClick={() => setIsFilterDrawerOpen(true)}
+              className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border shadow-sm ${
+                activeFiltersCount > 0
+                  ? 'bg-sky-500 border-sky-400 text-white shadow-md'
+                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <SlidersHorizontal size={10} strokeWidth={2.5} />
+              <span>Filters {activeFiltersCount > 0 ? `(${activeFiltersCount})` : ''}</span>
+            </button>
+          </div>
         </div>
 
         {/* Unitary Category & Sort Filter */}
@@ -730,8 +1090,71 @@ const ShopMenu = () => {
           ))}
         </div>
 
+        {/* Active Filter Chips Row */}
+        {activeFiltersCount > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mt-2 animate-in fade-in duration-300">
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mr-1">Active:</span>
+            
+            {sortBy !== 'recommended' && (
+              <FilterChip label={`Sort: ${sortBy}`} onClear={() => setSortBy('recommended')} />
+            )}
+            {selectedBrands.map(br => (
+              <FilterChip key={br} label={`Brand: ${br}`} onClear={() => setSelectedBrands(selectedBrands.filter(b => b !== br))} />
+            ))}
+            {priceMinFilter !== '' && (
+              <FilterChip label={`Min: ₹${priceMinFilter}`} onClear={() => setPriceMinFilter('')} />
+            )}
+            {priceMaxFilter !== '' && (
+              <FilterChip label={`Max: ₹${priceMaxFilter}`} onClear={() => setPriceMaxFilter('')} />
+            )}
+            {hideOutOfStock && (
+              <FilterChip label="In Stock Only" onClear={() => { setHideOutOfStock(false); setInStockOnly(false); }} />
+            )}
+            {discountedOnly && (
+              <FilterChip label="Discounted" onClear={() => setDiscountedOnly(false)} />
+            )}
+            {newArrivalsOnly && (
+              <FilterChip label="New Arrivals" onClear={() => setNewArrivalsOnly(false)} />
+            )}
+            {bestSellersOnly && (
+              <FilterChip label="Best Sellers" onClear={() => setBestSellersOnly(false)} />
+            )}
+
+            <button
+              type="button"
+              onClick={handleClearAllFilters}
+              className="text-[9px] font-black text-rose-600 hover:text-rose-700 uppercase tracking-widest transition-colors ml-auto active:scale-95"
+            >
+              Clear All
+            </button>
+          </div>
+        )}
+
         {/* Product Grid - Compact List/Grid */}
-        {filteredProducts.length === 0 ? (
+        <div className="flex gap-6 items-start mt-6 w-full">
+          {/* Desktop Sidebar Filter Panel */}
+          <div className="hidden lg:block w-64 shrink-0 bg-white border border-gray-155 rounded-[32px] p-6 shadow-sm sticky top-24 max-h-[80vh] overflow-y-auto custom-scrollbar-visible">
+            <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-5">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal size={14} className="text-gray-700" />
+                <h4 className="text-xs font-black uppercase tracking-wider text-gray-800">Filters</h4>
+              </div>
+              {activeFiltersCount > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearAllFilters}
+                  className="text-[9px] font-black text-rose-600 hover:text-rose-700 uppercase tracking-widest transition-colors"
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
+            {renderFilterContent()}
+          </div>
+
+          {/* Product Listing Area */}
+          <div className="flex-1 min-w-0">
+            {filteredProducts.length === 0 ? (
           <div className="py-20 text-center flex flex-col items-center gap-6">
              <div className="w-24 h-24 bg-gray-50 rounded-[40px] flex items-center justify-center text-gray-200">
                 {sortOrder === 'relevant' ? <Clock size={48} strokeWidth={1} /> : <ShoppingBag size={48} strokeWidth={1} />}
@@ -759,7 +1182,7 @@ const ShopMenu = () => {
              </div>
           </div>
         ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 px-1 md:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 px-1 md:gap-4">
           {paginatedProducts.map(product => {
             const productId = (product._id || product.id || '').toString();
             const inCart = cart.find(item => {
@@ -1032,6 +1455,8 @@ const ShopMenu = () => {
             </button>
           </div>
         )}
+          </div>
+        </div>
       </div>
 
       {/* Product Details Modal Overlay */}
@@ -1094,6 +1519,74 @@ const ShopMenu = () => {
         onClose={() => setIsPromoModalOpen(false)}
         shop={shop}
       />
+
+      {/* Mobile Filter Drawer */}
+      {isFilterDrawerOpen && (
+        <div className="fixed inset-0 z-[150] flex justify-end lg:hidden">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 animate-fade-in"
+            onClick={() => setIsFilterDrawerOpen(false)}
+          />
+          
+          {/* Drawer Panel */}
+          <div className="relative w-full max-w-md h-full bg-white shadow-2xl z-10 flex flex-col animate-scale-in">
+            {/* Header */}
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-sky-900 text-white">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal size={18} strokeWidth={2.5} />
+                <h3 className="text-sm font-black uppercase tracking-wider">Filters</h3>
+                {activeFiltersCount > 0 && (
+                  <span className="bg-sky-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                {activeFiltersCount > 0 && (
+                  <button 
+                    type="button"
+                    onClick={handleClearAllFilters}
+                    className="text-[10px] font-bold uppercase tracking-wider text-sky-200 hover:text-white transition-colors"
+                  >
+                    Clear All
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsFilterDrawerOpen(false)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 transition-all text-white"
+                >
+                  <X size={16} strokeWidth={2.5} />
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar-visible">
+              {renderFilterContent()}
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-6 border-t border-gray-100 flex gap-3 bg-gray-50">
+              <button
+                type="button"
+                onClick={handleClearAllFilters}
+                className="flex-1 py-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm"
+              >
+                Reset All
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsFilterDrawerOpen(false)}
+                className="flex-1 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-md flex items-center justify-center gap-1.5"
+              >
+                Apply Filters
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

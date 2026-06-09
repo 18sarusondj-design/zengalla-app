@@ -1642,8 +1642,8 @@ const Checkout = () => {
           setUserCoords(data);
           if (activeShop?.location?.coordinates) {
             const d = calculateDistance(
-              activeShop.location.coordinates.lat,
-              activeShop.location.coordinates.lng,
+              activeShop.location.coordinates[1],
+              activeShop.location.coordinates[0],
               data.lat,
               data.lng
             );

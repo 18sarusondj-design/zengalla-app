@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryParam } from '../../../hooks/useQueryParam';
-import { Store, MapPin, Map, Clock, ChevronRight, ChevronLeft, Search, Sparkles, ArrowRight, HelpCircle, ShoppingCart } from 'lucide-react';
+import { Store, MapPin, Map, Clock, ChevronRight, ChevronLeft, Search, Sparkles, ArrowRight, HelpCircle, ShoppingCart, SlidersHorizontal, ArrowUpDown, X, Check, Gift, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore } from '../../shop/context/StoreContext';
 import { useAuth } from '../../auth/context/AuthContext';
@@ -13,6 +13,21 @@ import { ShopCard } from '../components/ShopCard';
 import SEO from '../../common/components/SEO';
 import api from '../../../config/api.js';
 
+
+const FilterChip = ({ label, onClear }) => {
+  return (
+    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 border border-sky-100 text-sky-700 rounded-full text-[9px] font-black uppercase tracking-wider shadow-sm animate-in zoom-in duration-200">
+      <span>{label}</span>
+      <button
+        type="button"
+        onClick={onClear}
+        className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-sky-200/50 transition-colors text-sky-500"
+      >
+        <X size={10} strokeWidth={3} />
+      </button>
+    </div>
+  );
+};
 
 const ShopList = () => {
   const [shops, setShops] = useState([]);
@@ -40,6 +55,19 @@ const ShopList = () => {
   const [currentPincode, setCurrentPincode] = useState(() => {
     return localStorage.getItem('detected_pincode') || user?.pincode || '';
   });
+
+  // --- Professional Filtering & Sorting States ---
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [sortBy, setSortBy] = useState('recommended');
+  const [filterRating, setFilterRating] = useState(0); 
+  const [filterDeliveryTime, setFilterDeliveryTime] = useState('All'); 
+  const [filterOpenNow, setFilterOpenNow] = useState(false);
+  const [filterSponsored, setFilterSponsored] = useState(false);
+  const [filterDistance, setFilterDistance] = useState('All'); 
+  const [filterMinOrder, setFilterMinOrder] = useState('All'); 
+  const [filterHasOffers, setFilterHasOffers] = useState(false);
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const [pinFilterInput, setPinFilterInput] = useState('');
 
   const geocodePincode = async (pin) => {
     if (!pin || pin.length !== 6) return;
@@ -70,25 +98,29 @@ const ShopList = () => {
 
   useEffect(() => {
     if (!userCoords) return;
-    const reverseGeocode = async () => {
-      try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userCoords.lat}&lon=${userCoords.lng}&addressdetails=1`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.address) {
-            const postcode = data.address.postcode;
-            const pin = postcode ? postcode.split(' ')[0].replace(/\D/g, '').substring(0, 6) : null;
-            if (pin && pin.length === 6) {
-              setCurrentPincode(pin);
-              localStorage.setItem('detected_pincode', pin);
+    const timer = setTimeout(() => {
+      const reverseGeocode = async () => {
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userCoords.lat}&lon=${userCoords.lng}&addressdetails=1&accept-language=en`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.address) {
+              const postcode = data.address.postcode;
+              const pin = postcode ? postcode.split(' ')[0].replace(/\D/g, '').substring(0, 6) : null;
+              if (pin && pin.length === 6) {
+                setCurrentPincode(pin);
+                localStorage.setItem('detected_pincode', pin);
+              }
             }
           }
+        } catch (err) {
+          console.warn("Reverse geocoding failed on user location:", err.message);
         }
-      } catch (err) {
-        console.warn("Reverse geocoding failed on user location:", err.message);
-      }
-    };
-    reverseGeocode();
+      };
+      reverseGeocode();
+    }, 1000); // 1-second debounce to avoid Nominatim rate limits
+
+    return () => clearTimeout(timer);
   }, [userCoords]);
 
   const detectLocation = () => {
@@ -106,8 +138,8 @@ const ShopList = () => {
     // Priority 2: Use cached location from localStorage if available
     try {
       const savedCoords = localStorage.getItem('detected_coords');
-      const savedPin = localStorage.getItem('detected_pincode');
-      if (savedCoords && savedPin) {
+      const savedPin = localStorage.getItem('detected_pincode') || '';
+      if (savedCoords) {
         setUserCoords(JSON.parse(savedCoords));
         setCurrentPincode(savedPin);
         return;
@@ -355,8 +387,217 @@ const ShopList = () => {
       return 0;
     });
 
-  // Regular shops should show everything to maintain UI stability
-  const regularShops = shopsWithDistance;
+  // Extract categories dynamically from the complete list of stores
+  const categories = useMemo(() => {
+    const list = new Set(shopsWithDistance.map(s => s.category).filter(Boolean));
+    return ['All', ...Array.from(list)];
+  }, [shopsWithDistance]);
+
+  // Base list of stores determined by location rules
+  const baseShops = useMemo(() => {
+    const pin = currentPincode || user?.pincode || '';
+    
+    // Find sponsored shops in the user's location (matching pincode or within 10 km)
+    const sponsoredInLocation = shopsWithDistance.filter(s => {
+      if (!s.isSponsored) return false;
+      const matchesPin = pin && s.pinCode === pin;
+      const isClose = s.distance !== null && s.distance <= 10; // within 10 km
+      return matchesPin || isClose;
+    });
+
+    if (sponsoredInLocation.length > 0) {
+      return sponsoredInLocation;
+    }
+    
+    return shopsWithDistance;
+  }, [shopsWithDistance, currentPincode, user?.pincode]);
+
+  // Apply e-commerce filters and sorting
+  const filteredAndSortedShops = useMemo(() => {
+    let result = [...baseShops];
+
+    // 1. Shop Category Filter
+    if (selectedCategory && selectedCategory !== 'All') {
+      result = result.filter(s => s.category?.toLowerCase() === selectedCategory.toLowerCase());
+    }
+
+    // 2. Rating Filter
+    if (filterRating > 0) {
+      result = result.filter(s => Number(s.dynamicRating || s.rating || 0) >= filterRating);
+    }
+
+    // 3. Delivery Time Filter
+    if (filterDeliveryTime !== 'All') {
+      const maxTime = Number(filterDeliveryTime);
+      result = result.filter(s => {
+        const estTime = s.hasHomeDelivery ? (15 + Math.round((s.distance || 0) * 4)) : 999;
+        return estTime <= maxTime;
+      });
+    }
+
+    // 4. Open Now Filter
+    if (filterOpenNow) {
+      result = result.filter(s => {
+        if (s.isActive === false) return false;
+        if (!s.operatingHours?.enabled) return true;
+        const now = new Date();
+        const current = now.getHours() * 60 + now.getMinutes();
+        const [sH, sM] = (s.operatingHours.start || '00:00').split(':').map(Number);
+        const [eH, eM] = (s.operatingHours.end || '23:59').split(':').map(Number);
+        return current >= (sH * 60 + sM) && current <= (eH * 60 + eM);
+      });
+    }
+
+    // 5. Sponsored Filter
+    if (filterSponsored) {
+      const pin = currentPincode || user?.pincode || '';
+      result = result.filter(s => {
+        const matchesPin = pin && s.pinCode === pin;
+        const isClose = s.distance !== null && s.distance <= 10;
+        return s.isSponsored && (matchesPin || isClose);
+      });
+    }
+
+    // 6. Distance Filter
+    if (filterDistance !== 'All') {
+      const maxDist = Number(filterDistance);
+      result = result.filter(s => s.distance !== null && s.distance !== undefined && s.distance <= maxDist);
+    }
+
+    // 7. Minimum Order Filter
+    if (filterMinOrder !== 'All') {
+      const maxMinOrder = Number(filterMinOrder);
+      result = result.filter(s => {
+        const minOrder = s.freeDeliveryThreshold ? Math.round(s.freeDeliveryThreshold / 5) : 0;
+        return minOrder <= maxMinOrder;
+      });
+    }
+
+    // 8. Offers/Discounts Filter
+    if (filterHasOffers) {
+      result = result.filter(s => {
+        const hasCoupons = s.coupons && s.coupons.some(c => c.isActive && (!c.expiryDate || new Date(c.expiryDate) > new Date()));
+        return !!s.promoBanner || hasCoupons;
+      });
+    }
+
+    // 9. PIN Code Filter
+    if (pinFilterInput && pinFilterInput.length === 6) {
+      result = result.filter(s => s.pinCode === pinFilterInput);
+    }
+
+    // --- SORTING ---
+    const pinToCompare = currentPincode || user?.pincode || '';
+    
+    if (sortBy === 'recommended') {
+      result.sort((a, b) => {
+        const aMatchesPin = a.pinCode === pinToCompare;
+        const bMatchesPin = b.pinCode === pinToCompare;
+
+        if (aMatchesPin && a.isSponsored && !(bMatchesPin && b.isSponsored)) return -1;
+        if (bMatchesPin && b.isSponsored && !(aMatchesPin && a.isSponsored)) return 1;
+        if (aMatchesPin && a.isSponsored && bMatchesPin && b.isSponsored) {
+          const priorityA = a.sponsorshipPriority || 9999;
+          const priorityB = b.sponsorshipPriority || 9999;
+          if (priorityA !== priorityB) return priorityA - priorityB;
+        }
+
+        if (aMatchesPin && !bMatchesPin) return -1;
+        if (bMatchesPin && !aMatchesPin) return 1;
+
+        if (a.isSponsored && !b.isSponsored) return -1;
+        if (!a.isSponsored && b.isSponsored) return 1;
+        if (a.isSponsored && b.isSponsored) {
+          const priorityA = a.sponsorshipPriority || 9999;
+          const priorityB = b.sponsorshipPriority || 9999;
+          if (priorityA !== priorityB) return priorityA - priorityB;
+        }
+
+        const ratingA = Number(a.dynamicRating || a.rating || 0);
+        const ratingB = Number(b.dynamicRating || b.rating || 0);
+        if (ratingB !== ratingA) return ratingB - ratingA;
+
+        if (a.distance !== null && b.distance !== null && a.distance !== b.distance) {
+          return a.distance - b.distance;
+        }
+        return (a._id || a.id).toString().localeCompare((b._id || b.id).toString());
+      });
+    } else if (sortBy === 'sponsored') {
+      result.sort((a, b) => {
+        if (a.isSponsored && !b.isSponsored) return -1;
+        if (!a.isSponsored && b.isSponsored) return 1;
+        return (a.sponsorshipPriority || 9999) - (b.sponsorshipPriority || 9999);
+      });
+    } else if (sortBy === 'nearest') {
+      result.sort((a, b) => {
+        if (a.distance === null || a.distance === undefined) return 1;
+        if (b.distance === null || b.distance === undefined) return -1;
+        return a.distance - b.distance;
+      });
+    } else if (sortBy === 'rating') {
+      result.sort((a, b) => {
+        const ratingA = Number(a.dynamicRating || a.rating || 0);
+        const ratingB = Number(b.dynamicRating || b.rating || 0);
+        return ratingB - ratingA;
+      });
+    } else if (sortBy === 'delivery') {
+      result.sort((a, b) => {
+        const timeA = a.hasHomeDelivery ? (15 + Math.round((a.distance || 0) * 4)) : 999;
+        const timeB = b.hasHomeDelivery ? (15 + Math.round((b.distance || 0) * 4)) : 999;
+        return timeA - timeB;
+      });
+    } else if (sortBy === 'popularity') {
+      result.sort((a, b) => (b.totalOrders || 0) - (a.totalOrders || 0));
+    } else if (sortBy === 'newest') {
+      result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+
+    return result;
+  }, [
+    baseShops,
+    selectedCategory,
+    sortBy,
+    filterRating,
+    filterDeliveryTime,
+    filterOpenNow,
+    filterSponsored,
+    filterDistance,
+    filterMinOrder,
+    filterHasOffers,
+    pinFilterInput,
+    currentPincode,
+    user?.pincode
+  ]);
+
+  const regularShops = filteredAndSortedShops;
+
+  const handleClearAllFilters = () => {
+    setSelectedCategory('All');
+    setFilterRating(0);
+    setFilterDeliveryTime('All');
+    setFilterOpenNow(false);
+    setFilterSponsored(false);
+    setFilterDistance('All');
+    setFilterMinOrder('All');
+    setFilterHasOffers(false);
+    setPinFilterInput('');
+    setSortBy('recommended');
+  };
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (selectedCategory !== 'All') count++;
+    if (filterRating > 0) count++;
+    if (filterDeliveryTime !== 'All') count++;
+    if (filterOpenNow) count++;
+    if (filterSponsored) count++;
+    if (filterDistance !== 'All') count++;
+    if (filterMinOrder !== 'All') count++;
+    if (filterHasOffers) count++;
+    if (pinFilterInput && pinFilterInput.length === 6) count++;
+    if (sortBy !== 'recommended') count++;
+    return count;
+  }, [selectedCategory, filterRating, filterDeliveryTime, filterOpenNow, filterSponsored, filterDistance, filterMinOrder, filterHasOffers, pinFilterInput, sortBy]);
   
   const totalPages = Math.ceil(regularShops.length / ITEMS_PER_PAGE);
   const paginatedShops = regularShops.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -366,7 +607,7 @@ const ShopList = () => {
     setCurrentPage(1);
   }, [searchTerm]);
 
-  const filteredShops = shopsWithDistance; // Keep this for the empty state check below
+  const filteredShops = regularShops; // Keep this for the empty state check below
 
   const fmtTime = (t) => {
     const [h, m] = t.split(':').map(Number);
@@ -468,60 +709,101 @@ const ShopList = () => {
             <MapPin size={22} strokeWidth={2.5} />
           </button>
         </form>
+
+        {/* --- E-commerce Filter & Sort Sticky Bar --- */}
+        <div className="px-5 pb-5 flex flex-col gap-3">
+          {/* Categories Horizontal Scroll */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth">
+            {categories.map((cat) => {
+              const isActive = selectedCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory(cat);
+                    setCurrentPage(1);
+                  }}
+                  className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap active:scale-95 border ${
+                    isActive 
+                      ? 'bg-white text-sky-900 border-white shadow-md' 
+                      : 'bg-white/10 text-white border-white/15 hover:bg-white/20'
+                  }`}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Quick Sort & Advanced Filters Drawer Button */}
+          <div className="flex items-center justify-between gap-3">
+            {/* Quick Sort Dropdown */}
+            <div className="relative flex-1 max-w-[200px]">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center text-white/60 pointer-events-none">
+                <ArrowUpDown size={12} strokeWidth={2.5} />
+              </div>
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full pl-8 pr-4 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/15 rounded-xl text-[10px] font-black text-white uppercase tracking-widest outline-none transition-all cursor-pointer appearance-none"
+              >
+                <option value="recommended" className="text-gray-900">Sort: Recommended</option>
+                <option value="sponsored" className="text-gray-900">Sort: Sponsored First</option>
+                <option value="nearest" className="text-gray-900">Sort: Nearest First</option>
+                <option value="rating" className="text-gray-900">Sort: Highest Rated</option>
+                <option value="delivery" className="text-gray-900">Sort: Fastest Delivery</option>
+                <option value="popularity" className="text-gray-900">Sort: Most Popular</option>
+                <option value="newest" className="text-gray-900">Sort: Newest Shops</option>
+              </select>
+            </div>
+
+            {/* Advanced Filters Button */}
+            <button
+              type="button"
+              onClick={() => setIsFilterDrawerOpen(true)}
+              className={`px-4 py-2.5 rounded-xl border flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shrink-0 ${
+                activeFiltersCount > 0
+                  ? 'bg-sky-500 text-white border-sky-400 shadow-md'
+                  : 'bg-white/10 text-white border-white/15 hover:bg-white/20'
+              }`}
+            >
+              <SlidersHorizontal size={12} strokeWidth={2.5} />
+              <span>Filters {activeFiltersCount > 0 ? `(${activeFiltersCount})` : ''}</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* ── Scrollable Body ── */}
       <div className="pb-4">
         
-        {!currentPincode ? (
+        {!userCoords ? (
           <div className="mx-5 mt-4 p-5 bg-sky-50 border border-sky-100 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top-2 duration-300">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-sky-100/80 text-sky-600 rounded-2xl flex items-center justify-center shrink-0">
                 <MapPin size={20} strokeWidth={2.5} />
               </div>
               <div>
-                <p className="text-xs font-black text-sky-950 uppercase tracking-tight">Location access is off</p>
-                <p className="text-[10px] font-bold text-sky-600/80 mt-0.5">Enter your pincode or enable location to see sponsored local stores near you.</p>
+                <p className="text-xs font-black text-sky-950 uppercase tracking-tight">Location is not set</p>
+                <p className="text-[10px] font-bold text-sky-600/80 mt-0.5">Please pin your location on the map to see stores near you.</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
-              <input
-                type="text"
-                maxLength={6}
-                placeholder="Enter 6-digit PIN"
-                className="w-full md:w-36 px-4 py-2.5 rounded-xl border-2 border-sky-200/50 bg-white text-xs font-bold text-gray-800 placeholder:text-gray-400 outline-none focus:border-sky-500 transition-all"
-                onChange={async (e) => {
-                  const pin = e.target.value.replace(/\D/g, '');
-                  if (pin.length === 6) {
-                    setCurrentPincode(pin);
-                    localStorage.setItem('detected_pincode', pin);
-                    
-                    const toastId = toast.loading(`Locating PIN ${pin}...`);
-                    try {
-                      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&postalcode=${pin}&country=India`);
-                      if (res.ok) {
-                        const data = await res.json();
-                        if (data && data.length > 0) {
-                          const coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-                          setUserCoords(coords);
-                          localStorage.setItem('detected_coords', JSON.stringify(coords));
-                          toast.success(`Showing stores near PIN: ${pin}`, { id: toastId });
-                        } else {
-                          toast.error(`Could not resolve coordinates for PIN ${pin}`, { id: toastId });
-                        }
-                      } else {
-                        toast.error(`PIN search failed`, { id: toastId });
-                      }
-                    } catch (err) {
-                      console.warn("Geocoding pincode failed:", err.message);
-                      toast.error(`PIN search failed`, { id: toastId });
-                    }
-                  }
-                }}
-              />
+            <div className="flex items-center gap-2 w-full md:w-auto shrink-0 justify-end">
               <button
+                type="button"
+                onClick={() => setIsMapOpen(true)}
+                className="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap active:scale-95 shadow-sm flex items-center gap-1.5"
+              >
+                <Map size={14} /> Pin Location on Map
+              </button>
+              <button
+                type="button"
                 onClick={handleGetLocation}
-                className="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap active:scale-95 shadow-sm"
+                className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap active:scale-95 shadow-sm"
               >
                 Locate Me
               </button>
@@ -531,9 +813,12 @@ const ShopList = () => {
           <div className="mx-5 mt-4 px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-between animate-in fade-in duration-300">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
-              <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Active PIN Code: {currentPincode}</span>
+              <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                Active Location: {currentPincode ? `PIN Code ${currentPincode}` : `GPS (${userCoords.lat.toFixed(4)}, ${userCoords.lng.toFixed(4)})`}
+              </span>
             </div>
             <button 
+              type="button"
               onClick={() => {
                 setCurrentPincode('');
                 localStorage.removeItem('detected_pincode');
@@ -543,6 +828,53 @@ const ShopList = () => {
               className="text-[9px] font-black text-sky-600 hover:text-sky-700 uppercase tracking-widest transition-colors"
             >
               Change Location
+            </button>
+          </div>
+        )}
+
+
+        {/* --- Active Filter Chips Row --- */}
+        {activeFiltersCount > 0 && (
+          <div className="mx-5 mt-4 flex flex-wrap items-center gap-2 animate-in fade-in duration-300">
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mr-1">Active:</span>
+            
+            {selectedCategory !== 'All' && (
+              <FilterChip label={`Category: ${selectedCategory}`} onClear={() => { setSelectedCategory('All'); setCurrentPage(1); }} />
+            )}
+            {sortBy !== 'recommended' && (
+              <FilterChip label={`Sort: ${sortBy}`} onClear={() => { setSortBy('recommended'); setCurrentPage(1); }} />
+            )}
+            {filterRating > 0 && (
+              <FilterChip label={`Rating: ${filterRating}★+`} onClear={() => setFilterRating(0)} />
+            )}
+            {filterDeliveryTime !== 'All' && (
+              <FilterChip label={`Delivery: <${filterDeliveryTime} mins`} onClear={() => setFilterDeliveryTime('All')} />
+            )}
+            {filterOpenNow && (
+              <FilterChip label="Open Now" onClear={() => setFilterOpenNow(false)} />
+            )}
+            {filterSponsored && (
+              <FilterChip label="Sponsored Only" onClear={() => setFilterSponsored(false)} />
+            )}
+            {filterDistance !== 'All' && (
+              <FilterChip label={`Distance: <${filterDistance} km`} onClear={() => setFilterDistance('All')} />
+            )}
+            {filterMinOrder !== 'All' && (
+              <FilterChip label={`Min Order: <₹${filterMinOrder}`} onClear={() => setFilterMinOrder('All')} />
+            )}
+            {filterHasOffers && (
+              <FilterChip label="Offers Available" onClear={() => setFilterHasOffers(false)} />
+            )}
+            {pinFilterInput && pinFilterInput.length === 6 && (
+              <FilterChip label={`PIN: ${pinFilterInput}`} onClear={() => setPinFilterInput('')} />
+            )}
+
+            <button
+              type="button"
+              onClick={handleClearAllFilters}
+              className="text-[9px] font-black text-rose-600 hover:text-rose-700 uppercase tracking-widest transition-colors ml-auto active:scale-95"
+            >
+              Clear All
             </button>
           </div>
         )}
@@ -706,6 +1038,325 @@ const ShopList = () => {
           localStorage.setItem('detected_coords', JSON.stringify(coords));
         }}
       />
+
+      {/* Advanced Filters Drawer */}
+      {isFilterDrawerOpen && (
+        <div className="fixed inset-0 z-[150] flex justify-end">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 animate-fade-in"
+            onClick={() => setIsFilterDrawerOpen(false)}
+          />
+          
+          {/* Drawer Panel */}
+          <div className="relative w-full max-w-md h-full bg-white shadow-2xl z-10 flex flex-col animate-scale-in">
+            {/* Header */}
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-sky-900 text-white">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal size={18} strokeWidth={2.5} />
+                <h3 className="text-sm font-black uppercase tracking-wider">Advanced Filters</h3>
+                {activeFiltersCount > 0 && (
+                  <span className="bg-sky-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                {activeFiltersCount > 0 && (
+                  <button 
+                    type="button"
+                    onClick={handleClearAllFilters}
+                    className="text-[10px] font-bold uppercase tracking-wider text-sky-200 hover:text-white transition-colors"
+                  >
+                    Clear All
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsFilterDrawerOpen(false)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 transition-all text-white"
+                >
+                  <X size={16} strokeWidth={2.5} />
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 custom-scrollbar-visible">
+              {/* Category Filter */}
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Shop Category</h4>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((cat) => {
+                    const isActive = selectedCategory === cat;
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setSelectedCategory(cat)}
+                        className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
+                          isActive 
+                            ? 'bg-sky-600 text-white border-sky-600 shadow-sm' 
+                            : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* PIN Code Filter */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">PIN Code Filter</h4>
+                  {pinFilterInput && (
+                    <button 
+                      type="button" 
+                      onClick={() => setPinFilterInput('')}
+                      className="text-[9px] font-black text-rose-600 uppercase tracking-widest"
+                    >
+                      Clear PIN
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    maxLength={6}
+                    placeholder="Enter 6-digit PIN code..."
+                    value={pinFilterInput}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').substring(0, 6);
+                      setPinFilterInput(val);
+                    }}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <MapPin size={14} />
+                  </div>
+                </div>
+                {pinFilterInput && pinFilterInput.length < 6 && (
+                  <p className="text-[9px] font-bold text-amber-600">Enter a complete 6-digit PIN code to apply filter</p>
+                )}
+              </div>
+
+              {/* Distance Filter */}
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Max Distance</h4>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {[
+                    { label: 'Any', value: 'All' },
+                    { label: '2 km', value: '2' },
+                    { label: '5 km', value: '5' },
+                    { label: '10 km', value: '10' },
+                    { label: '20 km', value: '20' }
+                  ].map((opt) => {
+                    const isActive = filterDistance === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setFilterDistance(opt.value)}
+                        className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-wider text-center border transition-all ${
+                          isActive 
+                            ? 'bg-sky-600 text-white border-sky-600 shadow-sm' 
+                            : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Minimum Rating Filter */}
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Minimum Rating</h4>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { label: 'All', value: 0 },
+                    { label: '3.5★+', value: 3.5 },
+                    { label: '4.0★+', value: 4.0 },
+                    { label: '4.5★+', value: 4.5 }
+                  ].map((opt) => {
+                    const isActive = Number(filterRating) === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setFilterRating(opt.value)}
+                        className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-wider text-center border transition-all ${
+                          isActive 
+                            ? 'bg-sky-600 text-white border-sky-600 shadow-sm' 
+                            : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Delivery Time Filter */}
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Delivery Time</h4>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { label: 'Any', value: 'All' },
+                    { label: '<30m', value: '30' },
+                    { label: '<45m', value: '45' },
+                    { label: '<60m', value: '60' }
+                  ].map((opt) => {
+                    const isActive = filterDeliveryTime === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setFilterDeliveryTime(opt.value)}
+                        className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-wider text-center border transition-all ${
+                          isActive 
+                            ? 'bg-sky-600 text-white border-sky-600 shadow-sm' 
+                            : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Minimum Order Filter */}
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Minimum Order</h4>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { label: 'Any', value: 'All' },
+                    { label: '<₹100', value: '100' },
+                    { label: '<₹200', value: '200' },
+                    { label: '<₹300', value: '300' }
+                  ].map((opt) => {
+                    const isActive = filterMinOrder === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setFilterMinOrder(opt.value)}
+                        className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-wider text-center border transition-all ${
+                          isActive 
+                            ? 'bg-sky-600 text-white border-sky-600 shadow-sm' 
+                            : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Toggle Switches */}
+              <div className="space-y-4 pt-2 border-t border-gray-100">
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Store Toggles</h4>
+                
+                {/* Open Now Toggle */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock size={14} className="text-gray-400" />
+                    <div>
+                      <p className="text-[11px] font-black text-gray-800 uppercase tracking-tight">Open Now Only</p>
+                      <p className="text-[9px] font-bold text-gray-400">Show stores currently operating</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFilterOpenNow(!filterOpenNow)}
+                    className={`w-10 h-6 rounded-full p-0.5 transition-colors duration-200 focus:outline-none ${
+                      filterOpenNow ? 'bg-sky-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
+                        filterOpenNow ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Sponsored Toggle */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={14} className="text-gray-400" />
+                    <div>
+                      <p className="text-[11px] font-black text-gray-800 uppercase tracking-tight">Sponsored Stores Only</p>
+                      <p className="text-[9px] font-bold text-gray-400">Show verified premium sponsors</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFilterSponsored(!filterSponsored)}
+                    className={`w-10 h-6 rounded-full p-0.5 transition-colors duration-200 focus:outline-none ${
+                      filterSponsored ? 'bg-sky-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
+                        filterSponsored ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Offers/Discounts Toggle */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Gift size={14} className="text-gray-400" />
+                    <div>
+                      <p className="text-[11px] font-black text-gray-800 uppercase tracking-tight">Offers & Discounts</p>
+                      <p className="text-[9px] font-bold text-gray-400">Show stores with active promo codes</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFilterHasOffers(!filterHasOffers)}
+                    className={`w-10 h-6 rounded-full p-0.5 transition-colors duration-200 focus:outline-none ${
+                      filterHasOffers ? 'bg-sky-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
+                        filterHasOffers ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-6 border-t border-gray-100 flex gap-3 bg-gray-50">
+              <button
+                type="button"
+                onClick={handleClearAllFilters}
+                className="flex-1 py-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm"
+              >
+                Reset All
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsFilterDrawerOpen(false)}
+                className="flex-1 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-md flex items-center justify-center gap-1.5"
+              >
+                Apply Filters
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
