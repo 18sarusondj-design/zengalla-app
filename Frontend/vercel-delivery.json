@@ -2,7 +2,7 @@
   "name": "grozy-delivery",
   "framework": "vite",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://grozy-api.onrender.com/api/$1" },
+    { "source": "/api/(.*)", "destination": "https://zengalla-api.onrender.com/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

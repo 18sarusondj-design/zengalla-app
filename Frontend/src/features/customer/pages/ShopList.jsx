@@ -63,7 +63,7 @@ const ShopList = () => {
   const [filterDeliveryTime, setFilterDeliveryTime] = useState('All'); 
   const [filterOpenNow, setFilterOpenNow] = useState(false);
   const [filterSponsored, setFilterSponsored] = useState(false);
-  const [filterDistance, setFilterDistance] = useState('All'); 
+  const [filterDistance, setFilterDistance] = useState('20'); 
   const [filterMinOrder, setFilterMinOrder] = useState('All'); 
   const [filterHasOffers, setFilterHasOffers] = useState(false);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
@@ -216,8 +216,8 @@ const ShopList = () => {
       // Try to fetch nearby shops if coords available
       if (userCoords) {
         try {
-          // Use a massive radius (10000km) to show ALL shops sorted by distance
-          data = await fetchNearbyShops(userCoords.lat, userCoords.lng, 10000, query, currentPincode); 
+          // Fetch shops within a 20km radius
+          data = await fetchNearbyShops(userCoords.lat, userCoords.lng, 20, query, currentPincode); 
           if (!data || data.length === 0) {
             const res = await api.get(`/shops?pinCode=${currentPincode}`);
             data = res.data?.shops || [];
@@ -459,7 +459,7 @@ const ShopList = () => {
     }
 
     // 6. Distance Filter
-    if (filterDistance !== 'All') {
+    if (filterDistance !== 'All' && userCoords && !isFallbackActive) {
       const maxDist = Number(filterDistance);
       result = result.filter(s => s.distance !== null && s.distance !== undefined && s.distance <= maxDist);
     }
