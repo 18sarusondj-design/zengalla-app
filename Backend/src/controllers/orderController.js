@@ -435,7 +435,7 @@ export const updateOrderPayment = async (req, res) => {
     }
     
     if (newMethod && !order.paymentMethod.includes(newMethod)) {
-       order.paymentMethod = order.paymentMethod === 'PAY_LATER' ? newMethod : `${order.paymentMethod} + ${newMethod}`;
+       order.paymentMethod = order.paymentMethod === 'PAY_LATER' ? newMethod : 'SPLIT';
     }
 
     await order.save();
