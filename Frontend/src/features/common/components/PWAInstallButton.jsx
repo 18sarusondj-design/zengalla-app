@@ -38,7 +38,7 @@ const PWAInstallButton = ({ variant = 'default', className = "" }) => {
       >
         <div className="flex items-center gap-2">
           <Download size={variant === 'hero' ? 18 : (variant === 'banner' ? 24 : 18)} strokeWidth={3} />
-          <span>{isInstalled ? 'Open ZenGalla App' : 'Install ZenGalla App'}</span>
+          <span>{isInstalled ? 'Open Grozy App' : 'Install Grozy App'}</span>
         </div>
       </button>
 

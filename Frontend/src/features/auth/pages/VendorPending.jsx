@@ -132,7 +132,7 @@ const VendorPending = () => {
                 <Store size={18} strokeWidth={2.5} />
             </div>
             <div>
-                <h2 className="text-lg font-black uppercase tracking-tighter leading-none text-slate-900">Zengalla <span className="text-sky-600">Business</span></h2>
+                <h2 className="text-lg font-black uppercase tracking-tighter leading-none text-slate-900">Grozy <span className="text-sky-600">Business</span></h2>
                 <p className="text-[7px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Global Marketplace Portal</p>
             </div>
         </div>
@@ -270,7 +270,7 @@ const VendorPending = () => {
               <InfoItem icon={<ShieldAlert size={12} />} text="End-to-End Encrypted" />
               <InfoItem icon={<CheckCircle2 size={12} />} text="24/7 Support" />
            </div>
-           <p className="text-[7px] font-bold text-gray-400 uppercase tracking-widest">Zengalla Commerce Suite v2.6.0</p>
+           <p className="text-[7px] font-bold text-gray-400 uppercase tracking-widest">Grozy Commerce Suite v2.6.0</p>
         </div>
 
         {/* Video Modal - Matches Dashboard Style */}

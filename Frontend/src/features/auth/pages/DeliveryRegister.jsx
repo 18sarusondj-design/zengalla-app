@@ -180,7 +180,7 @@ const DeliveryRegister = () => {
             </div>
             <h2 className="text-5xl font-black text-white tracking-tighter uppercase mb-4 leading-[0.85]">Deliver.<br/>Earn.<br/>Grow.</h2>
             <p className="text-sm text-white/70 font-medium leading-relaxed mb-10 max-w-xs">
-              Join the Zengalla fleet. Your journey to success starts here.
+              Join the Grozy fleet. Your journey to success starts here.
             </p>
           </div>
         </div>
@@ -203,7 +203,7 @@ const DeliveryRegister = () => {
                  <Logo className="h-5 w-5" variant="icon" white />
               </div>
               <div>
-                <h2 className="text-xl font-black text-white tracking-tighter uppercase leading-none">ZenGalla Fleet</h2>
+                <h2 className="text-xl font-black text-white tracking-tighter uppercase leading-none">Grozy Fleet</h2>
                 <p className="text-[8px] font-black text-white/70 uppercase tracking-widest mt-1">Deliver • Earn • Grow</p>
               </div>
             </div>

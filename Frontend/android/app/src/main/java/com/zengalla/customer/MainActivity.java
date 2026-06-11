@@ -1,4 +1,4 @@
-package com.zengalla.customer;
+package com.grozy.customer;
 
 import com.getcapacitor.BridgeActivity;
 

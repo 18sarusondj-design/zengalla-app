@@ -12,10 +12,10 @@ const SEO = ({
   jsonLd
 }) => {
 
-  const siteTitle = 'ZenGalla | Premium Grocery & Marketplace';
-  const fullTitle = title ? `${title} | ZenGalla` : siteTitle;
-  const defaultDesc = 'Shop fresh groceries, household essentials, and more with ZenGalla. Fast delivery, premium quality, and a seamless shopping experience.';
-  const siteUrl = 'https://zengalla-app-vrkx.vercel.app';
+  const siteTitle = 'Grozy | Nearby Grocery Shops';
+  const fullTitle = title ? `${title} | Grozy` : siteTitle;
+  const defaultDesc = 'Shop fresh groceries, household essentials, and more with Grozy. Fast delivery from your favorite nearby grocery shops.';
+  const siteUrl = 'https://grozy-app-vrkx.vercel.app';
 
   return (
     <Helmet>

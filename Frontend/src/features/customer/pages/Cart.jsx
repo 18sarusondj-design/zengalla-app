@@ -243,32 +243,32 @@ const Cart = () => {
             <div key={shopId} className="bg-white rounded-[28px] shadow-xl shadow-gray-200/60 border border-gray-100/80 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
               
               {/* Shop Header */}
-              <div className="relative overflow-hidden px-6 py-4" style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)' }}>
+              <div className="relative overflow-hidden px-5 py-4 sm:px-6 sm:py-4" style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)' }}>
                 <div className="absolute right-0 top-0 w-32 h-32 bg-sky-500/10 rounded-full translate-x-1/3 -translate-y-1/3 pointer-events-none" />
-                <div className="relative flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <Logo variant="icon" className="w-11 h-11 rounded-2xl shadow-lg shadow-sky-900/40 shrink-0" />
-                    <div>
-                      <h2 className="text-base font-black text-white uppercase tracking-tight leading-none">{shop.name}</h2>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={`w-1.5 h-1.5 rounded-full ${isShopOpen(shop) ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
-                        <span className={`text-[9px] font-black uppercase tracking-widest ${isShopOpen(shop) ? 'text-emerald-400' : 'text-rose-400'}`}>
+                <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <Logo variant="icon" className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl shadow-lg shadow-sky-900/40 shrink-0" />
+                    <div className="min-w-0">
+                      <h2 className="text-sm sm:text-base font-black text-white uppercase tracking-tight leading-none truncate">{shop.name}</h2>
+                      <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 mt-1 sm:mt-0.5">
+                        <span className={`w-1.5 h-1.5 rounded-full ${isShopOpen(shop) ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'} shrink-0`} />
+                        <span className={`text-[8px] sm:text-[9px] font-black uppercase tracking-widest ${isShopOpen(shop) ? 'text-emerald-400' : 'text-rose-400'}`}>
                           {isShopOpen(shop) ? 'Active Now' : `Closed (Opens ${fmtTime(shop.operatingHours?.start || '09:00')})`}
                         </span>
                         {shop.operatingHours?.enabled && (
                           <>
-                            <span className="text-white/20 mx-1">•</span>
-                            <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">
+                            <span className="text-white/20 text-[8px] sm:text-[9px]">•</span>
+                            <span className="text-[8px] sm:text-[9px] font-black text-white/40 uppercase tracking-widest">
                               {shop.operatingHours.start} - {shop.operatingHours.end}
                             </span>
                           </>
                         )}
-                        <span className="text-white/20 mx-1">•</span>
-                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">{totalItems} item{totalItems !== 1 ? 's' : ''}</span>
+                        <span className="text-white/20 text-[8px] sm:text-[9px]">•</span>
+                        <span className="text-[8px] sm:text-[9px] font-black text-white/40 uppercase tracking-widest">{parseFloat(Number(totalItems).toFixed(2))} item{totalItems !== 1 ? 's' : ''}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                     <button
                       onClick={() => navigate(`/shop/${shopId}`)}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"

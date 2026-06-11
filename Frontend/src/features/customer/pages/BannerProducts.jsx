@@ -106,7 +106,7 @@ const BannerProducts = () => {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <SEO 
-        title={`${banner.title} | ZenGalla Offers`} 
+        title={`${banner.title} | Grozy Offers`} 
         description={banner.subtitle || 'Exclusive deals and discount events'} 
       />
 

@@ -13,7 +13,7 @@ const PWAInstallGuideModal = ({ isOpen, onClose }) => {
         {/* Header */}
         <div className="p-8 pb-4 flex justify-between items-center">
           <div>
-            <h3 className="text-xl font-black text-gray-900 tracking-tighter uppercase">Install ZenGalla</h3>
+            <h3 className="text-xl font-black text-gray-900 tracking-tighter uppercase">Install Grozy</h3>
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Get the native app experience</p>
           </div>
           <button onClick={onClose} className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all">

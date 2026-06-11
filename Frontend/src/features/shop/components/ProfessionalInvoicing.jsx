@@ -182,7 +182,7 @@ const ProfessionalInvoicing = ({ bill, shop }) => {
             </div>
          </div>
          <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
-            <p style={{ fontSize: '10px', fontWeight: '900', marginBottom: '40px' }}>For {shop?.name || 'Zengalla hyperpure Pvt. Ltd.'}</p>
+            <p style={{ fontSize: '10px', fontWeight: '900', marginBottom: '40px' }}>For {shop?.name || 'Grozy hyperpure Pvt. Ltd.'}</p>
             <div style={{ borderBottom: '1px solid #000', width: '150px' }}></div>
             <p style={{ fontSize: '9px', fontWeight: '900', marginTop: '5px' }}>Authorized Signatory</p>
          </div>

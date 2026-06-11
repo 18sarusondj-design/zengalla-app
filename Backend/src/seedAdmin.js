@@ -9,7 +9,7 @@ const seedAdmin = async () => {
     await mongoose.connect(process.env.MONGO_URI);
     console.log('✅ Connected to MongoDB for seeding');
 
-    const adminEmail = 'admin@zengalla.com';
+    const adminEmail = 'admin@grozy.com';
     const existingAdmin = await User.findOne({ email: adminEmail });
 
     if (existingAdmin) {
@@ -23,7 +23,7 @@ const seedAdmin = async () => {
         status: 'active'
       });
       console.log('✨ Super Admin created successfully!');
-      console.log('📧 Email: admin@zengalla.com');
+      console.log('📧 Email: admin@grozy.com');
       console.log('🔑 Password: admin123');
     }
 

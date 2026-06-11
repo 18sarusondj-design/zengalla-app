@@ -157,7 +157,7 @@ const Profile = () => {
     <div className="min-h-screen w-full bg-slate-50">
       <SEO 
         title="My Profile" 
-        description="Manage your ZenGalla account, view wallet balance, and track orders."
+        description="Manage your Grozy account, view wallet balance, and track orders."
         canonical="/profile"
       />
 

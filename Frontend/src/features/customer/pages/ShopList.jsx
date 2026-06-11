@@ -690,15 +690,6 @@ const ShopList = () => {
           
           <button
             type="button"
-            onClick={() => setIsMapOpen(true)}
-            className="w-14 h-14 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-2xl flex items-center justify-center shadow-lg transition-all active:scale-95 shrink-0"
-            title="Select Location on Map"
-          >
-            <Map size={22} strokeWidth={2.5} />
-          </button>
-
-          <button
-            type="button"
             onClick={() => {
               handleGetLocation();
               setIsMapOpen(true);

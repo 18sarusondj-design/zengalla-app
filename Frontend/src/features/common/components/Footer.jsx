@@ -59,7 +59,7 @@ const Footer = ({ onReportClick, navigate }) => {
         </div>
 
         <div className="pt-2 border-t border-white/5 flex items-center justify-between">
-          <p className="text-[7px] font-black text-white/20 uppercase tracking-widest">ZenGalla v2.0</p>
+          <p className="text-[7px] font-black text-white/20 uppercase tracking-widest">Grozy v2.0</p>
           <div className="flex gap-3">
              <button onClick={onReportClick} className="sm:hidden text-[7px] font-black text-sky-400 uppercase tracking-widest">Report Issue</button>
              <span className="text-[7px] font-black text-white/20 uppercase tracking-widest">Privacy</span>

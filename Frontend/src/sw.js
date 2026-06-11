@@ -11,7 +11,7 @@ precacheAndRoute(self.__WB_MANIFEST);
 registerRoute(
   ({ request }) => request.destination === 'image',
   new CacheFirst({
-    cacheName: 'zengalla-images',
+    cacheName: 'grozy-images',
     plugins: [
       new ExpirationPlugin({
         maxEntries: 100,

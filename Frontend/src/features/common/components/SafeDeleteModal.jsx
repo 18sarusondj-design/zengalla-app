@@ -61,7 +61,7 @@ const SafeDeleteModal = ({ isOpen, onClose, onConfirm, targetName, targetType })
         </div>
 
         <div className="px-8 py-4 bg-slate-50 text-center border-t border-slate-100">
-           <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">This action cannot be undone. Data will be purged from ZenGalla Nodes.</p>
+           <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">This action cannot be undone. Data will be purged from Grozy Nodes.</p>
         </div>
       </div>
     </div>

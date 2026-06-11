@@ -360,7 +360,7 @@ const VendorSignup = () => {
             </div>
             <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-3 leading-none">Global Vendor<br/>Registration.</h2>
             <p className="text-[10px] text-white/70 font-black uppercase tracking-[0.2em] leading-relaxed mb-8 max-w-xs">
-              Join the future of retail. Set up your digital storefront in minutes with Zengalla.
+              Join the future of retail. Set up your digital storefront in minutes with Grozy.
             </p>
           </div>
         </div>
@@ -568,7 +568,7 @@ const VendorSignup = () => {
               Existing Store? <Link to="/vendor/login" className="text-sky-600 underline underline-offset-4 font-black">Login Business Account</Link>
             </p>
           </div>
-          <p className="mt-4 text-center text-[7px] text-gray-300 font-medium uppercase tracking-[0.2em]">Zengalla Digital Infrastructure v2.4.0</p>
+          <p className="mt-4 text-center text-[7px] text-gray-300 font-medium uppercase tracking-[0.2em]">Grozy Digital Infrastructure v2.4.0</p>
         </div>
       </div>
     </div>

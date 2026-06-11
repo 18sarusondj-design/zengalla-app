@@ -1,18 +1,18 @@
 import mongoose from 'mongoose';
 import 'dotenv/config';
 
-// Try connecting to 'zengalla' database instead of 'test'
+// Try connecting to 'grozy' database instead of 'test'
 const originalUri = process.env.MONGO_URI;
-const zengallaUri = originalUri.replace('/test?', '/zengalla?');
+const grozyUri = originalUri.replace('/test?', '/grozy?');
 
-console.log('Testing connection to zengalla DB...');
+console.log('Testing connection to grozy DB...');
 
-mongoose.connect(zengallaUri)
+mongoose.connect(grozyUri)
   .then(() => {
-    console.log('✅ Connection to zengalla DB successful!');
+    console.log('✅ Connection to grozy DB successful!');
     process.exit(0);
   })
   .catch((err) => {
-    console.error('❌ Connection to zengalla DB failed:', err.message);
+    console.error('❌ Connection to grozy DB failed:', err.message);
     process.exit(1);
   });

@@ -41,7 +41,7 @@ export const register = async (req, res) => {
       if (!name || !phone || !photoUrl || !documentUrl || !selfieUrl) {
         return res.status(400).json({ error: 'Name, phone, profile photo, document, and selfie are required for delivery boy registration' });
       }
-      email = email || `${phone}@delivery.zengalla.com`;
+      email = email || `${phone}@delivery.grozy.com`;
       password = password || Math.random().toString(36).slice(-10) + 'A1!'; // Dummy strong password
     } else {
       if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required' });
@@ -106,7 +106,7 @@ export const register = async (req, res) => {
     if (role === 'vendor') {
       try {
         const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${shop_lat}&lon=${shop_lng}&addressdetails=1`, {
-          headers: { 'User-Agent': 'ZengallaRetailApp/1.0' }
+          headers: { 'User-Agent': 'GrozyRetailApp/1.0' }
         });
 
         if (geoRes.ok) {

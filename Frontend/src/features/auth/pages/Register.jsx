@@ -55,7 +55,7 @@ const Register = () => {
           toast.success('Verification code sent to your email!', { id: toastId });
           setStep(2);
         } else {
-          toast.success('Account created successfully! Welcome to Zengalla.', { id: toastId });
+          toast.success('Account created successfully! Welcome to Grozy.', { id: toastId });
           navigate('/login', { state: { from } });
         }
       } else {
@@ -106,7 +106,7 @@ const Register = () => {
             </div>
             <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-4 leading-none">Join the<br/>Community.</h2>
             <p className="text-sm text-white/70 font-medium leading-relaxed mb-10 max-w-xs">
-              Create your Zengalla account and start shopping from your favorite local vendors today.
+              Create your Grozy account and start shopping from your favorite local vendors today.
             </p>
           </div>
         </div>
@@ -127,7 +127,7 @@ const Register = () => {
             <div className="flex items-center gap-3">
               <Logo className="h-8" variant="icon" white />
               <div>
-                <h2 className="text-xl font-black text-white tracking-tighter uppercase leading-none">ZenGalla</h2>
+                <h2 className="text-xl font-black text-white tracking-tighter uppercase leading-none">Grozy</h2>
                 <p className="text-[8px] font-black text-white/70 uppercase tracking-widest mt-1">Digital Marketplace</p>
               </div>
             </div>
@@ -275,7 +275,7 @@ const Register = () => {
             </div>
 
             <p className="mt-3 text-center text-[8px] text-gray-300 font-medium uppercase tracking-[0.2em]">
-              Powered by Zengalla Infrastructure
+              Powered by Grozy Infrastructure
             </p>
           </div>
         </div>

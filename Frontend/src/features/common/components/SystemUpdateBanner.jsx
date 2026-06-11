@@ -101,7 +101,7 @@ const SystemUpdateBanner = () => {
                     </button>
 
                     <p className="mt-4 text-[8px] text-gray-400 font-bold uppercase tracking-widest">
-                        Zengalla Infrastructure • Secure Node
+                        Grozy Infrastructure • Secure Node
                     </p>
                 </div>
             </div>

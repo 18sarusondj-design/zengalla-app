@@ -92,7 +92,7 @@ const Login = () => {
             </div>
             <h2 className="text-5xl font-black text-white tracking-tighter uppercase mb-4 leading-[0.85]">Pure<br/>Simplicity.</h2>
             <p className="text-sm text-white/70 font-medium leading-relaxed mb-6 max-w-xs">
-              Welcome back to Zengalla. Your premium marketplace experience awaits.
+              Welcome back to Grozy. Your premium marketplace experience awaits.
             </p>
             <div className="flex justify-start w-fit">
               <PWAInstallButton variant="brand" />
@@ -116,7 +116,7 @@ const Login = () => {
             <div className="flex items-center gap-3">
               <Logo className="h-8" variant="icon" white />
               <div>
-                <h2 className="text-xl font-black text-white tracking-tighter uppercase leading-none">ZenGalla</h2>
+                <h2 className="text-xl font-black text-white tracking-tighter uppercase leading-none">Grozy</h2>
                 <p className="text-[8px] font-black text-white/70 uppercase tracking-widest mt-1">Nature • Balance • Tranquility</p>
               </div>
             </div>
@@ -198,7 +198,7 @@ const Login = () => {
             </div>
 
             <p className="mt-3 text-center text-[8px] text-gray-300 font-medium uppercase tracking-[0.2em]">
-              Powered by Zengalla Infrastructure
+              Powered by Grozy Infrastructure
             </p>
           </div>
         </div>

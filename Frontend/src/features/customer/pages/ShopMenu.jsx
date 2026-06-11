@@ -680,7 +680,7 @@ const ShopMenu = () => {
     <div className="min-h-full bg-gray-50 pb-16 font-sans relative">
       <SEO 
         title={shop.name} 
-        description={`Shop fresh products from ${shop.name} on ZenGalla. Quality groceries and fast delivery.`}
+        description={`Shop fresh products from ${shop.name} on Grozy. Quality groceries and fast delivery.`}
         canonical={`/shop/${shopId}`}
         ogImage={shop.bannerUrl || shop.imageUrl}
       />

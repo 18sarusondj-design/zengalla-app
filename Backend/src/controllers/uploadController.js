@@ -40,7 +40,7 @@ export const uploadImage = async (req, res) => {
     const result = await new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          folder: 'zengalla',
+          folder: 'grozy',
           resource_type: 'auto'
         },
         (error, result) => {
@@ -76,7 +76,7 @@ export const uploadReceipt = async (req, res) => {
     const result = await new Promise((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           {
-            folder: 'zengalla/receipts',
+            folder: 'grozy/receipts',
             resource_type: 'auto'
           },
           (error, result) => {

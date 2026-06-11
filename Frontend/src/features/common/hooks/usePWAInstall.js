@@ -25,7 +25,7 @@ const usePWAInstall = () => {
       setIsInstalled(true);
       setIsInstallable(false);
       setShowGuide(false);
-      toast.success("ZenGalla App installed successfully! You can now launch it from your home screen.");
+      toast.success("Grozy App installed successfully! You can now launch it from your home screen.");
     };
 
     window.addEventListener('appinstalled', handleAppInstalled);

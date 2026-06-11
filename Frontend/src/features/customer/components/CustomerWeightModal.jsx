@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, ShoppingBag, Scale, Banknote, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const CustomerWeightModal = ({ isOpen, onClose, product, onConfirm, initialValue }) => {
   const [inputVal, setInputVal] = useState('');
@@ -33,6 +34,19 @@ const CustomerWeightModal = ({ isOpen, onClose, product, onConfirm, initialValue
       finalQty = val / product.price;
     } else {
       finalQty = weightUnit === 'gm' ? val / 1000 : val;
+    }
+
+    const maxStock = Number(product.stockQuantity || product.stock || 0);
+    const isWeight = product.sellingType === 'weight';
+    const allowedQty = isWeight ? maxStock * 0.95 : maxStock;
+
+    if (finalQty > allowedQty) {
+      if (isWeight) {
+        toast.error(`For weight-based items, you can buy up to 95% of stock (${parseFloat(allowedQty.toFixed(3))} KG) to account for wastage.`);
+      } else {
+        toast.error("No more packets available");
+      }
+      return;
     }
 
     onConfirm(product, finalQty);

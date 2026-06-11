@@ -341,7 +341,7 @@ const B2BPartners = () => {
                               type="button"
                               onClick={handleLookupShop}
                               className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-sky-600 hover:bg-sky-50 rounded-xl transition-all"
-                              title="Lookup shop on Zengalla"
+                              title="Lookup shop on Grozy"
                             >
                               {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} strokeWidth={3} />}
                             </button>

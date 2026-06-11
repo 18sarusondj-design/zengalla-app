@@ -348,7 +348,7 @@ export const updateShop = async (req, res) => {
         const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
 
         const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`, {
-          headers: { 'User-Agent': 'ZengallaRetailApp/1.0' },
+          headers: { 'User-Agent': 'GrozyRetailApp/1.0' },
           signal: controller.signal
         });
         clearTimeout(timeoutId);

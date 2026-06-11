@@ -35,14 +35,14 @@ const Landing = () => {
     <div className="min-h-screen font-sans overflow-x-hidden bg-white">
       <SEO 
         title="Welcome" 
-        description="ZenGalla is your premium local marketplace. Shop fresh groceries and household essentials from your favorite nearby stores."
+        description="Grozy is your premium local marketplace. Shop fresh groceries and household essentials from your favorite nearby stores."
         canonical="/"
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "Organization",
-          "name": "ZenGalla",
-          "url": "https://zengalla-app-vrkx.vercel.app",
-          "logo": "https://zengalla-app-vrkx.vercel.app/logo.svg",
+          "name": "Grozy",
+          "url": "https://grozy-app-vrkx.vercel.app",
+          "logo": "https://grozy-app-vrkx.vercel.app/logo.svg",
           "description": "Premium Grocery & Marketplace"
         }}
       />

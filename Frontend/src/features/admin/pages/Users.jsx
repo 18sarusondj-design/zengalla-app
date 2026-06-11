@@ -172,7 +172,7 @@ const Users = ({ roleFilter }) => {
       // 1. Direct WhatsApp Link Generation (Client Side)
       const phone = u.phone || '';
       const cleanPhone = phone.replace(/\D/g, '').length === 10 ? `91${phone.replace(/\D/g, '')}` : phone.replace(/\D/g, '');
-      const msg = `Hi ${u.name || 'Partner'}, this is an automated reminder regarding your digital storefront "${u.shopName || 'Zengalla Shop'}" subscription. Please check your dashboard for renewal details.`;
+      const msg = `Hi ${u.name || 'Partner'}, this is an automated reminder regarding your digital storefront "${u.shopName || 'Grozy Shop'}" subscription. Please check your dashboard for renewal details.`;
       window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
       
       toast.success('WhatsApp Redirection Triggered!');

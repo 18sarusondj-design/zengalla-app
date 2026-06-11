@@ -18,7 +18,7 @@ export const sendOTP = async (email, otp) => {
   }
 
   const mailOptions = {
-    from: `"Zengalla Marketplace" <${process.env.EMAIL_USER}>`,
+    from: `"Grozy Marketplace" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: 'Your Verification OTP',
     html: `
@@ -48,18 +48,18 @@ export const sendAdminAlert = async (subject, message) => {
   }
 
   const mailOptions = {
-    from: `"Zengalla System" <${process.env.EMAIL_USER}>`,
+    from: `"Grozy System" <${process.env.EMAIL_USER}>`,
     to: adminEmail,
     subject: `[ADMIN ALERT] ${subject}`,
     html: `
       <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; max-width: 600px;">
         <div style="background: #0ea5e9; padding: 20px; border-radius: 8px 8px 0 0;">
-          <h2 style="color: white; margin: 0;">🔔 Zengalla Business Alert</h2>
+          <h2 style="color: white; margin: 0;">🔔 Grozy Business Alert</h2>
         </div>
         <div style="padding: 20px; background: #f9fafb; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
           <p style="font-size: 14px; color: #374151;">${message}</p>
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 16px 0;"/>
-          <p style="font-size: 10px; color: #9ca3af;">Automated system notification from Zengalla Infrastructure.</p>
+          <p style="font-size: 10px; color: #9ca3af;">Automated system notification from Grozy Infrastructure.</p>
         </div>
       </div>
     `
@@ -79,7 +79,7 @@ export const sendCouponEmail = async (email, shopName, coupon) => {
   }
 
   const mailOptions = {
-    from: `"${shopName} via Zengalla" <${process.env.EMAIL_USER}>`,
+    from: `"${shopName} via Grozy" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: `Special Offer from ${shopName}! 🎁`,
     html: `
@@ -94,7 +94,7 @@ export const sendCouponEmail = async (email, shopName, coupon) => {
         </div>
         <div style="padding: 20px; text-align: center;">
           <p style="color: #666; font-size: 14px;">Use this code on your next order at our store!</p>
-          <a href="https://zengalla.com" style="display: inline-block; padding: 12px 25px; background: #0ea5e9; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 12px; text-transform: uppercase; margin-top: 10px;">Shop Now</a>
+          <a href="https://grozy.com" style="display: inline-block; padding: 12px 25px; background: #0ea5e9; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 12px; text-transform: uppercase; margin-top: 10px;">Shop Now</a>
         </div>
       </div>
     `

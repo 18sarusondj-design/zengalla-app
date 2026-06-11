@@ -30,18 +30,15 @@ const Logo = ({ className = "h-8", variant = "icon", white = false, color = null
             d="M50 12 L83.3 31.2 L83.3 68.8 L50 88 L16.7 68.8 L16.7 31.2 L50 12Z" 
             fill={primaryColor} 
           />
-          {/* The 'Z' Logo */}
+          {/* The 'G' Logo */}
           <path 
-            d="M35 35 H65 L35 65 H65" 
+            d="M62 38 A18 18 0 1 0 62 62 H50 V50 H58" 
             stroke={white || isSky ? primaryColor : 'white'} 
             strokeWidth="10" 
             strokeLinecap="round" 
             strokeLinejoin="round" 
             style={{ filter: (white || isSky) ? 'brightness(0.9) contrast(1.2) invert(1)' : 'none' }}
           />
-          {/* Decorative Arrows for Premium Feel */}
-          <path d="M60 30 L65 35 L60 40" stroke={white || isSky ? primaryColor : 'white'} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" style={{ filter: (white || isSky) ? 'brightness(0.9) contrast(1.2) invert(1)' : 'none' }} />
-          <path d="M40 60 L35 65 L40 70" stroke={white || isSky ? primaryColor : 'white'} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" style={{ filter: (white || isSky) ? 'brightness(0.9) contrast(1.2) invert(1)' : 'none' }} />
         </svg>
       </div>
 
@@ -49,10 +46,10 @@ const Logo = ({ className = "h-8", variant = "icon", white = false, color = null
       {variant === "full" && (
         <div className="flex flex-col justify-center">
           <span className={`text-[1.2em] font-black uppercase tracking-tighter leading-[0.8] ${white || isSky ? 'text-white' : 'text-slate-900'}`}>
-            ZenGalla
+            Grozy
           </span>
           <span className={`text-[0.4em] font-black uppercase tracking-[0.3em] mt-1 ${white || isSky ? 'text-white/40' : 'text-sky-600/60'}`}>
-            Marketplace
+            Nearby Grocery
           </span>
         </div>
       )}

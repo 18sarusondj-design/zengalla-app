@@ -358,7 +358,7 @@ export const updateOrderStatus = async (req, res) => {
         body = 'Our delivery partner is on the way to your location.';
       } else if (status === 'COMPLETED') {
         title = '🎉 Order Completed!';
-        body = 'Thank you for shopping with ZenGalla!';
+        body = 'Thank you for shopping with Grozy!';
       }
 
       sendPushNotification(order.userId, {
@@ -610,8 +610,22 @@ export const assignOrder = async (req, res) => {
     order.status = 'ASSIGNED'; // Move to assigned status
     order.isDeliveryRejected = false;
     
-    if (deliveryFee !== undefined) order.deliveryFee = deliveryFee;
-    if (extraAmount !== undefined) order.extraAmount = extraAmount;
+    if (deliveryFee !== undefined) {
+      const oldFee = order.deliveryFee || 0;
+      const newFee = Number(deliveryFee);
+      const diff = newFee - oldFee;
+      order.deliveryFee = newFee;
+      order.totalPrice += diff;
+      order.balanceDue += diff;
+    }
+    if (extraAmount !== undefined) {
+      const oldExtra = order.extraAmount || 0;
+      const newExtra = Number(extraAmount);
+      const diff = newExtra - oldExtra;
+      order.extraAmount = newExtra;
+      order.totalPrice += diff;
+      order.balanceDue += diff;
+    }
     
     await order.save();
 

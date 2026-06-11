@@ -729,7 +729,7 @@ export const StoreProvider = ({ children }) => {
 
   const createStaff = async (staffData) => {
     try {
-      const email = staffData.email || `${staffData.phone}@system.zengalla.local`;
+      const email = staffData.email || `${staffData.phone}@system.grozy.local`;
       const { data } = await api.post('/auth/register', { 
         ...staffData, 
         email,
@@ -772,7 +772,7 @@ export const StoreProvider = ({ children }) => {
 
   const createDeliveryPartner = async (partnerData) => {
     try {
-      const email = partnerData.email || `${partnerData.phone}@system.zengalla.local`;
+      const email = partnerData.email || `${partnerData.phone}@system.grozy.local`;
       const { data } = await api.post('/auth/register', { 
         ...partnerData, 
         email,
@@ -827,9 +827,15 @@ export const StoreProvider = ({ children }) => {
     const existing = shopCart.find(i => (i.product._id || i.product.id) === productId);
     const maxStock = Number(product.stockQuantity || product.stock || 0);
     const currentQty = existing ? existing.quantity : 0;
+    const isWeight = product.sellingType === 'weight';
+    const allowedQty = isWeight ? maxStock * 0.95 : maxStock;
 
-    if (currentQty + quantity > maxStock) {
-      toast.error(`Only ${maxStock} ${product.unit_type || 'PKT'} available in stock`);
+    if (currentQty + quantity > allowedQty) {
+      if (isWeight) {
+        toast.error(`For weight-based items, you can buy up to 95% of stock (${parseFloat(allowedQty.toFixed(3))} KG) to account for wastage.`);
+      } else {
+        toast.error("No more packets available");
+      }
       return;
     }
 
@@ -862,9 +868,15 @@ export const StoreProvider = ({ children }) => {
 
     const maxStock = Number(item.product.stockQuantity || item.product.stock || 0);
     const newQty = item.quantity + delta;
+    const isWeight = item.product.sellingType === 'weight';
+    const allowedQty = isWeight ? maxStock * 0.95 : maxStock;
 
-    if (newQty > maxStock) {
-      toast.error(`Maximum ${maxStock} available`);
+    if (newQty > allowedQty) {
+      if (isWeight) {
+        toast.error(`For weight-based items, you can buy up to 95% of stock (${parseFloat(allowedQty.toFixed(3))} KG) to account for wastage.`);
+      } else {
+        toast.error("No more packets available");
+      }
       return;
     }
 
@@ -884,6 +896,19 @@ export const StoreProvider = ({ children }) => {
   const setItemQuantity = useCallback((product, quantity, shopId) => {
     const sId = shopId || product.shopId || product.shop || currentShopId;
     if (!sId) return;
+
+    const maxStock = Number(product.stockQuantity || product.stock || 0);
+    const isWeight = product.sellingType === 'weight';
+    const allowedQty = isWeight ? maxStock * 0.95 : maxStock;
+
+    if (quantity > allowedQty) {
+      if (isWeight) {
+        toast.error(`For weight-based items, you can buy up to 95% of stock (${parseFloat(allowedQty.toFixed(3))} KG) to account for wastage.`);
+      } else {
+        toast.error("No more packets available");
+      }
+      return;
+    }
 
     setCart(prev => {
       const shopCart = prev[sId] || [];

@@ -129,6 +129,11 @@ const OrderStatus = () => {
   const currentIdx = stages.findIndex(s => s.id === currentStatus);
   const isCancelled = currentStatus === 'CANCELLED';
 
+  const itemsSubtotal = order.items?.reduce((sum, i) => sum + (i.quantity * (i.price || i.product?.price || 0)), 0) || 0;
+  const deliveryCharges = order.deliveryFee || (order.totalPrice > itemsSubtotal ? order.totalPrice - itemsSubtotal : 0);
+  const platformFee = order.platformFee || 0;
+  const totalPayable = itemsSubtotal + deliveryCharges + platformFee;
+
 
 
   const handleCancel = async () => {
@@ -252,7 +257,7 @@ const OrderStatus = () => {
              </div>
              <div className="bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100/50">
                 <p className="text-[7px] font-black text-emerald-600 uppercase tracking-widest mb-0.5">Value</p>
-                <p className="text-xs font-black text-emerald-700 leading-none">₹{order.totalPrice}</p>
+                <p className="text-xs font-black text-emerald-700 leading-none">₹{totalPayable.toFixed(2)}</p>
              </div>
           </div>
           
@@ -412,37 +417,48 @@ const OrderStatus = () => {
                             </div>
                          );
                       })}
-                   </div>
-
-                    <div className="space-y-3 px-4 pt-5 border-t-2 border-gray-900/5 mt-4">
-                      <div className="flex justify-between items-center">
-                        <div className="flex flex-col">
-                          <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none">Subtotal</span>
-                          <span className="text-[7px] font-bold text-gray-300 uppercase mt-1">Sum of Items</span>
-                        </div>
-                        <span className="text-[12px] font-black text-gray-900 tracking-tighter">
-                          ₹{order.items.reduce((sum, i) => sum + (i.quantity * (i.price || i.product?.price || 0)), 0).toFixed(2)}
-                        </span>
-                      </div>
-
-                      {(order.deliveryFee > 0 || (order.totalPrice > order.items.reduce((sum, i) => sum + (i.quantity * (i.price || i.product?.price || 0)), 0))) && (
-                        <div className="flex justify-between items-center bg-emerald-50/50 p-2 rounded-xl border border-emerald-100/30">
+                      <div className="space-y-3 px-4 pt-5 border-t-2 border-gray-900/5 mt-4">
+                        <div className="flex justify-between items-center">
                           <div className="flex flex-col">
-                            <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest leading-none">Delivery Charges</span>
-                            <span className="text-[7px] font-bold text-emerald-400 uppercase mt-1">Logistics & Handling</span>
+                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none">Subtotal</span>
+                            <span className="text-[7px] font-bold text-gray-300 uppercase mt-1">Sum of Items</span>
                           </div>
-                          <span className="text-[12px] font-black text-emerald-600 tracking-tighter">
-                            + ₹{(order.deliveryFee || (order.totalPrice - order.items.reduce((sum, i) => sum + (i.quantity * (i.price || i.product?.price || 0)), 0))).toFixed(2)}
+                          <span className="text-[12px] font-black text-gray-900 tracking-tighter">
+                            ₹{itemsSubtotal.toFixed(2)}
                           </span>
                         </div>
-                      )}
 
-                      <div className="flex justify-between items-center pt-4 border-t-2 border-gray-900 mt-2">
-                        <div className="flex flex-col">
-                          <span className="text-[11px] font-black text-gray-900 uppercase tracking-widest leading-none">Total Payable</span>
-                          <span className="text-[7px] font-bold text-gray-400 uppercase mt-1">Inclusive of all taxes</span>
+                        {deliveryCharges > 0 && (
+                          <div className="flex justify-between items-center bg-emerald-50/50 p-2 rounded-xl border border-emerald-100/30">
+                            <div className="flex flex-col">
+                              <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest leading-none">Delivery Charges</span>
+                              <span className="text-[7px] font-bold text-emerald-400 uppercase mt-1">Logistics & Handling</span>
+                            </div>
+                            <span className="text-[12px] font-black text-emerald-600 tracking-tighter">
+                              + ₹{deliveryCharges.toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+
+                        {platformFee > 0 && (
+                          <div className="flex justify-between items-center bg-emerald-50/50 p-2 rounded-xl border border-emerald-100/30">
+                            <div className="flex flex-col">
+                              <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest leading-none">Platform Fee</span>
+                              <span className="text-[7px] font-bold text-emerald-400 uppercase mt-1">Service & Tech Fee</span>
+                            </div>
+                            <span className="text-[12px] font-black text-emerald-600 tracking-tighter">
+                              + ₹{platformFee.toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="flex justify-between items-center pt-4 border-t-2 border-gray-900 mt-2">
+                          <div className="flex flex-col">
+                            <span className="text-[11px] font-black text-gray-900 uppercase tracking-widest leading-none">Total Payable</span>
+                            <span className="text-[7px] font-bold text-gray-400 uppercase mt-1">Inclusive of all taxes</span>
+                          </div>
+                          <span className="text-3xl font-black text-brand-primary tracking-tighter">₹{totalPayable.toFixed(2)}</span>
                         </div>
-                        <span className="text-3xl font-black text-brand-primary tracking-tighter">₹{order.totalPrice}</span>
                       </div>
                     </div>
                 </div>

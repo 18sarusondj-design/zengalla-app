@@ -6,12 +6,12 @@ import User from '../models/User.js';
 dotenv.config();
 
 async function run() {
-  const uri = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/zengalla';
+  const uri = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/grozy';
   console.log('Connecting to URI:', uri);
   await mongoose.connect(uri);
   console.log('Connected to DB');
 
-  const email = 'testcustomer@zengalla.com';
+  const email = 'testcustomer@grozy.com';
   // Delete existing test customer if any
   await User.deleteOne({ email });
 
