@@ -270,7 +270,14 @@ export const getNearbyShops = async (req, res) => {
 // GET /api/shops/my — vendor's own shop
 export const getMyShop = async (req, res) => {
   try {
-    const shop = await Shop.findOne({ owner: req.user._id }).lean();
+    let shop;
+    if (req.user.role === 'staff' || req.user.role === 'delivery') {
+      if (req.user.shopId) {
+        shop = await Shop.findById(req.user.shopId).lean();
+      }
+    } else {
+      shop = await Shop.findOne({ owner: req.user._id }).lean();
+    }
     
     // Prevent browser caching so vendor always sees the latest updates after reload
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');

@@ -132,7 +132,7 @@ export const register = async (req, res) => {
       }
     }
 
-    const isInternal = ['staff'].includes(role); // Delivery is no longer internal, requires OTP
+    const isInternal = false; // Staff now requires verification too
     const status = (role === 'vendor' || role === 'delivery') ? 'pending' : 'active';
     
     user = await User.create({ 
@@ -313,16 +313,32 @@ export const login = async (req, res) => {
       return res.status(403).json({ error: 'Delivery partners must log in using Phone Number and OTP.' });
     }
 
-    if (!user.isVerified && user.role !== 'staff' && user.role !== 'delivery') {
-      return res.status(403).json({ error: 'Please verify your email before logging in' });
-    }
-
     if (user.status === 'suspended' || user.status === 'rejected' || user.status === 'inactive') {
       return res.status(403).json({ error: `Account is ${user.status}` });
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) return res.status(401).json({ error: 'Incorrect password' });
+
+    if (!user.isVerified) {
+      // Generate OTP and send email
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      user.otp = otp;
+      user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+      await user.save();
+
+      try {
+        await sendOTP(user.email, otp);
+      } catch (mailErr) {
+        console.log(`⚠️ Mail failed for ${user.email}. Code: ${otp}`);
+      }
+
+      return res.status(403).json({
+        error: 'Please verify your email before logging in.',
+        requiresVerification: true,
+        email: user.email
+      });
+    }
 
     const { accessToken, refreshToken } = generateTokens(user);
     const safeUser = user.toJSON();

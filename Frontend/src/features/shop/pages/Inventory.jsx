@@ -429,21 +429,28 @@ const Inventory = () => {
         {/* Main Section */}
         <div className="flex-1 flex flex-col min-h-0 min-w-0 md:overflow-hidden">
           <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
-            <div className="p-4 border-b flex justify-between items-center bg-gray-50/50">
-              <div className="relative w-full max-w-sm">
+            <div className="p-4 border-b flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-gray-50/50">
+              <div className="relative w-full sm:max-w-xs md:max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input 
                   type="text" 
+                  placeholder="Search products..."
                   className="w-full bg-white border-2 border-sky-100 focus:border-sky-500/40 rounded-xl py-2 pl-10 pr-4 text-sm outline-none font-bold shadow-sm transition-all" 
                   value={searchQuery} 
                   onChange={e => setSearchQuery(e.target.value)} 
                 />
               </div>
-              <div className="flex items-center gap-3">
-                <select className="border border-gray-200 rounded-xl px-4 py-2 text-xs font-black bg-white uppercase tracking-widest outline-none" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
+              <div className="flex flex-row items-center gap-2 w-full sm:w-auto">
+                <select 
+                  className="flex-1 sm:flex-initial border border-gray-200 rounded-xl px-3 py-2 text-xs font-black bg-white uppercase tracking-widest outline-none" 
+                  value={filterCategory} 
+                  onChange={e => setFilterCategory(e.target.value)}
+                >
                   {['All', ...dynamicCategories].map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
-                <div className="flex bg-white border border-gray-100 rounded-xl p-1 gap-1">
+
+                {/* Desktop Status Filter (Buttons) */}
+                <div className="hidden sm:flex bg-white border border-gray-100 rounded-xl p-1 gap-1">
                   {['All', 'Low Stock', 'Expired', 'Near Expiry'].map(f => (
                     <button
                       key={f}
@@ -454,6 +461,17 @@ const Inventory = () => {
                     </button>
                   ))}
                 </div>
+
+                {/* Mobile Status Filter (Dropdown) */}
+                <select
+                  className="flex-1 sm:hidden border border-gray-200 rounded-xl px-3 py-2 text-xs font-black bg-white uppercase tracking-widest outline-none"
+                  value={statusFilter}
+                  onChange={e => setStatusFilter(e.target.value)}
+                >
+                  {['All', 'Low Stock', 'Expired', 'Near Expiry'].map(f => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
               </div>
             </div>
 

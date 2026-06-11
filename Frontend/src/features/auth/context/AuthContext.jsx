@@ -71,7 +71,13 @@ export const AuthProvider = ({ children }) => {
       setUser(data.user);
       return { success: true, user: data.user };
     } catch (err) {
-      return { success: false, error: err.message };
+      const resData = err.response?.data;
+      return { 
+        success: false, 
+        error: resData?.error || err.message,
+        requiresVerification: resData?.requiresVerification || false,
+        email: resData?.email || email
+      };
     }
   };
 

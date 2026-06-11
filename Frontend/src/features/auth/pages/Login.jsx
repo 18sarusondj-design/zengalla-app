@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../auth/context/AuthContext';
 import { toast } from 'sonner';
-import { Store, Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, ShieldCheck, Truck } from 'lucide-react';
+import { Store, Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, ShieldCheck, Truck, CheckCircle2 } from 'lucide-react';
 import Logo from '../../common/components/Logo';
 import PWAInstallButton from '../../common/components/PWAInstallButton';
 import { GoogleLogin } from '@react-oauth/google';
@@ -11,7 +11,10 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const { login, googleLogin, loading, user } = useAuth();
+  const [step, setStep] = useState(1);
+  const [otp, setOtp] = useState('');
+  const [verifyEmail, setVerifyEmail] = useState('');
+  const { login, googleLogin, loading, user, verifyOtp } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -69,11 +72,32 @@ const Login = () => {
       const result = await login(email, password);
       if (result.success) {
         toast.success('Successfully logged in!', { id: toastId });
+      } else if (result.requiresVerification) {
+        toast.success('Verification code sent to your email!', { id: toastId });
+        setVerifyEmail(result.email || email);
+        setStep(2);
       } else {
-        throw new Error(result.error);
+        throw new Error(result.error || 'Login failed');
       }
     } catch (err) {
       toast.error(err.message || 'Login failed', { id: toastId });
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (!otp || otp.length < 6) return toast.error('Please enter a valid 6-digit code');
+    
+    const toastId = toast.loading('Verifying code...');
+    try {
+      const result = await verifyOtp(verifyEmail, otp);
+      if (result.success) {
+        toast.success('Email verified successfully! You are now logged in.', { id: toastId });
+      } else {
+        throw new Error(result.error || 'Verification failed');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Verification failed', { id: toastId });
     }
   };
 
@@ -139,80 +163,117 @@ const Login = () => {
                 <Logo variant="icon" className="w-32 h-32" />
               </div>
 
-              <form className="space-y-4" onSubmit={handleSubmit}>
-                <div className="space-y-4">
-                  <FormInput 
-                    label="Registered Email" 
-                    icon={<Mail size={20} />} 
-                    type="email" 
-                    placeholder="" 
-                    value={email}
-                    onChange={setEmail}
-                  />
-                  
-                  <div className="relative">
+              {step === 1 ? (
+                <form className="space-y-4" onSubmit={handleSubmit}>
+                  <div className="space-y-4">
                     <FormInput 
-                      label="Security Password" 
-                      icon={<Lock size={20} />} 
-                      type={showPassword ? "text" : "password"} 
-                      placeholder="••••••••" 
-                      value={password}
-                      onChange={setPassword}
-                      rightElement={
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-sky-600 transition-colors"
-                        >
-                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                        </button>
-                      }
+                      label="Registered Email" 
+                      icon={<Mail size={20} />} 
+                      type="email" 
+                      placeholder="" 
+                      value={email}
+                      onChange={setEmail}
                     />
-                    <Link to="/forgot-password" 
-                      className="absolute top-0 right-4 text-[9px] font-black text-sky-600 uppercase tracking-widest hover:text-sky-700 transition-colors">
-                      Recovery?
-                    </Link>
+                    
+                    <div className="relative">
+                      <FormInput 
+                        label="Security Password" 
+                        icon={<Lock size={20} />} 
+                        type={showPassword ? "text" : "password"} 
+                        placeholder="••••••••" 
+                        value={password}
+                        onChange={setPassword}
+                        rightElement={
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-sky-600 transition-colors"
+                          >
+                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                          </button>
+                        }
+                      />
+                      <Link to="/forgot-password" 
+                        className="absolute top-0 right-4 text-[9px] font-black text-sky-600 uppercase tracking-widest hover:text-sky-700 transition-colors">
+                        Recovery?
+                      </Link>
+                    </div>
                   </div>
-                </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full h-12 lg:h-14 bg-gray-900 text-white rounded-[20px] lg:rounded-[24px] shadow-2xl shadow-gray-200 hover:bg-sky-600 transition-all duration-500 flex items-center justify-center gap-3 font-black uppercase tracking-widest text-[9px] lg:text-[10px] active:scale-95 disabled:opacity-50 group hover:shadow-sky-200"
-                >
-                  {loading ? <Loader2 className="animate-spin" size={20} /> : (
-                    <>Sign in to Account <ArrowRight size={16} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" /></>
-                  )}
-                </button>
-                
-                <div className="relative flex items-center py-2">
-                  <div className="flex-grow border-t border-gray-100"></div>
-                  <span className="flex-shrink-0 mx-4 text-gray-400 text-[10px] font-bold uppercase tracking-widest">or</span>
-                  <div className="flex-grow border-t border-gray-100"></div>
-                </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full h-12 lg:h-14 bg-gray-900 text-white rounded-[20px] lg:rounded-[24px] shadow-2xl shadow-gray-200 hover:bg-sky-600 transition-all duration-500 flex items-center justify-center gap-3 font-black uppercase tracking-widest text-[9px] lg:text-[10px] active:scale-95 disabled:opacity-50 group hover:shadow-sky-200"
+                  >
+                    {loading ? <Loader2 className="animate-spin" size={20} /> : (
+                      <>Sign in to Account <ArrowRight size={16} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" /></>
+                    )}
+                  </button>
+                  
+                  <div className="relative flex items-center py-2">
+                    <div className="flex-grow border-t border-gray-100"></div>
+                    <span className="flex-shrink-0 mx-4 text-gray-400 text-[10px] font-bold uppercase tracking-widest">or</span>
+                    <div className="flex-grow border-t border-gray-100"></div>
+                  </div>
 
-                <div className="flex justify-center w-full">
-                  <GoogleLogin
-                    onSuccess={async (credentialResponse) => {
-                      const result = await googleLogin(credentialResponse.credential, 'customer');
-                      if (result.success) {
-                        toast.success('Successfully logged in with Google');
-                        navigate(from, { replace: true });
-                      } else {
-                        toast.error(result.error);
-                      }
-                    }}
-                    onError={() => toast.error('Google Sign-In failed')}
-                    useOneTap
-                    shape="pill"
-                    theme="filled_blue"
-                  />
-                </div>
-                
-                <p className="text-center text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">
-                  No account? <Link to="/register" state={{ from }} className="text-sky-600 font-black hover:underline underline-offset-4 decoration-2">Get Started</Link>
-                </p>
-              </form>
+                  <div className="flex justify-center w-full">
+                    <GoogleLogin
+                      onSuccess={async (credentialResponse) => {
+                        const result = await googleLogin(credentialResponse.credential, 'customer');
+                        if (result.success) {
+                          toast.success('Successfully logged in with Google');
+                          navigate(from, { replace: true });
+                        } else {
+                          toast.error(result.error);
+                        }
+                      }}
+                      onError={() => toast.error('Google Sign-In failed')}
+                      useOneTap
+                      shape="pill"
+                      theme="filled_blue"
+                    />
+                  </div>
+                  
+                  <p className="text-center text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">
+                    No account? <Link to="/register" state={{ from }} className="text-sky-600 font-black hover:underline underline-offset-4 decoration-2">Get Started</Link>
+                  </p>
+                </form>
+              ) : (
+                <form className="space-y-4" onSubmit={handleVerifyOtp}>
+                  <div className="text-center mb-4">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      We sent a verification code to
+                    </p>
+                    <p className="text-sm font-black text-gray-900">{verifyEmail}</p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4">
+                    <FormInput 
+                      label="Verification Code" 
+                      icon={<ShieldCheck size={20} />} 
+                      type="text" 
+                      placeholder="Enter code" 
+                      value={otp}
+                      onChange={setOtp}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading || otp.length < 6}
+                    className="w-full h-12 lg:h-14 bg-sky-600 text-white rounded-[20px] lg:rounded-[24px] shadow-2xl shadow-sky-200 hover:bg-gray-900 transition-all duration-500 flex items-center justify-center gap-3 font-black uppercase tracking-widest text-[9px] lg:text-[10px] active:scale-95 disabled:opacity-50 group hover:shadow-sky-200"
+                  >
+                    {loading ? <Loader2 className="animate-spin" size={20} /> : (
+                      <>Verify & Login <CheckCircle2 size={16} strokeWidth={3} className="group-hover:scale-110 transition-transform" /></>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="w-full text-center text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors py-2"
+                  >
+                    Back to Login
+                  </button>
+                </form>
+              )}
 
               {/* Removed Secure Business Node */}
             </div>
