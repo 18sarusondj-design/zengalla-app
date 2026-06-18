@@ -34,7 +34,6 @@ const B2BPartners = () => {
     pincode: '',
     city: '',
     landmark: '',
-    buyerType: 'Retailer',
     creditLimit: 0,
     paymentTerms: 'Instant',
     notes: '',
@@ -61,7 +60,7 @@ const B2BPartners = () => {
       businessName: '', ownerName: '', gstin: '', phone: '', altPhone: '',
       email: '', billingAddress: '', shippingAddress: '', state: '',
       stateCode: '', pincode: '', city: '', landmark: '',
-      buyerType: 'Retailer', creditLimit: 0, paymentTerms: 'Instant',
+      creditLimit: 0, paymentTerms: 'Instant',
       notes: '', isActive: true
     });
     setIsModalOpen(true);
@@ -219,7 +218,6 @@ const B2BPartners = () => {
                         <tr className="bg-slate-50/50 border-b border-slate-100">
                            <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Partner Detail</th>
                            <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Identification</th>
-                           <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Buyer Type</th>
                            <th className="px-8 py-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Actions</th>
                         </tr>
                      </thead>
@@ -250,11 +248,7 @@ const B2BPartners = () => {
                                     <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest">GST: <span className="text-slate-500">{partner.gstin || 'N/A'}</span></div>
                                  </div>
                               </td>
-                              <td className="px-8 py-6">
-                                 <span className="px-3 py-1.5 bg-sky-50 text-sky-700 rounded-lg text-[9px] font-black uppercase tracking-widest border border-sky-100/50">
-                                    {partner.buyerType}
-                                 </span>
-                              </td>
+
                               <td className="px-8 py-6 text-right">
                                  <div className="flex items-center justify-end gap-2">
                                     <button onClick={() => openEditModal(partner)} className="p-3 bg-sky-50 text-sky-600 rounded-xl hover:bg-sky-600 hover:text-white transition-all shadow-sm">
@@ -392,24 +386,7 @@ const B2BPartners = () => {
                         </div>
                       </div>
 
-                      <h3 className="text-[10px] font-black text-sky-600 uppercase tracking-[0.3em] flex items-center gap-2 pt-4">
-                        <Briefcase size={14} /> Commercial Terms
-                      </h3>
-                      <div className="grid grid-cols-1 gap-4">
-                        <div className="relative">
-                          <label className="text-[9px] font-black text-slate-300 uppercase tracking-widest absolute -top-2 left-4 bg-white px-2">Buyer Type</label>
-                          <select 
-                            name="buyerType"
-                            className="w-full bg-white border-2 border-slate-100 rounded-2xl py-4 px-6 text-sm font-bold text-slate-900 focus:border-sky-500 outline-none transition-all appearance-none"
-                            value={formData.buyerType} onChange={handleInputChange}
-                          >
-                            <option value="Retailer">Retailer</option>
-                            <option value="Wholesaler">Wholesaler</option>
-                            <option value="Distributor">Distributor</option>
-                            <option value="Restaurant">Restaurant</option>
-                          </select>
-                        </div>
-                      </div>
+
                     </div>
                   </div>
 

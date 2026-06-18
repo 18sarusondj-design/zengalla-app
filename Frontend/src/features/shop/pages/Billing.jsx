@@ -281,10 +281,39 @@ const Billing = () => {
     window.open(`https://wa.me/${phone.length === 10 ? '91' + phone : phone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.category?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = useMemo(() => {
+    if (!searchTerm.trim()) return products;
+    const query = searchTerm.toLowerCase().trim();
+    
+    const matched = products.filter(p => 
+      p.name.toLowerCase().includes(query) ||
+      p.category?.toLowerCase().includes(query)
+    );
+    
+    return matched.sort((a, b) => {
+      const aName = a.name.toLowerCase();
+      const bName = b.name.toLowerCase();
+      
+      // Exact match
+      if (aName === query && bName !== query) return -1;
+      if (bName === query && aName !== query) return 1;
+      
+      // Name starts with query
+      const aStarts = aName.startsWith(query);
+      const bStarts = bName.startsWith(query);
+      if (aStarts && !bStarts) return -1;
+      if (bStarts && !aStarts) return 1;
+      
+      // Word inside name starts with query
+      const aWordStarts = aName.split(/\s+/).some(word => word.startsWith(query));
+      const bWordStarts = bName.split(/\s+/).some(word => word.startsWith(query));
+      if (aWordStarts && !bWordStarts) return -1;
+      if (bWordStarts && !aWordStarts) return 1;
+      
+      // Keep alphabetical order otherwise
+      return aName.localeCompare(bName);
+    });
+  }, [products, searchTerm]);
 
   return (
     <div className="flex flex-col md:h-screen md:overflow-hidden min-h-screen bg-gray-50/50 p-2 lg:p-6 overflow-y-auto md:overflow-hidden font-sans">

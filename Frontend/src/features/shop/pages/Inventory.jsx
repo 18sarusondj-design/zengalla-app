@@ -154,29 +154,59 @@ const Inventory = () => {
 
   const dynamicCategories = [...new Set(['General', ...shopProducts.map(p => p.category).filter(Boolean)])];
 
-  const filteredProducts = shopProducts
-    .filter(p => (filterCategory === 'All' ? true : p.category === filterCategory))
-    .filter(p => {
-      if (statusFilter === 'Low Stock') {
-        const stock = Number(p.stockQuantity || p.stock || 0);
-        const threshold = Number(p.lowStockThreshold || p.low_stock_threshold || 5);
-        return stock <= threshold;
-      }
-      if (statusFilter === 'Expired') {
-        return p.batches?.some(b => new Date(b.expiryDate) < new Date());
-      }
-      if (statusFilter === 'Near Expiry') {
-        return p.batches?.some(b => {
-          const diff = new Date(b.expiryDate) - new Date();
-          return diff > 0 && diff < (5 * 24 * 60 * 60 * 1000);
-        });
-      }
-      return true;
-    })
-    .filter(p => {
-      return p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-             (p.barcode || '').includes(searchQuery);
+  const filteredProducts = useMemo(() => {
+    let list = shopProducts
+      .filter(p => (filterCategory === 'All' ? true : p.category === filterCategory))
+      .filter(p => {
+        if (statusFilter === 'Low Stock') {
+          const stock = Number(p.stockQuantity || p.stock || 0);
+          const threshold = Number(p.lowStockThreshold || p.low_stock_threshold || 5);
+          return stock <= threshold;
+        }
+        if (statusFilter === 'Expired') {
+          return p.batches?.some(b => new Date(b.expiryDate) < new Date());
+        }
+        if (statusFilter === 'Near Expiry') {
+          return p.batches?.some(b => {
+            const diff = new Date(b.expiryDate) - new Date();
+            return diff > 0 && diff < (5 * 24 * 60 * 60 * 1000);
+          });
+        }
+        return true;
+      });
+
+    if (!searchQuery.trim()) return list;
+
+    const query = searchQuery.toLowerCase().trim();
+    const matched = list.filter(p => {
+      return p.name.toLowerCase().includes(query) || 
+             (p.barcode || '').includes(query);
     });
+
+    return matched.sort((a, b) => {
+      const aName = a.name.toLowerCase();
+      const bName = b.name.toLowerCase();
+      
+      // Exact match
+      if (aName === query && bName !== query) return -1;
+      if (bName === query && aName !== query) return 1;
+      
+      // Name starts with query
+      const aStarts = aName.startsWith(query);
+      const bStarts = bName.startsWith(query);
+      if (aStarts && !bStarts) return -1;
+      if (bStarts && !aStarts) return 1;
+      
+      // Word inside name starts with query
+      const aWordStarts = aName.split(/\s+/).some(word => word.startsWith(query));
+      const bWordStarts = bName.split(/\s+/).some(word => word.startsWith(query));
+      if (aWordStarts && !bWordStarts) return -1;
+      if (bWordStarts && !aWordStarts) return 1;
+      
+      // Keep alphabetical order otherwise
+      return aName.localeCompare(bName);
+    });
+  }, [shopProducts, filterCategory, statusFilter, searchQuery]);
 
   const itemsPerPage = 20;
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage) || 1;

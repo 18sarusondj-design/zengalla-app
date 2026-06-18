@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useStore } from '../../shop/context/StoreContext';
 import { 
   ShoppingBag, Search, Plus, Minus, Trash2, 
@@ -45,7 +45,8 @@ const B2BProcurement = () => {
   // Pagination States
   const [supplierPage, setSupplierPage] = useState(1);
   const [ordersPage, setOrdersPage] = useState(1);
-  const SUPPLIERS_PER_PAGE = 6;
+  const [productPage, setProductPage] = useState(1);
+  const SUPPLIERS_PER_PAGE = 8;
   const ORDERS_PER_PAGE = 16;
 
   useEffect(() => {
@@ -77,6 +78,53 @@ const B2BProcurement = () => {
     }
   };
 
+  const handleDeleteOrder = (orderId) => {
+    toast.error("Delete this purchase record?", {
+      description: "This will permanently remove the record from your procurement history.",
+      action: {
+        label: "Delete",
+        onClick: async () => {
+          try {
+            const { data } = await api.delete(`/orders/${orderId}`);
+            if (data.success) {
+              setMyOrders(prev => prev.filter(o => (o._id || o.id) !== orderId));
+              toast.success("Record deleted");
+            }
+          } catch (err) {
+            console.error("Delete failed:", err);
+            toast.error("Failed to delete record");
+          }
+        }
+      }
+    });
+  };
+
+  const handleClearHistory = async () => {
+    if (myOrders.length === 0) {
+      toast.info("No purchases to clear.");
+      return;
+    }
+
+    toast.error("Clear B2B purchase history?", {
+      description: `This will permanently delete all ${myOrders.length} purchases from your history.`,
+      action: {
+        label: "Clear All",
+        onClick: async () => {
+          const toastId = toast.loading("Clearing history...");
+          try {
+            await Promise.all(myOrders.map(o => api.delete(`/orders/${o._id}`)));
+            setMyOrders([]);
+            toast.success("Procurement history cleared", { id: toastId });
+          } catch (err) {
+            console.error("Clear history failed:", err);
+            toast.error("Failed to clear some records", { id: toastId });
+            fetchMyOrders();
+          }
+        }
+      }
+    });
+  };
+
   useEffect(() => {
     setSupplierPage(1);
     setOrdersPage(1);
@@ -88,10 +136,12 @@ const B2BProcurement = () => {
   useEffect(() => {
     setSupplierPage(1);
     setOrdersPage(1);
+    setProductPage(1);
   }, [searchTerm]);
 
   const selectSupplier = async (supplier) => {
     setSelectedSupplier(supplier);
+    setProductPage(1);
     setIsLoading(true);
     try {
       const { data } = await api.get(`/products?shopId=${supplier._id}`);
@@ -104,17 +154,22 @@ const B2BProcurement = () => {
     }
   };
 
+  const getB2BPrice = (product) => {
+    return (product.wholesalePrice && product.wholesalePrice > 0) ? product.wholesalePrice : product.price;
+  };
+
   const addToProcure = (product, weight = null) => {
+    const b2bPrice = getB2BPrice(product);
     setProcureItems(prev => {
       const existing = prev.find(item => item._id === product._id && (!weight || item.selectedWeight === weight));
       if (existing) {
         return prev.map(item => 
           item._id === product._id && (!weight || item.selectedWeight === weight)
-            ? { ...item, quantity: item.quantity + (weight ? 0 : 1) } 
+            ? { ...item, quantity: item.quantity + (weight ? 0 : 1), price: b2bPrice } 
             : item
         );
       }
-      return [...prev, { ...product, quantity: weight ? 1 : 1, selectedWeight: weight }];
+      return [...prev, { ...product, price: b2bPrice, quantity: 1, selectedWeight: weight }];
     });
   };
 
@@ -188,6 +243,16 @@ const B2BProcurement = () => {
     if (item.selectedWeight) return sum + (item.price * item.selectedWeight);
     return sum + (item.price * item.quantity);
   }, 0);
+
+  const PRODUCTS_PER_PAGE = 12;
+  const filteredSupplierProducts = useMemo(() => {
+    const query = searchTerm.toLowerCase().trim();
+    return supplierProducts.filter(p => p.name.toLowerCase().includes(query));
+  }, [supplierProducts, searchTerm]);
+
+  const paginatedSupplierProducts = useMemo(() => {
+    return filteredSupplierProducts.slice((productPage - 1) * PRODUCTS_PER_PAGE, productPage * PRODUCTS_PER_PAGE);
+  }, [filteredSupplierProducts, productPage]);
 
   const handleSubmitProcurement = async (confirmedAmount = 0, proofUrl = '') => {
     if (procureItems.length === 0) return toast.error("Add items first");
@@ -323,41 +388,45 @@ const B2BProcurement = () => {
               </div>
             ) : suppliers.length > 0 ? (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {suppliers
                     .filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()))
                     .slice((supplierPage - 1) * SUPPLIERS_PER_PAGE, supplierPage * SUPPLIERS_PER_PAGE)
                     .map(supplier => (
                     <div 
                       key={supplier._id} 
-                      className="bg-white rounded-[48px] p-8 border border-slate-100 shadow-sm hover:shadow-2xl transition-all group relative overflow-hidden"
+                      onClick={() => selectSupplier(supplier)}
+                      className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm hover:shadow-2xl transition-all group relative overflow-hidden cursor-pointer"
                     >
-                      <div className="flex items-center gap-6 mb-8">
-                        <div className="w-24 h-24 rounded-[32px] overflow-hidden border-4 border-slate-50 shadow-inner group-hover:scale-105 transition-transform duration-500">
+                      <div className="flex items-center gap-4 mb-6">
+                        <div className="w-16 h-16 rounded-[20px] overflow-hidden border-2 border-slate-50 shadow-inner group-hover:scale-105 transition-transform duration-500 flex-shrink-0">
                            <img src={supplier.imageUrl || 'https://cdn-icons-png.flaticon.com/512/1261/1261163.png'} className="w-full h-full object-cover" />
                         </div>
                         <div>
-                           <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase leading-none mb-2">{supplier.name}</h3>
-                           <div className="flex items-center gap-2">
-                              <CheckCircle2 size={14} className="text-emerald-500" />
-                              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Verified Supplier</span>
+                           <h3 className="text-lg font-black text-slate-900 tracking-tighter uppercase leading-none mb-1.5">{supplier.name}</h3>
+                           <div className="flex items-center gap-1.5">
+                              <CheckCircle2 size={12} className="text-emerald-500" />
+                              <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Verified Supplier</span>
                            </div>
                         </div>
                       </div>
                       
-                      <div className="flex items-center justify-between pt-6 border-t border-slate-50">
-                        <div className="flex flex-col">
-                           <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Location</span>
-                           <div className="flex items-center gap-2 text-slate-500">
-                              <MapPin size={14} />
-                              <span className="text-[11px] font-bold truncate max-w-[150px]">{supplier.address}</span>
+                      <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                        <div className="flex flex-col min-w-0">
+                           <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-0.5">Location</span>
+                           <div className="flex items-center gap-1.5 text-slate-500">
+                              <MapPin size={12} className="flex-shrink-0" />
+                              <span className="text-[10px] font-bold truncate max-w-[120px]">{supplier.address}</span>
                            </div>
                         </div>
                         <button 
-                          onClick={() => selectSupplier(supplier)}
-                          className="w-14 h-14 bg-sky-50 text-sky-500 rounded-2xl flex items-center justify-center hover:bg-sky-500 hover:text-white transition-all active:scale-90 shadow-sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            selectSupplier(supplier);
+                          }}
+                          className="w-10 h-10 bg-sky-50 text-sky-500 rounded-xl flex items-center justify-center hover:bg-sky-500 hover:text-white transition-all active:scale-90 shadow-sm flex-shrink-0"
                         >
-                           <ChevronRight size={24} />
+                           <ChevronRight size={18} />
                         </button>
                       </div>
                     </div>
@@ -411,6 +480,16 @@ const B2BProcurement = () => {
               </div>
             ) : myOrders.length > 0 ? (
               <>
+                  {myOrders.length > 0 && (
+                   <div className="flex justify-end mb-4">
+                     <button
+                       onClick={handleClearHistory}
+                       className="px-5 py-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm"
+                     >
+                       Clear History
+                     </button>
+                   </div>
+                 )}
                 <div className="space-y-4">
                   {myOrders
                     .slice((ordersPage - 1) * ORDERS_PER_PAGE, ordersPage * ORDERS_PER_PAGE)
@@ -431,7 +510,7 @@ const B2BProcurement = () => {
                              <p className="text-[11px] font-bold text-slate-400 mt-1 uppercase tracking-tight">{(order.items || []).length} Products · ₹{order.totalPrice}</p>
                           </div>
                        </div>
-                       <div className="flex items-center gap-4">
+                       <div className="flex items-center gap-4 text-right">
                           <div className="text-right mr-4">
                              <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Placed On</p>
                              <p className="text-xs font-black text-slate-600 uppercase">{new Date(order.createdAt).toLocaleDateString()}</p>
@@ -441,6 +520,16 @@ const B2BProcurement = () => {
                           }`}>
                              {order.status}
                           </span>
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               handleDeleteOrder(order._id);
+                             }}
+                             className="w-10 h-10 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-500 flex items-center justify-center transition-all active:scale-95 ml-2"
+                             title="Delete Purchase"
+                           >
+                             <Trash2 size={16} />
+                           </button>
                        </div>
                     </div>
                   ))}
@@ -486,48 +575,48 @@ const B2BProcurement = () => {
         )
       ) : (
         /* Full Screen Procurement Detail Dashboard */
-        <div className="flex flex-col h-[90vh] bg-white rounded-[48px] shadow-2xl overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-300">
+        <div className="flex flex-col min-h-[90vh] md:h-[88vh] bg-white rounded-[32px] md:rounded-[48px] shadow-2xl overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-300">
           {/* Supplier Header */}
-          <div className="bg-slate-900 px-10 py-8 flex items-center justify-between shadow-sm z-10 text-white">
-             <div className="flex items-center gap-8">
-                <button onClick={() => setSelectedSupplier(null)} className="w-14 h-14 bg-white/10 text-white rounded-2xl flex items-center justify-center hover:bg-white hover:text-slate-900 transition-all border border-white/10">
-                   <ArrowLeft size={24} />
+          <div className="bg-slate-900 px-6 md:px-10 py-6 md:py-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 md:gap-0 shadow-sm z-10 text-white">
+             <div className="flex items-center gap-4 md:gap-8 w-full md:w-auto">
+                <button onClick={() => setSelectedSupplier(null)} className="w-10 h-10 md:w-12 md:h-12 bg-white/10 text-white rounded-xl flex items-center justify-center hover:bg-white hover:text-slate-900 transition-all border border-white/10 flex-shrink-0">
+                   <ArrowLeft size={18} />
                 </button>
-                <div className="flex items-center gap-6">
-                   <div className="w-16 h-16 bg-white rounded-[24px] overflow-hidden border-2 border-white/20 shadow-xl">
+                <div className="flex items-center gap-4 md:gap-6 min-w-0">
+                   <div className="w-12 h-12 md:w-16 md:h-16 bg-white rounded-[16px] md:rounded-[24px] overflow-hidden border-2 border-white/20 shadow-xl flex-shrink-0">
                       <img src={selectedSupplier.imageUrl} className="w-full h-full object-cover" />
                    </div>
-                   <div>
-                      <div className="flex items-center gap-3">
-                        <h2 className="text-2xl font-black uppercase tracking-tighter">{selectedSupplier.name}</h2>
+                   <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-lg md:text-2xl font-black uppercase tracking-tighter truncate">{selectedSupplier.name}</h2>
                         <button 
                           onClick={() => {
                             const query = selectedSupplier.address || selectedSupplier.name;
                             window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, '_blank');
                           }}
-                          className="text-sky-400 hover:text-sky-300 transition-all p-1.5 bg-white/5 rounded-lg border border-white/10"
+                          className="text-sky-400 hover:text-sky-300 transition-all p-1 bg-white/5 rounded-lg border border-white/10 flex-shrink-0"
                           title="View on Google Maps"
                         >
-                          <MapPin size={14} strokeWidth={3} />
+                          <MapPin size={12} strokeWidth={3} />
                         </button>
                       </div>
-                      <p className="text-[10px] font-black text-sky-400 uppercase tracking-[0.3em] mt-1">Active Procurement Session</p>
+                      <p className="text-[8px] md:text-[10px] font-black text-sky-400 uppercase tracking-[0.3em] mt-0.5">Active Procurement Session</p>
                    </div>
                 </div>
              </div>
 
-             <div className="flex items-center gap-6">
-                <label className="flex items-center gap-3 px-8 py-4 bg-white/5 border border-white/10 text-white rounded-2xl cursor-pointer hover:bg-white/10 transition-all group">
-                   <Upload size={20} className="group-hover:animate-bounce" />
-                   <span className="text-[11px] font-black uppercase tracking-[0.2em]">Bulk Import</span>
+             <div className="flex flex-wrap md:flex-nowrap items-center gap-4 w-full md:w-auto">
+                <label className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl cursor-pointer hover:bg-white/10 transition-all group flex-shrink-0">
+                   <Upload size={16} className="group-hover:animate-bounce" />
+                   <span className="text-[10px] font-black uppercase tracking-[0.2em]">Bulk Import</span>
                    <input type="file" className="hidden" accept=".xlsx, .xls, .csv" onChange={handleExcelImport} />
                 </label>
-                <div className="relative">
-                   <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <div className="relative flex-1 md:flex-none">
+                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                    <input 
                      type="text" 
                      placeholder="STOCK SEARCH..." 
-                     className="pl-16 pr-8 py-4 bg-white/5 border border-white/10 rounded-2xl w-80 text-xs font-black uppercase focus:bg-white focus:text-slate-900 focus:outline-none transition-all shadow-inner"
+                     className="pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl w-full md:w-64 xl:w-80 text-[10px] font-black uppercase focus:bg-white focus:text-slate-900 focus:outline-none transition-all shadow-inner"
                      value={searchTerm}
                      onChange={e => setSearchTerm(e.target.value)}
                    />
@@ -535,11 +624,11 @@ const B2BProcurement = () => {
              </div>
           </div>
 
-          <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
              {/* Product Grid */}
-             <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
-                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-                   {supplierProducts.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())).map(p => {
+             <div className="flex-1 overflow-y-auto p-4 md:p-10 custom-scrollbar flex flex-col justify-between">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4 md:gap-6">
+                   {paginatedSupplierProducts.map(p => {
                       const stock = Number(p.stockQuantity || p.stock || 0);
                       return (
                         <div 
@@ -552,60 +641,92 @@ const B2BProcurement = () => {
                               addToProcure(p);
                             }
                           }}
-                          className={`group bg-white rounded-[40px] p-6 border border-slate-100 hover:border-sky-500 hover:shadow-2xl transition-all cursor-pointer flex flex-col relative ${stock <= 0 ? 'opacity-50 grayscale' : ''}`}
+                          className={`group bg-white rounded-[24px] p-4 border border-slate-100 hover:border-sky-500 hover:shadow-xl transition-all cursor-pointer flex flex-col relative ${stock <= 0 ? 'opacity-50 grayscale' : ''}`}
                         >
-                           <div className="aspect-square bg-slate-50 rounded-[32px] mb-6 overflow-hidden relative">
+                           <div className="aspect-square bg-slate-50 rounded-[16px] mb-4 overflow-hidden relative">
                               <img src={p.imageUrl || p.image} className="w-full h-full object-cover group-hover:scale-110 transition-all duration-500" />
-                              <div className="absolute top-4 right-4 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] font-black text-white shadow-xl">
-                                 ₹{p.price}
+                              <div className="absolute top-2.5 right-2.5 bg-slate-900/90 backdrop-blur-md px-2 py-1 rounded-lg text-[9px] font-black text-white shadow-md flex flex-col items-end leading-none">
+                                 <span>B2B: ₹{getB2BPrice(p)}</span>
+                                 {p.wholesalePrice && p.wholesalePrice > 0 && (
+                                   <span className="text-[6.5px] text-slate-400 line-through mt-0.5">Ret: ₹{p.price}</span>
+                                 )}
                               </div>
                            </div>
-                           <h5 className="text-[11px] font-black text-slate-900 uppercase tracking-tight mb-2 line-clamp-1">{p.name}</h5>
+                           <h5 className="text-[10px] font-black text-slate-900 uppercase tracking-tight mb-1.5 line-clamp-1">{p.name}</h5>
                            <div className="mt-auto flex items-center justify-between">
-                              <div className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                                 Stock: <span className={stock < 10 ? 'text-rose-500' : 'text-emerald-500'}>{stock}</span>
+                              <div className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                                 Stock: <span className={stock < 10 ? 'text-rose-500' : 'text-emerald-500'}>{parseFloat(stock.toFixed(2))}</span>
                               </div>
-                              <div className="w-10 h-10 bg-sky-50 text-sky-600 rounded-2xl flex items-center justify-center group-hover:bg-sky-500 group-hover:text-white transition-all shadow-sm">
-                                 <Plus size={20} strokeWidth={3} />
+                              <div className="w-8 h-8 bg-sky-50 text-sky-600 rounded-xl flex items-center justify-center group-hover:bg-sky-500 group-hover:text-white transition-all shadow-sm">
+                                 <Plus size={16} strokeWidth={3} />
                               </div>
                            </div>
                         </div>
                       );
                    })}
                 </div>
+
+                {/* Pagination UI for Products */}
+                {filteredSupplierProducts.length > PRODUCTS_PER_PAGE && (
+                  <div className="mt-8 flex items-center justify-center gap-1.5">
+                    <button 
+                      onClick={() => setProductPage(prev => Math.max(1, prev - 1))}
+                      disabled={productPage === 1}
+                      className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-sky-500 disabled:opacity-30 transition-all"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    {Array.from({ length: Math.ceil(filteredSupplierProducts.length / PRODUCTS_PER_PAGE) }).map((_, i) => (
+                      <button 
+                        key={i}
+                        onClick={() => setProductPage(i + 1)}
+                        className={`w-8 h-8 rounded-lg text-[10px] font-black transition-all ${productPage === i + 1 ? 'bg-sky-500 text-white shadow-md' : 'bg-white border border-slate-100 text-slate-400 hover:bg-slate-50'}`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                    <button 
+                      onClick={() => setProductPage(prev => Math.min(Math.ceil(filteredSupplierProducts.length / PRODUCTS_PER_PAGE), prev + 1))}
+                      disabled={productPage === Math.ceil(filteredSupplierProducts.length / PRODUCTS_PER_PAGE)}
+                      className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-sky-500 disabled:opacity-30 transition-all"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                )}
              </div>
 
              {/* Order Sidebar */}
-             <div className="w-[450px] bg-slate-50 border-l border-slate-100 flex flex-col shadow-inner">
-                <div className="p-10 border-b border-slate-200 flex items-center justify-between bg-white">
-                   <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-sky-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-sky-100">
-                         <ShoppingCart size={24} />
+             <div className="w-full md:w-[380px] xl:w-[450px] bg-slate-50 border-t md:border-t-0 md:border-l border-slate-100 flex flex-col shadow-inner max-h-[50vh] md:max-h-none flex-shrink-0">
+                <div className="p-6 md:p-8 border-b border-slate-200 flex items-center justify-between bg-white">
+                   <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-sky-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-sky-100">
+                         <ShoppingCart size={20} />
                       </div>
                       <div>
-                         <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest leading-none mb-1">Cart Manifest</h3>
-                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{procureItems.length} Products Registered</p>
+                         <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest leading-none mb-1">Cart Manifest</h3>
+                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{procureItems.length} Products Registered</p>
                       </div>
                    </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-10 space-y-6 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-4 custom-scrollbar">
                    {procureItems.length === 0 ? (
-                     <div className="h-full flex flex-col items-center justify-center text-center space-y-8 opacity-20">
-                        <ShoppingCart size={80} className="text-slate-300" strokeWidth={1} />
-                        <p className="text-[12px] font-black uppercase tracking-[0.3em] text-slate-500">Manifest is Empty</p>
+                     <div className="h-full flex flex-col items-center justify-center text-center space-y-6 opacity-20">
+                        <ShoppingCart size={60} className="text-slate-300" strokeWidth={1} />
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Manifest is Empty</p>
                      </div>
                    ) : (
                      procureItems.map(item => (
-                       <div key={item._id} className="bg-white rounded-[32px] p-6 flex items-center gap-6 group hover:shadow-xl transition-all border border-slate-100">
-                          <div className="w-20 h-20 bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 flex-shrink-0">
+                       <div key={item._id} className="bg-white rounded-[24px] p-4 flex items-center gap-4 group hover:shadow-lg transition-all border border-slate-100">
+                          <div className="w-14 h-14 bg-slate-50 rounded-xl overflow-hidden border border-slate-100 flex-shrink-0">
                              <img src={item.imageUrl || item.image} className="w-full h-full object-cover" />
                           </div>
                           <div className="flex-1 min-w-0">
-                             <h6 className="text-[12px] font-black text-slate-900 uppercase tracking-tight truncate mb-2">{item.name}</h6>
-                             <p className="text-lg font-black text-sky-600 tracking-tighter leading-none">₹{item.price} {item.selectedWeight && <span className="text-[9px] text-slate-400 tracking-normal ml-1">/ {item.selectedWeight}KG</span>}</p>
+                             <h6 className="text-[11px] font-black text-slate-900 uppercase tracking-tight truncate mb-1">{item.name}</h6>
+                             <p className="text-sm font-black text-sky-600 tracking-tighter leading-none">₹{item.price} {item.selectedWeight && <span className="text-[8px] text-slate-400 tracking-normal ml-1">/ {item.selectedWeight}KG</span>}</p>
                           </div>
-                          <div className="flex flex-col gap-3">
+                          <div className="flex flex-col gap-2">
                              {item.selectedWeight ? (
                                <button 
                                  onClick={() => {
@@ -615,38 +736,38 @@ const B2BProcurement = () => {
                                    setWeightInputMode('weight');
                                    setShowWeightModal(true);
                                  }}
-                                 className="w-12 h-12 bg-slate-50 rounded-2xl text-sky-500 hover:bg-sky-600 hover:text-white transition-all flex items-center justify-center border border-slate-100"
+                                 className="w-8 h-8 bg-slate-50 rounded-lg text-sky-500 hover:bg-sky-600 hover:text-white transition-all flex items-center justify-center border border-slate-100"
                                >
-                                 <Eye size={20} strokeWidth={3} />
+                                 <Eye size={16} strokeWidth={3} />
                                </button>
                              ) : (
-                               <div className="flex flex-col items-center gap-1 bg-slate-50 p-1 rounded-2xl border border-slate-100">
-                                 <button onClick={() => setProcureItems(prev => prev.map(i => i._id === item._id ? { ...i, quantity: i.quantity + 1 } : i))} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-sky-500"><Plus size={16} /></button>
-                                 <span className="text-[14px] font-black px-2">{item.quantity}</span>
-                                 <button onClick={() => setProcureItems(prev => prev.map(i => i._id === item._id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i))} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-rose-500"><Minus size={16} /></button>
+                               <div className="flex flex-col items-center gap-0.5 bg-slate-50 p-0.5 rounded-xl border border-slate-100">
+                                 <button onClick={() => setProcureItems(prev => prev.map(i => i._id === item._id ? { ...i, quantity: i.quantity + 1 } : i))} className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-sky-500"><Plus size={12} /></button>
+                                 <span className="text-[12px] font-black px-1.5">{item.quantity}</span>
+                                 <button onClick={() => setProcureItems(prev => prev.map(i => i._id === item._id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i))} className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-rose-500"><Minus size={12} /></button>
                                </div>
                              )}
                              <button 
                                onClick={() => setProcureItems(prev => prev.filter(i => i._id !== item._id))}
-                               className="w-12 h-12 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-colors"
-                             ><Trash2 size={24} /></button>
+                               className="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-colors"
+                             ><Trash2 size={18} /></button>
                           </div>
                        </div>
                      ))
                    )}
                 </div>
 
-                <div className="p-10 bg-white border-t border-slate-200 space-y-8">
+                <div className="p-6 md:p-8 bg-white border-t border-slate-200 space-y-6">
                    <div className="flex items-center justify-between">
-                      <span className="text-[12px] font-black text-slate-400 uppercase tracking-[0.3em]">Gross Bill</span>
-                      <span className="text-5xl font-black text-slate-900 tracking-tighter">₹{totalAmount.toLocaleString()}</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Gross Bill</span>
+                      <span className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter">₹{parseFloat(totalAmount.toFixed(2)).toLocaleString()}</span>
                    </div>
 
-                   <div className="grid grid-cols-3 gap-3">
+                   <div className="grid grid-cols-3 gap-2">
                       {[
-                        { id: 'ONLINE', label: 'Direct Pay', icon: <Banknote size={18} />, color: 'sky' },
-                        { id: 'PARTIAL', label: 'Split Pay', icon: <Scan size={18} />, color: 'amber' },
-                        { id: 'CREDIT', label: 'On Account', icon: <AlertCircle size={18} />, color: 'rose' }
+                        { id: 'ONLINE', label: 'Direct Pay', icon: <Banknote size={14} />, color: 'sky' },
+                        { id: 'PARTIAL', label: 'Split Pay', icon: <Scan size={14} />, color: 'amber' },
+                        { id: 'CREDIT', label: 'On Account', icon: <AlertCircle size={14} />, color: 'rose' }
                       ].map(method => (
                         <button 
                           key={method.id}
@@ -656,7 +777,7 @@ const B2BProcurement = () => {
                             setConfirmedPayment(null);
                             if (method.id === 'ONLINE') handleOnlineOrderInit();
                           }}
-                          className={`py-5 rounded-3xl text-[9px] font-black uppercase tracking-widest transition-all flex flex-col items-center justify-center gap-2 border ${paymentMethod === method.id ? `bg-${method.color}-500 text-white border-${method.color}-500 shadow-2xl` : 'bg-white text-slate-400 border-slate-100 hover:bg-slate-50'}`}
+                          className={`py-3 rounded-2xl text-[8.5px] font-black uppercase tracking-widest transition-all flex flex-col items-center justify-center gap-1.5 border ${paymentMethod === method.id ? `bg-${method.color}-500 text-white border-${method.color}-500 shadow-lg` : 'bg-white text-slate-400 border-slate-100 hover:bg-slate-50'}`}
                         >
                            {method.icon} {method.label}
                         </button>
@@ -664,40 +785,40 @@ const B2BProcurement = () => {
                    </div>
 
                    {paymentMethod === 'PARTIAL' && !confirmedPayment && (
-                      <div className="p-6 bg-amber-50 rounded-3xl border border-amber-100 animate-in slide-in-from-top-4 duration-300">
-                         <p className="text-[10px] font-black text-amber-600 uppercase mb-4 tracking-widest">Initialization Deposit</p>
-                         <div className="flex gap-4">
+                      <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 animate-in slide-in-from-top-4 duration-300">
+                         <p className="text-[9px] font-black text-amber-600 uppercase mb-2 tracking-widest">Initialization Deposit</p>
+                         <div className="flex gap-2">
                             <input 
                               type="number" 
                               placeholder="0.00"
-                              className="flex-1 bg-white border-2 border-amber-200 rounded-2xl px-6 py-4 text-xl font-black outline-none focus:border-sky-500 transition-all"
+                              className="flex-1 bg-white border border-amber-200 rounded-xl px-4 py-2 text-base font-black outline-none focus:border-sky-500 transition-all"
                               value={partialAmount}
                               onChange={e => setPartialAmount(e.target.value)}
                             />
                             <button 
                               onClick={handlePartialOrderInit}
-                              className="px-10 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-slate-200 hover:bg-black transition-all"
+                              className="px-6 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-black transition-all"
                             >Initialize</button>
                          </div>
                       </div>
                     )}
 
                     {confirmedPayment && (
-                      <div className="p-6 bg-emerald-50 rounded-3xl border border-emerald-100 flex items-center justify-between animate-in zoom-in-95">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-100">
-                            <CheckCircle2 size={24} />
+                      <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center justify-between animate-in zoom-in-95">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-emerald-100">
+                            <CheckCircle2 size={18} />
                           </div>
                           <div>
-                            <p className="text-[11px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">Receipt Logged</p>
-                            <p className="text-xl font-black text-emerald-700 tracking-tighter">₹{confirmedPayment.amount}</p>
+                            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">Receipt Logged</p>
+                            <p className="text-lg font-black text-emerald-700 tracking-tighter">₹{confirmedPayment.amount}</p>
                           </div>
                         </div>
                         <button 
                           onClick={() => setConfirmedPayment(null)}
-                          className="w-10 h-10 bg-white text-emerald-500 hover:text-rose-500 rounded-xl flex items-center justify-center transition-all border border-emerald-100"
+                          className="w-8 h-8 bg-white text-emerald-500 hover:text-rose-500 rounded-lg flex items-center justify-center transition-all border border-emerald-100"
                         >
-                          <Trash2 size={18} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     )}
@@ -710,9 +831,9 @@ const B2BProcurement = () => {
                         handleSubmitProcurement(confirmedPayment?.amount || 0, confirmedPayment?.proofUrl || '');
                       }}
                       disabled={isProcessing || procureItems.length === 0}
-                      className={`w-full py-8 rounded-[40px] font-black text-sm uppercase tracking-[0.3em] shadow-2xl transition-all flex items-center justify-center gap-4 ${((paymentMethod === 'ONLINE' || paymentMethod === 'PARTIAL') && !confirmedPayment) ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-sky-600 hover:scale-[1.02] active:scale-95 shadow-sky-100/20'}`}
+                      className={`w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-lg transition-all flex items-center justify-center gap-3 ${((paymentMethod === 'ONLINE' || paymentMethod === 'PARTIAL') && !confirmedPayment) ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-sky-600 hover:scale-[1.02] active:scale-95 shadow-sky-100/20'}`}
                     >
-                       {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingCart size={24} />}
+                       {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingCart size={18} />}
                        {(paymentMethod === 'ONLINE' || paymentMethod === 'PARTIAL') ? (confirmedPayment ? 'Seal & Finalize Manifest' : 'Initiate Secure Payment') : 'Commit To Wholesale Ledger'}
                     </button>
                 </div>

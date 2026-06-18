@@ -627,12 +627,21 @@ export const getB2BSuppliers = async (req, res) => {
     if (!myShop) return res.status(404).json({ error: 'Your shop not found' });
 
     const phone = myShop.phone;
+    const gstin = myShop.gstin ? myShop.gstin.trim() : '';
     if (!phone) return res.json({ success: true, shops: [] });
 
-    // Find shops that have added this phone as a B2B partner
-    const suppliers = await Shop.find({
-      'b2bPartners.phone': phone
-    }).select('name phone imageUrl address gstin isWholesale storeCode bankDetails').lean();
+    // Find shops that have added this phone or GSTIN as a B2B partner
+    const query = {
+      $or: [
+        { 'b2bPartners.phone': phone }
+      ]
+    };
+
+    if (gstin) {
+      query.$or.push({ 'b2bPartners.gstin': gstin });
+    }
+
+    const suppliers = await Shop.find(query).select('name phone imageUrl address gstin isWholesale storeCode bankDetails').lean();
 
     res.json({ success: true, shops: suppliers });
   } catch (err) {
