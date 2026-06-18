@@ -49,6 +49,34 @@ const B2BProcurement = () => {
   const SUPPLIERS_PER_PAGE = 8;
   const ORDERS_PER_PAGE = 16;
 
+  const [sessionViewMode, setSessionViewMode] = useState('GRID');
+  const [focusedRowIndex, setFocusedRowIndex] = useState(0);
+  const [selectedRowIds, setSelectedRowIds] = useState(new Set());
+  const rowRefs = useRef([]);
+
+  useEffect(() => {
+    if (window.innerWidth >= 1024) {
+      setSessionViewMode('SHEET');
+    } else {
+      setSessionViewMode('GRID');
+    }
+  }, []);
+
+  useEffect(() => {
+    setFocusedRowIndex(0);
+    setSelectedRowIds(new Set());
+  }, [searchTerm, selectedSupplier]);
+
+  useEffect(() => {
+    setFocusedRowIndex(0);
+  }, [productPage]);
+
+  useEffect(() => {
+    if (sessionViewMode === 'SHEET' && rowRefs.current[focusedRowIndex]) {
+      rowRefs.current[focusedRowIndex].focus();
+    }
+  }, [focusedRowIndex, sessionViewMode]);
+
   useEffect(() => {
     fetchSuppliers();
   }, []);
@@ -239,6 +267,116 @@ const B2BProcurement = () => {
     toast.success(`Imported ${validationReport.valid.length} items successfully`);
   };
 
+  const updateProcureQuantity = (product, newQty) => {
+    const stock = Number(product.stockQuantity || product.stock || 0);
+    if (newQty > stock) {
+      toast.error(`Only ${stock} items available in stock`);
+      newQty = stock;
+    }
+    
+    setProcureItems(prev => {
+      const existing = prev.find(item => item._id === product._id);
+      if (newQty <= 0) {
+        return prev.filter(item => item._id !== product._id);
+      }
+      if (existing) {
+        return prev.map(item => 
+          item._id === product._id ? { ...item, quantity: newQty } : item
+        );
+      }
+      return [...prev, { ...product, price: getB2BPrice(product), quantity: newQty }];
+    });
+  };
+
+  const toggleRowSelection = (productId) => {
+    setSelectedRowIds(prev => {
+      const next = new Set(prev);
+      if (next.has(productId)) {
+        next.delete(productId);
+      } else {
+        next.add(productId);
+      }
+      return next;
+    });
+  };
+
+  const handleAddSelectedToManifest = () => {
+    if (selectedRowIds.size === 0) {
+      toast.error("No items selected");
+      return;
+    }
+    
+    let addedCount = 0;
+    setProcureItems(prev => {
+      const updated = [...prev];
+      selectedRowIds.forEach(id => {
+        const product = supplierProducts.find(p => p._id === id);
+        if (product) {
+          const existing = updated.find(item => item._id === id);
+          if (!existing) {
+            const moq = Number(product.minimumOrderQuantity || product.minimum_order_quantity || 1);
+            updated.push({
+              ...product,
+              price: getB2BPrice(product),
+              quantity: moq
+            });
+            addedCount++;
+          }
+        }
+      });
+      return updated;
+    });
+    
+    toast.success(`Added ${addedCount} new items to manifest`);
+    setSelectedRowIds(new Set());
+  };
+
+  const handleB2BTableKeyDown = (e, product, idx) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocusedRowIndex(prev => Math.min(paginatedSupplierProducts.length - 1, prev + 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusedRowIndex(prev => Math.max(0, prev - 1));
+    } else if (e.key === ' ') {
+      e.preventDefault();
+      toggleRowSelection(product._id);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (product.sellingType === 'weight' || product.selling_type === 'weight') {
+        setSelectedWeightProduct(product);
+        setShowWeightModal(true);
+      } else {
+        const item = procureItems.find(i => i._id === product._id);
+        if (item) {
+          toast.info(`${product.name} is already in manifest`);
+        } else {
+          const moq = Number(product.minimumOrderQuantity || product.minimum_order_quantity || 1);
+          updateProcureQuantity(product, moq);
+          toast.success(`Added ${product.name} to manifest`);
+        }
+      }
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      if (!(product.sellingType === 'weight' || product.selling_type === 'weight')) {
+        const item = procureItems.find(i => i._id === product._id);
+        const currentQty = item ? item.quantity : 0;
+        const moq = Number(product.minimumOrderQuantity || product.minimum_order_quantity || 1);
+        const nextQty = currentQty === 0 ? moq : currentQty + 1;
+        updateProcureQuantity(product, nextQty);
+      }
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      if (!(product.sellingType === 'weight' || product.selling_type === 'weight')) {
+        const item = procureItems.find(i => i._id === product._id);
+        const currentQty = item ? item.quantity : 0;
+        if (currentQty > 0) {
+          updateProcureQuantity(product, currentQty - 1);
+        }
+      }
+    }
+  };
+
   const totalAmount = procureItems.reduce((sum, item) => {
     if (item.selectedWeight) return sum + (item.price * item.selectedWeight);
     return sum + (item.price * item.quantity);
@@ -335,7 +473,7 @@ const B2BProcurement = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 p-4 lg:p-10 font-sans">
+    <div className={`bg-slate-50/50 font-sans ${selectedSupplier ? 'lg:h-screen lg:overflow-hidden flex flex-col gap-0 p-0 lg:p-0' : 'min-h-screen overflow-y-auto p-4 lg:p-10'}`}>
       {/* Dynamic Header */}
       {!selectedSupplier && (
         <div className="max-w-7xl mx-auto mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -575,11 +713,11 @@ const B2BProcurement = () => {
         )
       ) : (
         /* Full Screen Procurement Detail Dashboard */
-        <div className="flex flex-col min-h-[90vh] md:h-[88vh] bg-white rounded-[32px] md:rounded-[48px] shadow-2xl overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-300">
+        <div className="flex flex-col flex-1 min-h-0 bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
           {/* Supplier Header */}
-          <div className="bg-slate-900 px-6 md:px-10 py-6 md:py-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 md:gap-0 shadow-sm z-10 text-white">
+          <div className="bg-sky-500 px-6 md:px-10 py-6 md:py-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 md:gap-0 shadow-sm z-10 text-white">
              <div className="flex items-center gap-4 md:gap-8 w-full md:w-auto">
-                <button onClick={() => setSelectedSupplier(null)} className="w-10 h-10 md:w-12 md:h-12 bg-white/10 text-white rounded-xl flex items-center justify-center hover:bg-white hover:text-slate-900 transition-all border border-white/10 flex-shrink-0">
+                <button onClick={() => setSelectedSupplier(null)} className="w-10 h-10 md:w-12 md:h-12 bg-white/10 text-white rounded-xl flex items-center justify-center hover:bg-white hover:text-sky-600 transition-all border border-white/10 flex-shrink-0">
                    <ArrowLeft size={18} />
                 </button>
                 <div className="flex items-center gap-4 md:gap-6 min-w-0">
@@ -594,13 +732,13 @@ const B2BProcurement = () => {
                             const query = selectedSupplier.address || selectedSupplier.name;
                             window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, '_blank');
                           }}
-                          className="text-sky-400 hover:text-sky-300 transition-all p-1 bg-white/5 rounded-lg border border-white/10 flex-shrink-0"
+                          className="text-sky-100 hover:text-white transition-all p-1 bg-white/5 rounded-lg border border-white/10 flex-shrink-0"
                           title="View on Google Maps"
                         >
-                          <MapPin size={12} strokeWidth={3} />
+                           <MapPin size={12} strokeWidth={3} />
                         </button>
                       </div>
-                      <p className="text-[8px] md:text-[10px] font-black text-sky-400 uppercase tracking-[0.3em] mt-0.5">Active Procurement Session</p>
+                      <p className="text-[8px] md:text-[10px] font-black text-sky-100 uppercase tracking-[0.3em] mt-0.5">Active Procurement Session</p>
                    </div>
                 </div>
              </div>
@@ -612,59 +750,254 @@ const B2BProcurement = () => {
                    <input type="file" className="hidden" accept=".xlsx, .xls, .csv" onChange={handleExcelImport} />
                 </label>
                 <div className="relative flex-1 md:flex-none">
-                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-sky-100" size={16} />
                    <input 
                      type="text" 
                      placeholder="STOCK SEARCH..." 
-                     className="pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl w-full md:w-64 xl:w-80 text-[10px] font-black uppercase focus:bg-white focus:text-slate-900 focus:outline-none transition-all shadow-inner"
+                     className="pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl w-full md:w-64 xl:w-80 text-[10px] font-black uppercase focus:bg-white focus:text-slate-900 focus:outline-none transition-all shadow-inner text-white placeholder-sky-200"
                      value={searchTerm}
                      onChange={e => setSearchTerm(e.target.value)}
                    />
                 </div>
-             </div>
+
+                 {/* View Switcher Toggle */}
+                 <div className="flex items-center bg-white/10 p-1 rounded-xl border border-white/10 flex-shrink-0">
+                   <button
+                     onClick={() => setSessionViewMode('GRID')}
+                     className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                       sessionViewMode === 'GRID' ? 'bg-white text-sky-600 shadow-sm' : 'text-white/80 hover:bg-white/5 hover:text-white'
+                     }`}
+                   >
+                     Grid View
+                   </button>
+                   <button
+                     onClick={() => setSessionViewMode('SHEET')}
+                     className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                       sessionViewMode === 'SHEET' ? 'bg-white text-sky-600 shadow-sm' : 'text-white/80 hover:bg-white/5 hover:text-white'
+                     }`}
+                   >
+                     Sheet View
+                   </button>
+                 </div>
+              </div>
           </div>
 
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-             {/* Product Grid */}
+             {/* Product Listing */}
              <div className="flex-1 overflow-y-auto p-4 md:p-10 custom-scrollbar flex flex-col justify-between">
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4 md:gap-6">
-                   {paginatedSupplierProducts.map(p => {
-                      const stock = Number(p.stockQuantity || p.stock || 0);
-                      return (
-                        <div 
-                          key={p._id} 
-                          onClick={() => {
-                            if (p.sellingType === 'weight' || p.selling_type === 'weight') {
-                              setSelectedWeightProduct(p);
-                              setShowWeightModal(true);
-                            } else {
-                              addToProcure(p);
-                            }
-                          }}
-                          className={`group bg-white rounded-[24px] p-4 border border-slate-100 hover:border-sky-500 hover:shadow-xl transition-all cursor-pointer flex flex-col relative ${stock <= 0 ? 'opacity-50 grayscale' : ''}`}
+                {sessionViewMode === 'GRID' ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4 md:gap-6">
+                     {paginatedSupplierProducts.map(p => {
+                        const stock = Number(p.stockQuantity || p.stock || 0);
+                        return (
+                          <div 
+                            key={p._id} 
+                            onClick={() => {
+                              if (p.sellingType === 'weight' || p.selling_type === 'weight') {
+                                setSelectedWeightProduct(p);
+                                setShowWeightModal(true);
+                              } else {
+                                addToProcure(p);
+                              }
+                            }}
+                            className={`group bg-white rounded-[24px] p-4 border border-slate-100 hover:border-sky-500 hover:shadow-xl transition-all cursor-pointer flex flex-col relative ${stock <= 0 ? 'opacity-50 grayscale' : ''}`}
+                          >
+                             <div className="aspect-square bg-slate-50 rounded-[16px] mb-4 overflow-hidden relative">
+                                <img src={p.imageUrl || p.image} className="w-full h-full object-cover group-hover:scale-110 transition-all duration-500" />
+                                <div className="absolute top-2.5 right-2.5 bg-slate-900/90 backdrop-blur-md px-2 py-1 rounded-lg text-[9px] font-black text-white shadow-md flex flex-col items-end leading-none">
+                                   <span>B2B: ₹{getB2BPrice(p)}</span>
+                                   {p.wholesalePrice && p.wholesalePrice > 0 && (
+                                     <span className="text-[6.5px] text-slate-400 line-through mt-0.5">Ret: ₹{p.price}</span>
+                                   )}
+                                </div>
+                             </div>
+                             <h5 className="text-[10px] font-black text-slate-900 uppercase tracking-tight mb-1.5 line-clamp-1">{p.name}</h5>
+                             <div className="mt-auto flex items-center justify-between">
+                                <div className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                                   Stock: <span className={stock < 10 ? 'text-rose-500' : 'text-emerald-500'}>{parseFloat(stock.toFixed(2))}</span>
+                                </div>
+                                <div className="w-8 h-8 bg-sky-50 text-sky-600 rounded-xl flex items-center justify-center group-hover:bg-sky-500 group-hover:text-white transition-all shadow-sm">
+                                   <Plus size={16} strokeWidth={3} />
+                                </div>
+                             </div>
+                          </div>
+                        );
+                     })}
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col min-h-0">
+                    {/* Bulk Manifest Action Banner */}
+                    {selectedRowIds.size > 0 && (
+                      <div className="mb-4 p-3 bg-sky-50 border border-sky-100 rounded-2xl flex items-center justify-between animate-in slide-in-from-top duration-300">
+                        <span className="text-[10px] font-black text-sky-700 uppercase tracking-wider">
+                          {selectedRowIds.size} {selectedRowIds.size === 1 ? 'Product' : 'Products'} Selected
+                        </span>
+                        <button
+                          onClick={handleAddSelectedToManifest}
+                          className="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-sky-200 active:scale-95"
                         >
-                           <div className="aspect-square bg-slate-50 rounded-[16px] mb-4 overflow-hidden relative">
-                              <img src={p.imageUrl || p.image} className="w-full h-full object-cover group-hover:scale-110 transition-all duration-500" />
-                              <div className="absolute top-2.5 right-2.5 bg-slate-900/90 backdrop-blur-md px-2 py-1 rounded-lg text-[9px] font-black text-white shadow-md flex flex-col items-end leading-none">
-                                 <span>B2B: ₹{getB2BPrice(p)}</span>
-                                 {p.wholesalePrice && p.wholesalePrice > 0 && (
-                                   <span className="text-[6.5px] text-slate-400 line-through mt-0.5">Ret: ₹{p.price}</span>
-                                 )}
-                              </div>
-                           </div>
-                           <h5 className="text-[10px] font-black text-slate-900 uppercase tracking-tight mb-1.5 line-clamp-1">{p.name}</h5>
-                           <div className="mt-auto flex items-center justify-between">
-                              <div className="text-[8px] font-black uppercase tracking-widest text-slate-400">
-                                 Stock: <span className={stock < 10 ? 'text-rose-500' : 'text-emerald-500'}>{parseFloat(stock.toFixed(2))}</span>
-                              </div>
-                              <div className="w-8 h-8 bg-sky-50 text-sky-600 rounded-xl flex items-center justify-center group-hover:bg-sky-500 group-hover:text-white transition-all shadow-sm">
-                                 <Plus size={16} strokeWidth={3} />
-                              </div>
-                           </div>
-                        </div>
-                      );
-                   })}
-                </div>
+                          Add Selected ({selectedRowIds.size}) to Manifest
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="flex-1 overflow-auto rounded-2xl border border-slate-100">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider text-[9px] font-black sticky top-0 z-10">
+                            <th className="px-4 py-3 text-center w-12">
+                              <input
+                                type="checkbox"
+                                checked={paginatedSupplierProducts.length > 0 && paginatedSupplierProducts.every(p => selectedRowIds.has(p._id))}
+                                onChange={() => {
+                                  const allPageSelected = paginatedSupplierProducts.length > 0 && paginatedSupplierProducts.every(p => selectedRowIds.has(p._id));
+                                  setSelectedRowIds(prev => {
+                                    const next = new Set(prev);
+                                    if (allPageSelected) {
+                                      paginatedSupplierProducts.forEach(p => next.delete(p._id));
+                                    } else {
+                                      paginatedSupplierProducts.forEach(p => next.add(p._id));
+                                    }
+                                    return next;
+                                  });
+                                }}
+                                className="rounded border-slate-300 text-sky-500 focus:ring-sky-500"
+                              />
+                            </th>
+                            <th className="px-4 py-3">Product Name</th>
+                            <th className="px-4 py-3">Barcode / SKU</th>
+                            <th className="px-4 py-3 text-right">Wholesale Price</th>
+                            <th className="px-4 py-3 text-center">Available Stock</th>
+                            <th className="px-4 py-3 text-center">Min Order Qty</th>
+                            <th className="px-4 py-3 text-center">Procurement Qty</th>
+                            <th className="px-4 py-3">Supplier</th>
+                            <th className="px-4 py-3 text-center">Add To Manifest</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginatedSupplierProducts.map((p, idx) => {
+                            const stock = Number(p.stockQuantity || p.stock || 0);
+                            const isOutOfStock = stock <= 0;
+                            const procureItem = procureItems.find(item => item._id === p._id);
+                            const procureQty = procureItem ? procureItem.quantity : 0;
+                            const isFocused = focusedRowIndex === idx;
+                            const isSelected = selectedRowIds.has(p._id);
+                            const moq = Number(p.minimumOrderQuantity || p.minimum_order_quantity || 1);
+
+                            return (
+                              <tr
+                                key={p._id}
+                                ref={el => rowRefs.current[idx] = el}
+                                tabIndex={0}
+                                onKeyDown={e => handleB2BTableKeyDown(e, p, idx)}
+                                onFocus={() => setFocusedRowIndex(idx)}
+                                className={`border-b border-slate-100 text-[10px] font-medium transition-colors outline-none ${
+                                  isFocused 
+                                    ? 'bg-sky-50/80 ring-1 ring-inset ring-sky-500/20' 
+                                    : 'even:bg-slate-50/30 hover:bg-slate-50/50'
+                                } ${isOutOfStock ? 'opacity-60' : ''}`}
+                              >
+                                <td className="px-4 py-2.5 text-center" onClick={e => e.stopPropagation()}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => toggleRowSelection(p._id)}
+                                    className="rounded border-slate-300 text-sky-500 focus:ring-sky-500"
+                                  />
+                                </td>
+                                <td className="px-4 py-2.5 font-bold uppercase text-slate-800">
+                                  {p.name}
+                                </td>
+                                <td className="px-4 py-2.5 font-mono text-slate-400">
+                                  {p.barcode || 'N/A'}
+                                </td>
+                                <td className="px-4 py-2.5 text-right font-black text-sky-600">
+                                  <div className="flex flex-col items-end">
+                                    <span>₹{getB2BPrice(p).toFixed(2)}</span>
+                                    {p.wholesalePrice && p.wholesalePrice > 0 && (
+                                      <span className="text-[7px] text-slate-400 line-through">Ret: ₹{p.price}</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2.5 text-center">
+                                  <span className={`font-bold ${stock < 10 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                    {parseFloat(stock.toFixed(2))}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2.5 text-center font-bold text-slate-500">
+                                  {moq}
+                                </td>
+                                <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
+                                  {p.sellingType === 'weight' || p.selling_type === 'weight' ? (
+                                    <div className="text-center text-slate-400 font-bold uppercase text-[8px]">
+                                      Weight Mode
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      <button
+                                        onClick={() => updateProcureQuantity(p, procureQty - 1)}
+                                        className="w-5 h-5 rounded bg-slate-100 hover:bg-rose-100 hover:text-rose-600 text-slate-500 flex items-center justify-center transition-colors"
+                                      >
+                                        <Minus size={10} />
+                                      </button>
+                                      <input
+                                        type="number"
+                                        value={procureQty || ''}
+                                        onChange={e => {
+                                          const val = parseInt(e.target.value) || 0;
+                                          updateProcureQuantity(p, val);
+                                        }}
+                                        placeholder="0"
+                                        className="w-10 text-center border border-slate-200 rounded py-0.5 text-[10px] font-black outline-none focus:border-sky-500"
+                                      />
+                                      <button
+                                        onClick={() => updateProcureQuantity(p, procureQty + 1)}
+                                        className="w-5 h-5 rounded bg-slate-100 hover:bg-sky-100 hover:text-sky-600 text-slate-500 flex items-center justify-center transition-colors"
+                                      >
+                                        <Plus size={10} />
+                                      </button>
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-4 py-2.5 text-slate-600 font-bold uppercase truncate max-w-[120px]">
+                                  {selectedSupplier.name}
+                                </td>
+                                <td className="px-4 py-2.5 text-center">
+                                  <button
+                                    onClick={() => {
+                                      if (p.sellingType === 'weight' || p.selling_type === 'weight') {
+                                        setSelectedWeightProduct(p);
+                                        setShowWeightModal(true);
+                                      } else {
+                                        const nextQty = procureQty === 0 ? moq : procureQty;
+                                        updateProcureQuantity(p, nextQty);
+                                        toast.success(`Added ${p.name}`);
+                                      }
+                                    }}
+                                    className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                                      procureQty > 0 
+                                        ? 'bg-emerald-500 text-white shadow-sm' 
+                                        : 'bg-sky-50 text-sky-600 hover:bg-sky-500 hover:text-white'
+                                    }`}
+                                  >
+                                    {procureQty > 0 ? 'Added' : 'Add'}
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {paginatedSupplierProducts.length === 0 && (
+                            <tr>
+                              <td colSpan={9} className="px-4 py-8 text-center text-slate-400 font-bold uppercase">
+                                No products found
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
 
                 {/* Pagination UI for Products */}
                 {filteredSupplierProducts.length > PRODUCTS_PER_PAGE && (
@@ -717,16 +1050,40 @@ const B2BProcurement = () => {
                         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Manifest is Empty</p>
                      </div>
                    ) : (
-                     procureItems.map(item => (
-                       <div key={item._id} className="bg-white rounded-[24px] p-4 flex items-center gap-4 group hover:shadow-lg transition-all border border-slate-100">
-                          <div className="w-14 h-14 bg-slate-50 rounded-xl overflow-hidden border border-slate-100 flex-shrink-0">
-                             <img src={item.imageUrl || item.image} className="w-full h-full object-cover" />
+                      procureItems.map(item => {
+                      const isSheet = sessionViewMode === 'SHEET';
+                      return (
+                        <div 
+                          key={item._id} 
+                          className={`flex items-center justify-between border transition-all ${
+                            isSheet 
+                              ? 'bg-slate-50/40 rounded-xl py-2 px-3 gap-2 border-slate-100 hover:bg-white hover:shadow-sm' 
+                              : 'bg-slate-50/50 rounded-[24px] p-4 gap-4 border-slate-100 hover:shadow-lg'
+                          }`}
+                        >
+                          {!isSheet && (
+                            <div className="w-14 h-14 bg-white rounded-xl overflow-hidden border border-slate-100 flex-shrink-0">
+                               <img src={item.imageUrl || item.image} className="w-full h-full object-cover" />
+                            </div>
+                          )}
+                          
+                          <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2">
+                             <h6 className="text-[10px] font-black text-slate-900 uppercase tracking-tight truncate">
+                               {item.name}
+                             </h6>
+                             <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <span className="text-[10px] font-black text-sky-600 leading-none">
+                                  ₹{item.price}
+                                </span>
+                                {item.selectedWeight && (
+                                  <span className="text-[8px] text-slate-400 tracking-normal ml-1">
+                                    / {item.selectedWeight}KG
+                                  </span>
+                                )}
+                             </div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                             <h6 className="text-[11px] font-black text-slate-900 uppercase tracking-tight truncate mb-1">{item.name}</h6>
-                             <p className="text-sm font-black text-sky-600 tracking-tighter leading-none">₹{item.price} {item.selectedWeight && <span className="text-[8px] text-slate-400 tracking-normal ml-1">/ {item.selectedWeight}KG</span>}</p>
-                          </div>
-                          <div className="flex flex-col gap-2">
+
+                          <div className="flex items-center gap-2 flex-shrink-0">
                              {item.selectedWeight ? (
                                <button 
                                  onClick={() => {
@@ -736,38 +1093,53 @@ const B2BProcurement = () => {
                                    setWeightInputMode('weight');
                                    setShowWeightModal(true);
                                  }}
-                                 className="w-8 h-8 bg-slate-50 rounded-lg text-sky-500 hover:bg-sky-600 hover:text-white transition-all flex items-center justify-center border border-slate-100"
+                                 className={`bg-white rounded-lg border border-slate-100 text-sky-500 hover:bg-sky-600 hover:text-white transition-all flex items-center justify-center ${
+                                   isSheet ? 'w-6 h-6' : 'w-8 h-8'
+                                 }`}
                                >
-                                 <Eye size={16} strokeWidth={3} />
+                                 <Eye size={isSheet ? 12 : 16} strokeWidth={3} />
                                </button>
                              ) : (
-                               <div className="flex flex-col items-center gap-0.5 bg-slate-50 p-0.5 rounded-xl border border-slate-100">
-                                 <button onClick={() => setProcureItems(prev => prev.map(i => i._id === item._id ? { ...i, quantity: i.quantity + 1 } : i))} className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-sky-500"><Plus size={12} /></button>
-                                 <span className="text-[12px] font-black px-1.5">{item.quantity}</span>
-                                 <button onClick={() => setProcureItems(prev => prev.map(i => i._id === item._id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i))} className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-rose-500"><Minus size={12} /></button>
-                               </div>
+                               <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-100">
+                                 <button 
+                                   onClick={() => setProcureItems(prev => prev.map(i => i._id === item._id ? { ...i, quantity: i.quantity + 1 } : i))} 
+                                   className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-sky-500"
+                                 >
+                                   <Plus size={10} />
+                                 </button>
+                                 <span className="text-[10px] font-black w-5 text-center">{item.quantity}</span>
+                                 <button 
+                                   onClick={() => setProcureItems(prev => prev.map(i => i._id === item._id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i))} 
+                                   className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-rose-500"
+                                 >
+                                   <Minus size={10} />
+                                 </button>
+                                </div>
                              )}
                              <button 
                                onClick={() => setProcureItems(prev => prev.filter(i => i._id !== item._id))}
-                               className="w-8 h-8 flex items-center justify-center text-slate-200 hover:text-rose-500 transition-colors"
-                             ><Trash2 size={18} /></button>
+                               className="text-slate-300 hover:text-rose-500 transition-colors p-1"
+                             >
+                               <Trash2 size={isSheet ? 14 : 18} />
+                             </button>
                           </div>
-                       </div>
-                     ))
+                        </div>
+                      );
+                    })
                    )}
                 </div>
 
-                <div className="p-6 md:p-8 bg-white border-t border-slate-200 space-y-6">
+                <div className="p-3 bg-slate-50/50 border-t border-slate-200 space-y-2">
                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Gross Bill</span>
-                      <span className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter">₹{parseFloat(totalAmount.toFixed(2)).toLocaleString()}</span>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Gross Bill</span>
+                      <span className="text-xl font-black text-slate-900 tracking-tighter">₹{parseFloat(totalAmount.toFixed(2)).toLocaleString()}</span>
                    </div>
 
-                   <div className="grid grid-cols-3 gap-2">
+                   <div className="grid grid-cols-3 gap-1.5">
                       {[
-                        { id: 'ONLINE', label: 'Direct Pay', icon: <Banknote size={14} />, color: 'sky' },
-                        { id: 'PARTIAL', label: 'Split Pay', icon: <Scan size={14} />, color: 'amber' },
-                        { id: 'CREDIT', label: 'On Account', icon: <AlertCircle size={14} />, color: 'rose' }
+                        { id: 'ONLINE', label: 'Direct Pay', icon: <Banknote size={12} />, color: 'sky' },
+                        { id: 'PARTIAL', label: 'Split Pay', icon: <Scan size={12} />, color: 'amber' },
+                        { id: 'CREDIT', label: 'On Account', icon: <AlertCircle size={12} />, color: 'rose' }
                       ].map(method => (
                         <button 
                           key={method.id}
@@ -777,7 +1149,7 @@ const B2BProcurement = () => {
                             setConfirmedPayment(null);
                             if (method.id === 'ONLINE') handleOnlineOrderInit();
                           }}
-                          className={`py-3 rounded-2xl text-[8.5px] font-black uppercase tracking-widest transition-all flex flex-col items-center justify-center gap-1.5 border ${paymentMethod === method.id ? `bg-${method.color}-500 text-white border-${method.color}-500 shadow-lg` : 'bg-white text-slate-400 border-slate-100 hover:bg-slate-50'}`}
+                          className={`py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all flex flex-col items-center justify-center gap-1 border ${paymentMethod === method.id ? `bg-${method.color}-500 text-white border-${method.color}-500 shadow-md` : 'bg-white text-slate-400 border-slate-100 hover:bg-slate-50'}`}
                         >
                            {method.icon} {method.label}
                         </button>
@@ -785,40 +1157,40 @@ const B2BProcurement = () => {
                    </div>
 
                    {paymentMethod === 'PARTIAL' && !confirmedPayment && (
-                      <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 animate-in slide-in-from-top-4 duration-300">
-                         <p className="text-[9px] font-black text-amber-600 uppercase mb-2 tracking-widest">Initialization Deposit</p>
+                      <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-100 space-y-1.5 animate-in slide-in-from-top-2 duration-300">
+                         <p className="text-[8px] font-black text-amber-600 uppercase tracking-widest leading-none">Initialization Deposit</p>
                          <div className="flex gap-2">
                             <input 
                               type="number" 
                               placeholder="0.00"
-                              className="flex-1 bg-white border border-amber-200 rounded-xl px-4 py-2 text-base font-black outline-none focus:border-sky-500 transition-all"
+                              className="flex-1 bg-white border border-amber-200 rounded-lg px-3 py-1.5 text-xs font-black outline-none focus:border-sky-500 transition-all"
                               value={partialAmount}
                               onChange={e => setPartialAmount(e.target.value)}
                             />
                             <button 
                               onClick={handlePartialOrderInit}
-                              className="px-6 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-black transition-all"
+                              className="px-4 bg-slate-900 text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-md hover:bg-black transition-all"
                             >Initialize</button>
                          </div>
                       </div>
                     )}
 
                     {confirmedPayment && (
-                      <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center justify-between animate-in zoom-in-95">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-emerald-100">
-                            <CheckCircle2 size={18} />
+                      <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-100 flex items-center justify-between animate-in zoom-in-95">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 bg-emerald-500 text-white rounded-lg flex items-center justify-center shadow-lg shadow-emerald-100">
+                            <CheckCircle2 size={12} />
                           </div>
                           <div>
-                            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">Receipt Logged</p>
-                            <p className="text-lg font-black text-emerald-700 tracking-tighter">₹{confirmedPayment.amount}</p>
+                            <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-0.5">Receipt Logged</p>
+                            <p className="text-sm font-black text-emerald-700 tracking-tighter">₹{confirmedPayment.amount}</p>
                           </div>
                         </div>
                         <button 
                           onClick={() => setConfirmedPayment(null)}
-                          className="w-8 h-8 bg-white text-emerald-500 hover:text-rose-500 rounded-lg flex items-center justify-center transition-all border border-emerald-100"
+                          className="w-7 h-7 bg-white text-emerald-500 hover:text-rose-500 rounded-lg flex items-center justify-center transition-all border border-emerald-100"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={12} />
                         </button>
                       </div>
                     )}
@@ -831,9 +1203,9 @@ const B2BProcurement = () => {
                         handleSubmitProcurement(confirmedPayment?.amount || 0, confirmedPayment?.proofUrl || '');
                       }}
                       disabled={isProcessing || procureItems.length === 0}
-                      className={`w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-lg transition-all flex items-center justify-center gap-3 ${((paymentMethod === 'ONLINE' || paymentMethod === 'PARTIAL') && !confirmedPayment) ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-sky-600 hover:scale-[1.02] active:scale-95 shadow-sky-100/20'}`}
+                      className={`w-full py-2.5 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-md transition-all flex items-center justify-center gap-2 ${((paymentMethod === 'ONLINE' || paymentMethod === 'PARTIAL') && !confirmedPayment) ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-sky-600 hover:scale-[1.01] active:scale-95 shadow-sky-100/20'}`}
                     >
-                       {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingCart size={18} />}
+                       {isProcessing ? <Loader2 size={12} className="animate-spin" /> : <ShoppingCart size={12} />}
                        {(paymentMethod === 'ONLINE' || paymentMethod === 'PARTIAL') ? (confirmedPayment ? 'Seal & Finalize Manifest' : 'Initiate Secure Payment') : 'Commit To Wholesale Ledger'}
                     </button>
                 </div>

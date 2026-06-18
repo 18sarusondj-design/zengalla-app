@@ -70,7 +70,7 @@ const Inventory = () => {
   const [newProduct, setNewProduct] = useState(initialProductState);
   const [showBatches, setShowBatches] = useState(false);
   const [newBatch, setNewBatch] = useState({
-    batchNumber: '', mfd: '', expiryDate: '', stock: '', supplierName: '', warehouseLocation: ''
+    batchNumber: '', mfd: '', expiryDate: '', stock: '', price: '', supplierName: '', warehouseLocation: ''
   });
   const [imageFile, setImageFile] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -615,13 +615,15 @@ const Inventory = () => {
                             >
                               <Eye size={16} />
                             </button>
-                            <button
-                              onClick={() => handleOpenPromoteModal(p)}
-                              className="w-8 h-8 rounded-xl bg-white border border-gray-100 text-gray-400 hover:text-amber-500 hover:border-amber-200 hover:shadow-sm transition-all flex items-center justify-center"
-                              title="Promote Product"
-                            >
-                              <Sparkles size={16} />
-                            </button>
+                            {vendorShop?.bannersEnabled && (
+                              <button
+                                onClick={() => handleOpenPromoteModal(p)}
+                                className="w-8 h-8 rounded-xl bg-white border border-gray-100 text-gray-400 hover:text-amber-500 hover:border-amber-200 hover:shadow-sm transition-all flex items-center justify-center"
+                                title="Promote Product"
+                              >
+                                <Sparkles size={16} />
+                              </button>
+                            )}
                             <button
                               onClick={() => {
                                 toast("Delete this product?", {
@@ -771,14 +773,16 @@ const Inventory = () => {
                       </button>
 
                       {/* Promote Button */}
-                      <button
-                        onClick={() => handleOpenPromoteModal(p)}
-                        type="button"
-                        className="w-9 h-9 rounded-xl bg-gray-50 text-gray-500 hover:text-amber-500 hover:bg-amber-50 transition-all flex items-center justify-center shrink-0"
-                        title="Promote Product"
-                      >
-                        <Sparkles size={12} />
-                      </button>
+                      {vendorShop?.bannersEnabled && (
+                        <button
+                          onClick={() => handleOpenPromoteModal(p)}
+                          type="button"
+                          className="w-9 h-9 rounded-xl bg-gray-50 text-gray-500 hover:text-amber-500 hover:bg-amber-50 transition-all flex items-center justify-center shrink-0"
+                          title="Promote Product"
+                        >
+                          <Sparkles size={12} />
+                        </button>
+                      )}
 
                       {/* Delete Button */}
                       <button
@@ -1343,7 +1347,7 @@ const Inventory = () => {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1">
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Qty</label>
                             <input
@@ -1351,6 +1355,18 @@ const Inventory = () => {
                               className="w-full bg-white border-2 border-gray-200 focus:border-sky-500/40 rounded-xl py-2 px-2 text-[10px] font-black outline-none shadow-sm"
                               value={newBatch.stock}
                               onChange={e => setNewBatch({ ...newBatch, stock: e.target.value })}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Price (₹)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="0.00"
+                              className="w-full bg-white border-2 border-emerald-200 focus:border-emerald-400 rounded-xl py-2 px-2 text-[10px] font-black outline-none shadow-sm"
+                              value={newBatch.price}
+                              onChange={e => setNewBatch({ ...newBatch, price: e.target.value })}
                             />
                           </div>
                         </div>
@@ -1362,7 +1378,7 @@ const Inventory = () => {
                             const updatedBatches = [...(newProduct.batches || []), { ...newBatch }];
                             const newTotalStock = updatedBatches.reduce((sum, b) => sum + (parseFloat(b.stock) || 0), 0);
                             setNewProduct({ ...newProduct, batches: updatedBatches, stockQuantity: newTotalStock });
-                             setNewBatch({ batchNumber: '', expiryDate: '', stock: '' });
+                            setNewBatch({ batchNumber: '', mfd: '', expiryDate: '', stock: '', price: '', supplierName: '', warehouseLocation: '' });
 
                             toast.success("Batch added to queue");
                           }}
@@ -1382,6 +1398,7 @@ const Inventory = () => {
                                     <tr className="border-b border-sky-100">
                                       <th className="px-3 py-2.5 text-[9px] font-black text-sky-700 uppercase tracking-widest">Batch</th>
                                       <th className="px-3 py-2.5 text-[9px] font-black text-sky-700 uppercase tracking-widest">Qty</th>
+                                      <th className="px-3 py-2.5 text-[9px] font-black text-sky-700 uppercase tracking-widest">Price</th>
                                       <th className="px-3 py-2.5 text-[9px] font-black text-sky-700 uppercase tracking-widest">Exp</th>
                                       <th className="px-3 py-2.5 text-[9px] font-black text-sky-700 uppercase tracking-widest"></th>
                                     </tr>
@@ -1391,6 +1408,9 @@ const Inventory = () => {
                                       <tr key={idx} className="border-b border-gray-50 last:border-0 hover:bg-sky-50 transition-colors">
                                         <td className="px-3 py-2 text-[11px] font-black text-gray-800 truncate max-w-[60px]">#{batch.batchNumber}</td>
                                         <td className="px-3 py-2 text-[11px] font-black text-sky-600">{batch.stock}</td>
+                                        <td className="px-3 py-2 text-[11px] font-black text-emerald-600">
+                                          {batch.price ? `₹${parseFloat(batch.price).toFixed(2)}` : <span className="text-[8px] text-gray-300 uppercase">—</span>}
+                                        </td>
                                           <td className="px-3 py-2 text-[10px] font-bold text-gray-500">
                                             {batch.expiryDate ? (
                                               batch.expiryDate.includes('T') 

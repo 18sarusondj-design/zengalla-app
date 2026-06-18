@@ -215,7 +215,24 @@ const Banners = () => {
     return new Date(banner.startDate) > now;
   };
 
+  // Compute plan expiry state from vendorShop
+  const bannerExpiresAt = vendorShop?.bannersExpiresAt ? new Date(vendorShop.bannersExpiresAt) : null;
+  const bannerPlan = vendorShop?.bannersPlan || 'none';
+  const now = new Date();
+  const bannerMsLeft = bannerExpiresAt ? bannerExpiresAt - now : 0;
+  const bannerDaysLeft = bannerExpiresAt ? Math.ceil(bannerMsLeft / (1000 * 60 * 60 * 24)) : 0;
+  const bannerHoursLeft = bannerExpiresAt ? Math.ceil(bannerMsLeft / (1000 * 60 * 60)) : 0;
+  const isBannerExpired = vendorShop?.bannersEnabled && bannerExpiresAt && now > bannerExpiresAt;
+  const warnDays = bannerPlan === '30day' ? 3 : 2;
+  const isBannerExpiringSoon = vendorShop?.bannersEnabled && !isBannerExpired && bannerDaysLeft <= warnDays && bannerDaysLeft > 0;
+
+  const planLabel = bannerPlan === '30day' ? '30-Day Plan' : bannerPlan === '7day' ? '7-Day Plan' : null;
+  const expiryFull = bannerExpiresAt
+    ? bannerExpiresAt.toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : null;
+
   if (vendorShop && !vendorShop.bannersEnabled) {
+    const wasExpired = vendorShop?.bannersEnabledAt || vendorShop?.bannersPlan !== 'none';
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50 min-h-[500px]">
         <div className="max-w-md w-full bg-white rounded-[32px] p-10 border border-slate-100 shadow-xl text-center space-y-6 animate-in fade-in duration-500">
@@ -223,18 +240,25 @@ const Banners = () => {
             <AlertCircle size={40} strokeWidth={2.5} />
           </div>
           <div className="space-y-2">
-            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Offer Banners Gated</h2>
-            <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Super Admin Authorization Required</p>
+            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+              {isBannerExpired ? 'Plan Expired' : 'Offer Banners Locked'}
+            </h2>
+            <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">
+              {isBannerExpired ? 'Your banner plan has ended' : 'Super Admin Authorization Required'}
+            </p>
           </div>
           <p className="text-xs font-bold text-slate-600 leading-relaxed">
-            The Promotional Offer Banners feature is currently locked for your storefront. Please contact the platform Super Admin (<strong>sarusondj@gmail.com</strong>) to grant access to your store.
+            {isBannerExpired
+              ? <>Your <strong>{planLabel}</strong> offer banner plan has expired. To continue promoting your products, contact the Super Admin (<strong>sarusondj@gmail.com</strong>) to purchase a new plan.</>  
+              : <>The Promotional Offer Banners feature is currently locked for your storefront. Please contact the platform Super Admin (<strong>sarusondj@gmail.com</strong>) to purchase a plan and get access.</>
+            }
           </p>
           <div className="pt-4 border-t border-slate-100 flex flex-col gap-2">
-            <a 
-              href="mailto:sarusondj@gmail.com?subject=Enable Offer Banners for my Shop" 
+            <a
+              href={`mailto:sarusondj@gmail.com?subject=${encodeURIComponent(isBannerExpired ? 'Renew Offer Banners Plan for my Shop' : 'Enable Offer Banners for my Shop')}`}
               className="flex items-center justify-center gap-2 w-full h-12 bg-sky-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-900 transition-all active:scale-95 shadow-lg shadow-sky-100"
             >
-              Contact Administrator
+              {isBannerExpired ? 'Renew Plan — Contact Admin' : 'Contact Administrator'}
             </a>
           </div>
         </div>
@@ -244,6 +268,30 @@ const Banners = () => {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 space-y-6">
+
+      {/* Expiry Warning Banner — shown when plan is expiring soon */}
+      {isBannerExpiringSoon && (
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 shadow-sm shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center shrink-0">
+            <Clock size={18} color="white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-black text-amber-800 uppercase tracking-wide">
+              ⚠ Plan Expiring in {bannerDaysLeft} Day{bannerDaysLeft !== 1 ? 's' : ''}!
+            </p>
+            <p className="text-[10px] font-bold text-amber-700 mt-0.5">
+              Your <strong>{planLabel}</strong> ends on <strong>{expiryFull}</strong>. Contact sarusondj@gmail.com to renew before access is removed.
+            </p>
+          </div>
+          <a
+            href={`mailto:sarusondj@gmail.com?subject=${encodeURIComponent('Renew Offer Banners Plan')}`}
+            className="shrink-0 h-9 px-4 bg-amber-500 text-white rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center hover:bg-amber-600 transition-all"
+          >
+            Renew
+          </a>
+        </div>
+      )}
+
       {/* Header Panel */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-[24px] sm:rounded-[32px] border border-gray-100 shadow-sm shrink-0">
         <div>
@@ -259,6 +307,17 @@ const Banners = () => {
           <p className="text-xs font-bold text-gray-400 mt-1">
             Create beautiful sliding promotional banners to highlight your store deals and linked products.
           </p>
+          {/* Plan status pill */}
+          {bannerExpiresAt && (
+            <div className={`inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${
+              isBannerExpiringSoon
+                ? 'bg-amber-50 border-amber-200 text-amber-700'
+                : 'bg-sky-50 border-sky-200 text-sky-600'
+            }`}>
+              <Clock size={10} />
+              {planLabel} — {bannerDaysLeft > 0 ? `${bannerDaysLeft}d ${bannerHoursLeft % 24}h left` : `${bannerHoursLeft}h left`} — Expires {expiryFull}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2.5 w-full md:w-auto">

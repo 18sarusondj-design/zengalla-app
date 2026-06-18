@@ -35,7 +35,9 @@ export const getUsers = async (req, res) => {
             sponsorship: s.sponsorshipType || 'none',
             isSponsored: s.isSponsored || false,
             bannersEnabled: s.bannersEnabled || false,
-            bannersEnabledAt: s.bannersEnabledAt || null
+            bannersEnabledAt: s.bannersEnabledAt || null,
+            bannersPlan: s.bannersPlan || 'none',
+            bannersExpiresAt: s.bannersExpiresAt || null
           }; 
         }
       });
@@ -63,7 +65,9 @@ export const getUsers = async (req, res) => {
           sponsorshipType: shopData?.sponsorship || 'none',
           isSponsored: shopData?.isSponsored || false,
           bannersEnabled: shopData?.bannersEnabled || false,
-          bannersEnabledAt: shopData?.bannersEnabledAt || null
+          bannersEnabledAt: shopData?.bannersEnabledAt || null,
+          bannersPlan: shopData?.bannersPlan || 'none',
+          bannersExpiresAt: shopData?.bannersExpiresAt || null
         };
       });
       
@@ -356,13 +360,44 @@ export const deleteDeliveryPartner = async (req, res) => {
 
 
 // PATCH /api/admin/shops/:id/banners-access
+// Body: { plan: '7day' | '30day' } to grant, { action: 'revoke' } to disable
 export const toggleShopBannersAccess = async (req, res) => {
   try {
     const shop = await Shop.findById(req.params.id);
     if (!shop) return res.status(404).json({ error: 'Shop not found' });
 
-    shop.bannersEnabled = !shop.bannersEnabled;
-    shop.bannersEnabledAt = shop.bannersEnabled ? new Date() : null;
+    const { plan, action } = req.body || {};
+
+    if (action === 'revoke') {
+      // Revoke / disable
+      shop.bannersEnabled = false;
+      shop.bannersEnabledAt = null;
+      shop.bannersPlan = 'none';
+      shop.bannersExpiresAt = null;
+    } else if (plan === '7day' || plan === '30day') {
+      // Grant a new plan
+      const durationMs = plan === '7day'
+        ? 7 * 24 * 60 * 60 * 1000
+        : 30 * 24 * 60 * 60 * 1000;
+      shop.bannersEnabled = true;
+      shop.bannersEnabledAt = new Date();
+      shop.bannersPlan = plan;
+      shop.bannersExpiresAt = new Date(Date.now() + durationMs);
+    } else {
+      // Legacy toggle (no plan body) — default to 7day
+      if (shop.bannersEnabled) {
+        shop.bannersEnabled = false;
+        shop.bannersEnabledAt = null;
+        shop.bannersPlan = 'none';
+        shop.bannersExpiresAt = null;
+      } else {
+        shop.bannersEnabled = true;
+        shop.bannersEnabledAt = new Date();
+        shop.bannersPlan = '7day';
+        shop.bannersExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      }
+    }
+    
     await shop.save();
 
     const sanitizedShop = shop.toObject();

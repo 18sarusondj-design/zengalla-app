@@ -3,8 +3,9 @@ import mongoose from 'mongoose';
 const batchSchema = new mongoose.Schema({
   batchNumber: { type: String, required: true },
   mfd: { type: Date },
-  expiryDate: { type: Date, required: true },
+  expiryDate: { type: Date },
   stock: { type: Number, default: 0 },
+  price: { type: Number, default: null },
   supplierName: { type: String, default: '' },
   warehouseLocation: { type: String, default: '' },
   status: { type: String, enum: ['ACTIVE', 'EXPIRED', 'NEAR_EXPIRY'], default: 'ACTIVE' }

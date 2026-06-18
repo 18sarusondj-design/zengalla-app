@@ -2,6 +2,18 @@ import Banner from '../models/Banner.js';
 import Shop from '../models/Shop.js';
 import Product from '../models/Product.js';
 
+// Helper: Check if a shop's banner plan is currently active (not expired)
+const isBannerPlanActive = (shop) => {
+  if (!shop.bannersEnabled) return false;
+  if (shop.bannersExpiresAt && new Date() > new Date(shop.bannersExpiresAt)) return false;
+  // Legacy fallback: old 7-day offset system
+  if (!shop.bannersExpiresAt && shop.bannersEnabledAt) {
+    const daysDiff = (Date.now() - new Date(shop.bannersEnabledAt).getTime()) / (1000 * 60 * 60 * 24);
+    if (daysDiff > 7) return false;
+  }
+  return true;
+};
+
 // GET /api/banners/shop/:shopId (Public - Active & Unexpired only)
 export const getShopActiveBanners = async (req, res) => {
   try {
@@ -9,7 +21,7 @@ export const getShopActiveBanners = async (req, res) => {
     
     // Check if shop has banners enabled
     const shop = await Shop.findById(shopId);
-    if (!shop || !shop.bannersEnabled) {
+    if (!shop || !isBannerPlanActive(shop)) {
       return res.json({ success: true, banners: [] });
     }
 
@@ -61,7 +73,9 @@ export const getVendorBanners = async (req, res) => {
   try {
     const shop = await Shop.findOne({ owner: req.user._id });
     if (!shop) return res.status(404).json({ error: 'Shop not found.' });
-    if (!shop.bannersEnabled) return res.status(403).json({ error: 'Offer Banners feature is not enabled for your store. Please contact Super Admin for access.' });
+    if (!isBannerPlanActive(shop)) {
+      return res.status(403).json({ error: 'Offer Banners feature is not enabled or has expired for your store. Please contact Super Admin for access.' });
+    }
 
     const banners = await Banner.find({ shopId: shop._id })
       .populate('products')
@@ -78,7 +92,9 @@ export const createBanner = async (req, res) => {
   try {
     const shop = await Shop.findOne({ owner: req.user._id });
     if (!shop) return res.status(404).json({ error: 'Shop not found. Please create your shop profile first.' });
-    if (!shop.bannersEnabled) return res.status(403).json({ error: 'Offer Banners feature is not enabled for your store. Please contact Super Admin for access.' });
+    if (!isBannerPlanActive(shop)) {
+      return res.status(403).json({ error: 'Offer Banners feature is not enabled or has expired for your store. Please contact Super Admin for access.' });
+    }
 
     const { title, subtitle, image, type, startDate, endDate, isActive, products } = req.body;
     
@@ -109,7 +125,9 @@ export const updateBanner = async (req, res) => {
   try {
     const shop = await Shop.findOne({ owner: req.user._id });
     if (!shop) return res.status(404).json({ error: 'Shop not found.' });
-    if (!shop.bannersEnabled) return res.status(403).json({ error: 'Offer Banners feature is not enabled for your store. Please contact Super Admin for access.' });
+    if (!isBannerPlanActive(shop)) {
+      return res.status(403).json({ error: 'Offer Banners feature is not enabled or has expired for your store. Please contact Super Admin for access.' });
+    }
 
     const banner = await Banner.findById(req.params.id);
     if (!banner) return res.status(404).json({ error: 'Banner not found.' });
@@ -148,7 +166,9 @@ export const deleteBanner = async (req, res) => {
   try {
     const shop = await Shop.findOne({ owner: req.user._id });
     if (!shop) return res.status(404).json({ error: 'Shop not found.' });
-    if (!shop.bannersEnabled) return res.status(403).json({ error: 'Offer Banners feature is not enabled for your store. Please contact Super Admin for access.' });
+    if (!isBannerPlanActive(shop)) {
+      return res.status(403).json({ error: 'Offer Banners feature is not enabled or has expired for your store. Please contact Super Admin for access.' });
+    }
 
     const banner = await Banner.findById(req.params.id);
     if (!banner) return res.status(404).json({ error: 'Banner not found.' });
@@ -170,7 +190,9 @@ export const linkProductToBanner = async (req, res) => {
   try {
     const shop = await Shop.findOne({ owner: req.user._id });
     if (!shop) return res.status(404).json({ error: 'Shop not found.' });
-    if (!shop.bannersEnabled) return res.status(403).json({ error: 'Offer Banners feature is not enabled for your store. Please contact Super Admin for access.' });
+    if (!isBannerPlanActive(shop)) {
+      return res.status(403).json({ error: 'Offer Banners feature is not enabled or has expired for your store. Please contact Super Admin for access.' });
+    }
 
     const banner = await Banner.findById(req.params.id);
     if (!banner) return res.status(404).json({ error: 'Banner not found.' });
@@ -211,7 +233,9 @@ export const unlinkProductFromBanner = async (req, res) => {
   try {
     const shop = await Shop.findOne({ owner: req.user._id });
     if (!shop) return res.status(404).json({ error: 'Shop not found.' });
-    if (!shop.bannersEnabled) return res.status(403).json({ error: 'Offer Banners feature is not enabled for your store. Please contact Super Admin for access.' });
+    if (!isBannerPlanActive(shop)) {
+      return res.status(403).json({ error: 'Offer Banners feature is not enabled or has expired for your store. Please contact Super Admin for access.' });
+    }
 
     const banner = await Banner.findById(req.params.id);
     if (!banner) return res.status(404).json({ error: 'Banner not found.' });

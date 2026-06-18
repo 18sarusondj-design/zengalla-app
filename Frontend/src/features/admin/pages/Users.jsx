@@ -250,18 +250,35 @@ const Users = ({ roleFilter }) => {
       }
     };
 
-    const handleToggleBannersAccess = async (userId, shopId, silent = false) => {
+    const handleToggleBannersAccess = async (userId, shopId, plan = null, silent = false) => {
       if (!shopId) {
         toast.error("No shop associated with this vendor");
         return;
       }
       setIsProcessing(userId);
       try {
-        const { data } = await api.patch(`/admin/shops/${shopId}/banners-access`);
+        const body = plan === 'revoke' ? { action: 'revoke' } : plan ? { plan } : {};
+        const { data } = await api.patch(`/admin/shops/${shopId}/banners-access`, body);
         if (data.success) {
-          if (!silent) toast.success(data.shop.bannersEnabled ? "✓ Offer Banners Access Granted!" : "Banners Access Suspended");
+          if (!silent) {
+            const isRevoked = !data.shop.bannersEnabled;
+            toast.success(isRevoked ? "Banner access revoked" : `✓ ${plan === '30day' ? '30-Day' : '7-Day'} Banner Plan Activated!`);
+          }
           // Update modal in real-time
-          setSelectedVendor(prev => prev ? { ...prev, bannersEnabled: data.shop.bannersEnabled, bannersEnabledAt: data.shop.bannersEnabledAt } : null);
+          setSelectedVendor(prev => prev ? { 
+            ...prev, 
+            bannersEnabled: data.shop.bannersEnabled, 
+            bannersEnabledAt: data.shop.bannersEnabledAt,
+            bannersPlan: data.shop.bannersPlan,
+            bannersExpiresAt: data.shop.bannersExpiresAt
+          } : null);
+          setModalData(prev => prev ? {
+            ...prev,
+            bannersEnabled: data.shop.bannersEnabled,
+            bannersEnabledAt: data.shop.bannersEnabledAt,
+            bannersPlan: data.shop.bannersPlan,
+            bannersExpiresAt: data.shop.bannersExpiresAt
+          } : null);
           fetchUsers();
         }
       } catch (err) {
@@ -618,38 +635,121 @@ const Users = ({ roleFilter }) => {
 
 
 
-              {/* Offer Banners Access */}
-              <div style={{ marginBottom: '24px' }}>
-                <p style={{ fontSize: '9px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.3em', marginBottom: '12px' }}>Marketing Features</p>
-                <div style={{ background: '#f8fafc', borderRadius: '20px', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: modalData?.bannersEnabled ? '#0ea5e9' : '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Zap size={22} color={modalData?.bannersEnabled ? 'white' : '#9ca3af'} />
-                    </div>
-                    <div>
-                      <p style={{ fontSize: '13px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.03em', color: '#111827', margin: 0 }}>Offer Banners Access</p>
-                      <p style={{ fontSize: '9px', fontWeight: '700', color: modalData?.bannersEnabled ? '#0ea5e9' : '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '3px 0 0' }}>
-                        Status: {modalData?.bannersEnabled ? '✓ Enabled' : 'Disabled'}
-                      </p>
-                      {modalData?.bannersEnabled && modalData?.bannersEnabledAt && (
-                        <p style={{ fontSize: '7px', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', margin: '3px 0 0' }}>
-                          Granted: {new Date(modalData.bannersEnabledAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
+              {/* Offer Banners Access — Plan Selector */}
+              {(() => {
+                const expiresAt = modalData?.bannersExpiresAt ? new Date(modalData.bannersExpiresAt) : null;
+                const now = new Date();
+                const isExpired = modalData?.bannersEnabled && expiresAt && now > expiresAt;
+                const isActive = modalData?.bannersEnabled && !isExpired;
+                const msLeft = expiresAt ? expiresAt - now : 0;
+                const daysLeft = expiresAt ? Math.ceil(msLeft / (1000 * 60 * 60 * 24)) : 0;
+                const hoursLeft = expiresAt ? Math.ceil(msLeft / (1000 * 60 * 60)) : 0;
+                const plan = modalData?.bannersPlan || 'none';
+                // Warning thresholds
+                const warnDays = plan === '30day' ? 3 : 2;
+                const isWarningSoon = isActive && daysLeft <= warnDays && daysLeft > 0;
+
+                const planDurationLabel = plan === '30day' ? '30-Day Plan — ₹600' : plan === '7day' ? '7-Day Plan — ₹200' : null;
+                const expiryLabel = expiresAt
+                  ? expiresAt.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+                  : null;
+
+                return (
+                  <div style={{ marginBottom: '24px' }}>
+                    <p style={{ fontSize: '9px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.3em', marginBottom: '12px' }}>Marketing Features — Offer Banners</p>
+
+                    {/* Status Summary */}
+                    <div style={{ background: isActive ? (isWarningSoon ? '#fffbeb' : '#f0f9ff') : isExpired ? '#fef2f2' : '#f8fafc', borderRadius: '16px', padding: '14px 16px', marginBottom: '12px', border: `1px solid ${isActive ? (isWarningSoon ? '#fde68a' : '#bae6fd') : isExpired ? '#fecaca' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: isActive ? (isWarningSoon ? '#f59e0b' : '#0ea5e9') : isExpired ? '#ef4444' : '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Zap size={20} color="white" />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: '12px', fontWeight: '900', color: '#111827', margin: 0 }}>
+                          {isActive ? (planDurationLabel || 'Active Plan') : isExpired ? 'Plan Expired' : 'No Active Plan'}
                         </p>
-                      )}
+                        {isActive && expiresAt && (
+                          <>
+                            <p style={{ fontSize: '9px', fontWeight: '700', color: isWarningSoon ? '#d97706' : '#0ea5e9', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                              {daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left` : `${hoursLeft}h left`} — Expires {expiryLabel}
+                            </p>
+                            {isWarningSoon && (
+                              <p style={{ fontSize: '8px', fontWeight: '800', color: '#b45309', margin: '3px 0 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                ⚠ Expiring soon! Contact vendor to renew.
+                              </p>
+                            )}
+                          </>
+                        )}
+                        {isExpired && expiresAt && (
+                          <p style={{ fontSize: '9px', fontWeight: '700', color: '#ef4444', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                            Expired on {expiryLabel}
+                          </p>
+                        )}
+                        {!isActive && !isExpired && (
+                          <p style={{ fontSize: '9px', fontWeight: '700', color: '#9ca3af', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Select a plan below to grant access</p>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Plan Cards */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                      {/* 7-Day Plan */}
+                      <button
+                        onClick={() => handleToggleBannersAccess(modalData._id, modalData.shopId, '7day')}
+                        disabled={!!isProcessing}
+                        style={{
+                          background: (isActive && plan === '7day') ? '#0ea5e9' : '#f8fafc',
+                          border: `2px solid ${(isActive && plan === '7day') ? '#0ea5e9' : '#e2e8f0'}`,
+                          borderRadius: '14px', padding: '14px 12px', cursor: 'pointer',
+                          textAlign: 'left', transition: 'all 0.2s',
+                          opacity: isProcessing ? 0.6 : 1
+                        }}
+                      >
+                        <p style={{ fontSize: '11px', fontWeight: '900', color: (isActive && plan === '7day') ? 'white' : '#111827', margin: 0 }}>7-Day Plan</p>
+                        <p style={{ fontSize: '18px', fontWeight: '900', color: (isActive && plan === '7day') ? 'white' : '#0ea5e9', margin: '4px 0 2px', letterSpacing: '-0.03em' }}>₹200</p>
+                        <p style={{ fontSize: '8px', fontWeight: '700', color: (isActive && plan === '7day') ? 'rgba(255,255,255,0.8)' : '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
+                          {(isActive && plan === '7day') ? '✓ Currently Active' : 'Tap to Grant'}
+                        </p>
+                      </button>
+
+                      {/* 30-Day Plan */}
+                      <button
+                        onClick={() => handleToggleBannersAccess(modalData._id, modalData.shopId, '30day')}
+                        disabled={!!isProcessing}
+                        style={{
+                          background: (isActive && plan === '30day') ? '#8b5cf6' : '#f8fafc',
+                          border: `2px solid ${(isActive && plan === '30day') ? '#8b5cf6' : '#e2e8f0'}`,
+                          borderRadius: '14px', padding: '14px 12px', cursor: 'pointer',
+                          textAlign: 'left', transition: 'all 0.2s', position: 'relative',
+                          opacity: isProcessing ? 0.6 : 1
+                        }}
+                      >
+                        <span style={{ position: 'absolute', top: '8px', right: '8px', background: '#f59e0b', color: 'white', fontSize: '6px', fontWeight: '900', padding: '2px 6px', borderRadius: '999px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>BEST VALUE</span>
+                        <p style={{ fontSize: '11px', fontWeight: '900', color: (isActive && plan === '30day') ? 'white' : '#111827', margin: 0 }}>30-Day Plan</p>
+                        <p style={{ fontSize: '18px', fontWeight: '900', color: (isActive && plan === '30day') ? 'white' : '#8b5cf6', margin: '4px 0 2px', letterSpacing: '-0.03em' }}>₹600</p>
+                        <p style={{ fontSize: '8px', fontWeight: '700', color: (isActive && plan === '30day') ? 'rgba(255,255,255,0.8)' : '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
+                          {(isActive && plan === '30day') ? '✓ Currently Active' : 'Tap to Grant'}
+                        </p>
+                      </button>
+                    </div>
+
+                    {/* Revoke Button (only when active) */}
+                    {isActive && (
+                      <button
+                        onClick={() => handleToggleBannersAccess(modalData._id, modalData.shopId, 'revoke')}
+                        disabled={!!isProcessing}
+                        style={{
+                          width: '100%', padding: '10px', borderRadius: '12px', border: '1.5px solid #fecaca',
+                          background: '#fef2f2', color: '#ef4444', fontSize: '9px', fontWeight: '900',
+                          textTransform: 'uppercase', letterSpacing: '0.15em', cursor: 'pointer',
+                          opacity: isProcessing ? 0.6 : 1
+                        }}
+                      >
+                        Revoke Banner Access
+                      </button>
+                    )}
                   </div>
-                  <button 
-                    onClick={() => { setModalData(prev => ({ ...prev, bannersEnabled: !prev.bannersEnabled, bannersEnabledAt: !prev.bannersEnabled ? new Date().toISOString() : null })); setIsModified(true); }}
-                    style={{ 
-                      padding: '10px 20px', borderRadius: '12px', border: 'none', cursor: 'pointer',
-                      background: modalData?.bannersEnabled ? '#ef4444' : '#0ea5e9',
-                      color: 'white', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em'
-                    }}
-                  >
-                    {modalData?.bannersEnabled ? 'Disable Access' : 'Enable Access'}
-                  </button>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* SAVE BUTTON (Only if modified) */}
               {isModified && (
@@ -666,7 +766,7 @@ const Users = ({ roleFilter }) => {
                           await handleUpdatePlan(modalData.shopId, modalData.subscriptionPlan, true);
                         }
                         if (bannersAccessChanged) {
-                          await handleToggleBannersAccess(modalData._id, modalData.shopId, true);
+                          await handleToggleBannersAccess(modalData._id, modalData.shopId, modalData.bannersEnabled ? (modalData.bannersPlan || '7day') : 'revoke', true);
                         }
                         
                         if (statusChanged) {

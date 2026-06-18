@@ -286,6 +286,24 @@ export const getMyShop = async (req, res) => {
 
     if (!shop) return res.json({ success: true, shop: null });
 
+    // Check if banners plan expired
+    if (shop.bannersEnabled && shop.bannersExpiresAt) {
+      if (new Date() > new Date(shop.bannersExpiresAt)) {
+        // Plan expired — disable and persist so it stays off
+        shop.bannersEnabled = false;
+        shop.bannersPlan = 'none';
+        await shop.save();
+      }
+    } else if (shop.bannersEnabled && shop.bannersEnabledAt && !shop.bannersExpiresAt) {
+      // Legacy: shops that had the old 7-day offset system — migrate them
+      const daysDiff = (Date.now() - new Date(shop.bannersEnabledAt).getTime()) / (1000 * 60 * 60 * 24);
+      if (daysDiff > 7) {
+        shop.bannersEnabled = false;
+        shop.bannersPlan = 'none';
+        await shop.save();
+      }
+    }
+
     // Add a flag so frontend knows if secret is already set
     shop.hasRazorpaySecret = !!shop.razorpayKeySecret;
     

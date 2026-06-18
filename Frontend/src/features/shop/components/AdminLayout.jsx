@@ -223,16 +223,29 @@ const AdminLayout = () => {
   React.useEffect(() => {
     let barcode = '';
     let lastKeyTime = Date.now();
+    let isScanning = false;
 
     const handleKeyDown = (e) => {
       const currentTime = Date.now();
-      
-      // Hardware scanners typically send keys with <50ms intervals.
-      if (currentTime - lastKeyTime > 50) {
-        barcode = '';
-      }
-      
+      const interval = currentTime - lastKeyTime;
       lastKeyTime = currentTime;
+
+      // Hardware scanners typically send keys with <50ms intervals.
+      if (interval <= 50) {
+        isScanning = true;
+      } else {
+        isScanning = false;
+        // If there was a long pause, reset barcode buffer unless it's Enter
+        if (e.key !== 'Enter') {
+          barcode = '';
+        }
+      }
+
+      // If we detect scanning mode, prevent default input behavior (so barcode text isn't typed into focused inputs)
+      if (isScanning && e.key !== 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+      }
 
       if (e.key === 'Enter') {
         if (barcode.length >= 3) {
@@ -240,9 +253,28 @@ const AdminLayout = () => {
           e.stopPropagation();
           handleScannedBarcode(barcode);
           barcode = '';
+          isScanning = false;
         }
       } else if (e.key.length === 1) {
         barcode += e.key;
+
+        // If we just entered scanning mode (on the second character),
+        // let's blur the active input and remove the first character that got typed
+        if (isScanning) {
+          const activeEl = document.activeElement;
+          if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+            activeEl.blur();
+            
+            // Revert the first character that was typed when interval was > 50ms
+            setTimeout(() => {
+              if (activeEl.value) {
+                activeEl.value = activeEl.value.slice(0, -1);
+                // Dispatch input event to notify React of the change
+                activeEl.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+            }, 0);
+          }
+        }
       }
     };
 
