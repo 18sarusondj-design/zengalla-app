@@ -44,6 +44,22 @@ const Dues = () => {
   const handleDelete = async (e, orderId) => {
     if (e) e.stopPropagation();
 
+    const order = creditOrders.find(o => (o._id || o.id) === orderId);
+    if (order) {
+      const paid = order.paidAmount !== undefined ? order.paidAmount : (order.amountPaid || 0);
+      const total = order.totalPrice || order.total || 0;
+      const due = order.balanceDue !== undefined && order.balanceDue !== 0
+        ? order.balanceDue
+        : Math.max(0, total - paid);
+
+      if (due > 0) {
+        toast.error("Outstanding dues cannot be deleted", {
+          description: `Please pay the remaining balance of ₹${due.toLocaleString()} first.`,
+        });
+        return;
+      }
+    }
+
     toast.error("Confirm removal from history?", {
       description: "This will hide the record from your view.",
       action: {
@@ -65,7 +81,14 @@ const Dues = () => {
     });
   };
 
-  const totalDue = creditOrders.reduce((s, o) => s + (o.balanceDue || o.totalPrice || 0), 0);
+  const totalDue = creditOrders.reduce((s, o) => {
+    const paid = o.paidAmount !== undefined ? o.paidAmount : (o.amountPaid || 0);
+    const total = o.totalPrice || o.total || 0;
+    const due = o.balanceDue !== undefined && o.balanceDue !== 0
+      ? o.balanceDue
+      : Math.max(0, total - paid);
+    return s + due;
+  }, 0);
 
   // ─── DETAIL VIEW ───────────────────────────────────────────────
   if (selected) {
@@ -94,10 +117,12 @@ const Dues = () => {
                 className="w-10 h-10 bg-slate-100/10 hover:bg-slate-100/20 text-white rounded-2xl flex items-center justify-center transition-all">
                 <ArrowLeft size={20} strokeWidth={2.5} />
               </button>
-              <button onClick={() => handleDelete(null, order._id)}
-                className="w-10 h-10 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 rounded-2xl flex items-center justify-center transition-all">
-                <Trash2 size={18} strokeWidth={2} />
-              </button>
+              {balanceDue === 0 && (
+                <button onClick={() => handleDelete(null, order._id)}
+                  className="w-10 h-10 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 rounded-2xl flex items-center justify-center transition-all">
+                  <Trash2 size={18} strokeWidth={2} />
+                </button>
+              )}
             </div>
             <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.35em]">Bill Detail</p>
             <div className="w-9 h-9" />
@@ -315,12 +340,14 @@ const Dues = () => {
                       <ShoppingBag size={18} />
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={(e) => handleDelete(e, order._id)}
-                        className="w-8 h-8 bg-white/10 hover:bg-white/20 text-white rounded-xl flex items-center justify-center backdrop-blur-sm transition-all"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {due === 0 && (
+                        <button
+                          onClick={(e) => handleDelete(e, order._id)}
+                          className="w-8 h-8 bg-white/10 hover:bg-white/20 text-white rounded-xl flex items-center justify-center backdrop-blur-sm transition-all"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                       <span className={`text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${pal.badge} border border-white/10`}>
                         {isPartial ? 'Partial' : 'Credit'}
                       </span>

@@ -240,7 +240,7 @@ export const StoreProvider = ({ children }) => {
 
   // -- Real-time Order Alerts & Polling --
   useEffect(() => {
-    if (!token || (user?.role !== 'admin' && user?.role !== 'vendor')) {
+    if (!token || (user?.role !== 'admin' && user?.role !== 'vendor' && user?.role !== 'staff')) {
       return;
     }
 
@@ -252,7 +252,7 @@ export const StoreProvider = ({ children }) => {
           const { data } = await api.get('/orders?limit=50');
           currentOrders = data.orders || [];
           setOrders(currentOrders);
-        } else if (user.role === 'vendor' && vendorShop?._id) {
+        } else if ((user.role === 'vendor' || user.role === 'staff') && vendorShop?._id) {
           const { data } = await api.get(`/orders?shopId=${vendorShop._id}&limit=50`);
           currentOrders = data.orders || [];
           setOrders(currentOrders);
@@ -282,7 +282,7 @@ export const StoreProvider = ({ children }) => {
 
   // -- Reactive Sound Alert Controller --
   useEffect(() => {
-    if (!token || (user?.role !== 'admin' && user?.role !== 'vendor')) {
+    if (!token || (user?.role !== 'admin' && user?.role !== 'vendor' && user?.role !== 'staff')) {
       if (alertAudioRef.current) {
         alertAudioRef.current.pause();
         alertAudioRef.current = null;
@@ -305,8 +305,11 @@ export const StoreProvider = ({ children }) => {
         return timeDiffMs > 0 && timeDiffMs <= 30 * 60 * 1000;
       });
       shouldAlert = hasNewDeliveryNoPartner || hasRecentlyAcceptedPackingOrder;
-    } else if (user.role === 'vendor' && vendorShop?._id) {
-      shouldAlert = orders.some(o => o.status === 'NEW');
+    } else if ((user.role === 'vendor' || user.role === 'staff') && vendorShop?._id) {
+      shouldAlert = orders.some(o => 
+        (o.status === 'NEW' || o.status === 'ASSIGNED') && 
+        o.orderType !== 'IN_STORE_BILL'
+      );
     }
 
     if (shouldAlert) {

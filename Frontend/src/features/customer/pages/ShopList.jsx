@@ -123,6 +123,17 @@ const ShopList = () => {
     return () => clearTimeout(timer);
   }, [userCoords]);
 
+  useEffect(() => {
+    if (isFilterDrawerOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isFilterDrawerOpen]);
+
   const detectLocation = () => {
     // Priority 1: User's saved profile location
     if (user?.location?.coordinates) {

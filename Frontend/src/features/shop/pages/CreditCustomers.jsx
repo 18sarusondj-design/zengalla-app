@@ -352,40 +352,40 @@ const CreditCustomers = () => {
       <div className="absolute top-[-10%] right-[-5%] w-96 h-96 bg-sky-500/5 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-[-10%] left-[-5%] w-96 h-96 bg-brand-primary/5 rounded-full blur-3xl pointer-events-none"></div>
 
-      <div className="mb-6 md:mb-10 flex flex-col lg:flex-row lg:items-end justify-between gap-6 relative z-10 flex-shrink-0">
+      <div className="mb-6 md:mb-8 flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10 flex-shrink-0">
         <div>
-          <h1 className="text-4xl font-black text-gray-900 tracking-tight uppercase leading-none">
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase leading-none">
               Credit Ledger
           </h1>
-          <p className="text-xs text-gray-400 mt-2 font-bold uppercase tracking-[0.2em]">
+          <p className="text-[10px] text-gray-400 mt-2 font-bold uppercase tracking-[0.2em]">
               Track and settle outstanding dues from regular customers
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center w-full lg:w-auto">
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full lg:w-auto">
             <div className="relative group w-full sm:w-auto">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-sky-600 transition-colors" size={18} />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-sky-600 transition-colors" size={16} />
                 <input 
                     type="text" 
                     placeholder="Search Customers..." 
-                    className="h-14 bg-white border-2 border-transparent focus:border-sky-200 rounded-2xl pl-12 pr-6 text-sm font-black text-gray-900 shadow-xl shadow-gray-200/40 focus:outline-none transition-all w-full sm:w-80"
+                    className="h-11 bg-white border border-gray-250 focus:border-sky-300 rounded-xl pl-10 pr-4 text-xs font-bold text-gray-900 shadow-sm focus:outline-none transition-all w-full sm:w-64"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
             </div>
             <button 
                 onClick={handleDownloadPDF}
-                className="h-14 px-6 bg-white border border-gray-200 text-gray-700 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-2 w-full sm:w-auto shrink-0"
+                className="h-11 px-4 bg-white border border-gray-200 text-gray-700 rounded-xl font-black text-[9px] uppercase tracking-widest shadow-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-1.5 w-full sm:w-auto shrink-0"
             >
-                <Download size={18} />
+                <Download size={14} />
                 Download PDF
             </button>
             <button 
                 onClick={handleOpenAdd}
-                className="h-14 px-8 bg-sky-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 w-full sm:w-auto shrink-0"
+                className="h-11 px-5 bg-sky-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-md hover:bg-sky-700 active:scale-95 transition-all flex items-center justify-center gap-2 w-full sm:w-auto shrink-0"
             >
-                <UserPlus size={20} strokeWidth={3} />
-                Add Credit Customer
+                <UserPlus size={16} strokeWidth={2.5} />
+                Add Customer
             </button>
         </div>
       </div>

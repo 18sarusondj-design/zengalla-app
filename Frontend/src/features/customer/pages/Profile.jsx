@@ -66,12 +66,9 @@ const Profile = () => {
     const userId = user?._id || user?.id;
     if (!userId) return;
     try {
-      const { data } = await api.get('/orders/my');
+      const { data } = await api.get('/orders/my?paymentStatus=PARTIAL,PENDING,CREDIT');
       if (data?.orders) {
-        setCreditOrders(data.orders.filter(o =>
-          (o.balanceDue && o.balanceDue > 0) ||
-          ['PARTIAL', 'PENDING', 'CREDIT'].includes(o.paymentStatus)
-        ));
+        setCreditOrders(data.orders);
       }
     } catch (err) {
       console.error('Failed to fetch credits:', err);
@@ -150,7 +147,14 @@ const Profile = () => {
     </div>
   );
 
-  const totalDues = creditOrders.reduce((s, o) => s + (o.balanceDue || o.totalPrice || 0), 0);
+  const totalDues = creditOrders.reduce((s, o) => {
+    const paid = o.paidAmount !== undefined ? o.paidAmount : (o.amountPaid || 0);
+    const total = o.totalPrice || o.total || 0;
+    const due = o.balanceDue !== undefined && o.balanceDue !== 0
+      ? o.balanceDue
+      : Math.max(0, total - paid);
+    return s + due;
+  }, 0);
   const initials = (user?.name || '').split(' ').map(n => n?.[0] || '').join('').toUpperCase().slice(0, 2) || 'U';
 
   return (

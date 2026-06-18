@@ -148,16 +148,16 @@ const ShopMenu = () => {
 
   // 🔒 Lock background scroll when modal is open
   useEffect(() => {
-    if (selectedProduct || isPromoModalOpen || weighingProduct) {
+    if (selectedProduct || isPromoModalOpen || weighingProduct || isFilterDrawerOpen) {
       document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = '';
     }
     // Cleanup on unmount
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = '';
     };
-  }, [selectedProduct, isPromoModalOpen, weighingProduct]);
+  }, [selectedProduct, isPromoModalOpen, weighingProduct, isFilterDrawerOpen]);
 
   useEffect(() => {
     const query = searchQuery.toLowerCase();
@@ -493,13 +493,13 @@ const ShopMenu = () => {
                 setHideOutOfStock(!hideOutOfStock);
                 setInStockOnly(!hideOutOfStock);
               }}
-              className={`w-9 h-5.5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none ${
+              className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none flex items-center ${
                 hideOutOfStock ? 'bg-sky-600' : 'bg-gray-200'
               }`}
             >
               <div
-                className={`w-4.5 h-4.5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
-                  hideOutOfStock ? 'translate-x-3.5' : 'translate-x-0'
+                className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
+                  hideOutOfStock ? 'translate-x-4' : 'translate-x-0'
                 }`}
               />
             </button>
@@ -514,13 +514,13 @@ const ShopMenu = () => {
             <button
               type="button"
               onClick={() => setDiscountedOnly(!discountedOnly)}
-              className={`w-9 h-5.5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none ${
+              className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none flex items-center ${
                 discountedOnly ? 'bg-sky-600' : 'bg-gray-200'
               }`}
             >
               <div
-                className={`w-4.5 h-4.5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
-                  discountedOnly ? 'translate-x-3.5' : 'translate-x-0'
+                className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
+                  discountedOnly ? 'translate-x-4' : 'translate-x-0'
                 }`}
               />
             </button>
@@ -535,13 +535,13 @@ const ShopMenu = () => {
             <button
               type="button"
               onClick={() => setNewArrivalsOnly(!newArrivalsOnly)}
-              className={`w-9 h-5.5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none ${
+              className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none flex items-center ${
                 newArrivalsOnly ? 'bg-sky-600' : 'bg-gray-200'
               }`}
             >
               <div
-                className={`w-4.5 h-4.5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
-                  newArrivalsOnly ? 'translate-x-3.5' : 'translate-x-0'
+                className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
+                  newArrivalsOnly ? 'translate-x-4' : 'translate-x-0'
                 }`}
               />
             </button>
@@ -556,13 +556,13 @@ const ShopMenu = () => {
             <button
               type="button"
               onClick={() => setBestSellersOnly(!bestSellersOnly)}
-              className={`w-9 h-5.5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none ${
+              className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none flex items-center ${
                 bestSellersOnly ? 'bg-sky-600' : 'bg-gray-200'
               }`}
             >
               <div
-                className={`w-4.5 h-4.5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
-                  bestSellersOnly ? 'translate-x-3.5' : 'translate-x-0'
+                className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
+                  bestSellersOnly ? 'translate-x-4' : 'translate-x-0'
                 }`}
               />
             </button>
@@ -1012,84 +1012,6 @@ const ShopMenu = () => {
           </div>
         </div>
 
-        {/* Unitary Category & Sort Filter */}
-        <div className="flex gap-2 overflow-x-auto no-scrollbar py-1 items-center">
-             <button 
-               onClick={() => {
-                 setSortOrder('relevant');
-                 setActiveCategory('All');
-                 toast.success("Most ordered items first", { icon: <Clock size={16} /> });
-               }} 
-               className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${
-                 sortOrder === 'relevant'
-                   ? 'bg-gray-900 text-white shadow-lg'
-                   : 'bg-white text-gray-500 border border-gray-200 hover:border-sky-400 hover:text-sky-600'
-               }`}
-             >
-               ★ For You
-             </button>
-
-             <button 
-               onClick={() => {
-                 setSortOrder('top-rated');
-                 setActiveCategory('All');
-                 toast.success("Highest rated items first", { icon: <Sparkles size={16} /> });
-               }} 
-               className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${
-                 sortOrder === 'top-rated'
-                   ? 'bg-sky-500 text-white shadow-lg'
-                   : 'bg-white text-gray-500 border border-gray-200 hover:border-sky-400 hover:text-sky-600'
-               }`}
-             >
-               ★ Top Rated
-             </button>
-
-             <div className="w-px h-5 bg-gray-200 mx-1 shrink-0"></div>
-          
-          {categories.map(cat => (
-            <div key={cat} className="relative group/cat shrink-0">
-              <button
-                onClick={() => {
-                  setActiveCategory(cat);
-                  setSortOrder('alpha');
-                }}
-                className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
-                  activeCategory === cat && sortOrder === 'alpha'
-                    ? 'bg-sky-500 text-white shadow-md shadow-sky-200'
-                    : 'bg-white text-gray-500 border border-gray-200 hover:border-sky-400 hover:text-sky-600'
-                }`}
-              >
-                {cat}
-              </button>
-              {isOwner && cat !== 'All' && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toast.error(`Delete category "${cat}"?`, {
-                      action: {
-                        label: "Delete",
-                        onClick: () => {
-                          deleteCategory(cat).then(res => {
-                            if (res.success) {
-                              toast.success(res.message);
-                              if (activeCategory === cat) setActiveCategory('All');
-                              fetchShopProducts();
-                            }
-                          });
-                        }
-                      }
-                    });
-                  }}
-                  className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover/cat:opacity-100 transition-opacity hover:scale-110 active:scale-95"
-                  title="Delete Category"
-                >
-                  <X size={8} strokeWidth={4} />
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-
         {/* Active Filter Chips Row */}
         {activeFiltersCount > 0 && (
           <div className="flex flex-wrap items-center gap-2 mt-2 animate-in fade-in duration-300">
@@ -1132,25 +1054,7 @@ const ShopMenu = () => {
 
         {/* Product Grid - Compact List/Grid */}
         <div className="flex gap-6 items-start mt-6 w-full">
-          {/* Desktop Sidebar Filter Panel */}
-          <div className="hidden lg:block w-64 shrink-0 bg-white border border-gray-155 rounded-[32px] p-6 shadow-sm sticky top-24 max-h-[80vh] overflow-y-auto custom-scrollbar-visible">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-5">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal size={14} className="text-gray-700" />
-                <h4 className="text-xs font-black uppercase tracking-wider text-gray-800">Filters</h4>
-              </div>
-              {activeFiltersCount > 0 && (
-                <button
-                  type="button"
-                  onClick={handleClearAllFilters}
-                  className="text-[9px] font-black text-rose-600 hover:text-rose-700 uppercase tracking-widest transition-colors"
-                >
-                  Clear All
-                </button>
-              )}
-            </div>
-            {renderFilterContent()}
-          </div>
+
 
           {/* Product Listing Area */}
           <div className="flex-1 min-w-0">
@@ -1520,9 +1424,9 @@ const ShopMenu = () => {
         shop={shop}
       />
 
-      {/* Mobile Filter Drawer */}
+      {/* Filter Drawer */}
       {isFilterDrawerOpen && (
-        <div className="fixed inset-0 z-[150] flex justify-end lg:hidden">
+        <div className="fixed inset-0 z-[150] flex justify-end">
           {/* Backdrop */}
           <div 
             className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 animate-fade-in"

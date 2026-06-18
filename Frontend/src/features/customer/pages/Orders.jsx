@@ -51,7 +51,7 @@ const CustomerOrders = () => {
             <div className="flex items-center gap-3">
               <div className="text-right">
                 <span className="font-black text-brand-primary text-base leading-none block">₹{order.totalPrice}</span>
-                {order.balanceDue > 0 && (
+                {order.balanceDue > 0 && order.paymentStatus !== 'PAID' && (
                   <span className="text-[9px] font-black text-rose-500 uppercase mt-1 block">Due: ₹{order.balanceDue}</span>
                 )}
               </div>
