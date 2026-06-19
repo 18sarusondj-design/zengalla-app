@@ -19,6 +19,7 @@ import paymentRoutes from './routes/payments.js';
 import notificationRoutes from './routes/notifications.js';
 import systemRoutes from './routes/system.js';
 import bannerRoutes from './routes/banners.js';
+import payoutRoutes from './routes/payoutRoutes.js';
 
 const app = express();
 
@@ -79,6 +80,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/banners', bannerRoutes);
+app.use('/api/payouts', payoutRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

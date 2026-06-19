@@ -85,6 +85,44 @@ const DeliveryDashboard = () => {
   });
   const { updateProfile } = useAuth();
 
+  // Payout State
+  const { requestPayout, getMyPayouts } = useStore();
+  const [payoutsList, setPayoutsList] = useState([]);
+  const [platformFeeDeducted, setPlatformFeeDeducted] = useState(0);
+  const [payoutAmount, setPayoutAmount] = useState('');
+
+  const fetchPayouts = async () => {
+    const res = await getMyPayouts();
+    if (res) {
+      setPayoutsList(res.payouts || []);
+      setPlatformFeeDeducted(res.platformFeeDeducted || 0);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'wallet') {
+      fetchPayouts();
+    }
+  }, [activeTab]);
+
+  const handlePayoutRequest = async (e) => {
+    e.preventDefault();
+    setActionLoading(true);
+    // Assuming shopId is needed from the first active/history order
+    const shopId = activeOrders[0]?.shopId?._id || historyOrders[0]?.shopId?._id;
+    if (!shopId) {
+      toast.error('You need at least one completed or active order to request payout.');
+      setActionLoading(false);
+      return;
+    }
+    const res = await requestPayout(payoutAmount, shopId);
+    if (res.success) {
+      setPayoutAmount('');
+      fetchPayouts();
+    }
+    setActionLoading(false);
+  };
+
   // Sound Alert System
   const startLongAlert = (type = 'assigned') => {
     if (alertAudio) return; // Already playing
@@ -781,6 +819,86 @@ const DeliveryDashboard = () => {
                  </form>
               </div>
             </div>
+        ) : activeTab === 'wallet' ? (
+          /* Wallet View */
+          <div className="space-y-6 animate-in fade-in duration-700">
+            <div className="flex items-center gap-3 px-2">
+              <div className="w-1.5 h-4 bg-sky-500 rounded-full" />
+              <h2 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.3em]">Payout Hub</h2>
+            </div>
+            
+            <div className="bg-white rounded-[48px] p-8 border border-sky-100 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-sky-50 rounded-full -mr-16 -mt-16" />
+              
+              <div className="relative z-10 space-y-6">
+                <div className="bg-slate-900 rounded-[32px] p-6 text-white">
+                  <p className="text-[10px] font-black text-white/50 uppercase tracking-[0.2em] mb-2">Available Balance</p>
+                  <h3 className="text-4xl font-black italic mb-6">₹{totalEarnings}</h3>
+                  
+                  <form onSubmit={handlePayoutRequest} className="flex gap-2">
+                    <input
+                      type="number"
+                      required
+                      min="500"
+                      placeholder="Amount to withdraw"
+                      value={payoutAmount}
+                      onChange={(e) => setPayoutAmount(e.target.value)}
+                      className="flex-1 px-4 h-12 bg-white/10 border border-white/20 rounded-2xl text-sm font-bold placeholder:text-white/30 focus:border-sky-400 outline-none"
+                    />
+                    <button
+                      type="submit"
+                      disabled={actionLoading}
+                      className="px-6 h-12 bg-sky-500 text-white rounded-2xl font-black uppercase text-[9px] tracking-widest shadow-lg shadow-sky-500/20 active:scale-95 transition-all flex items-center justify-center min-w-[120px]"
+                    >
+                      {actionLoading ? <Loader2 className="animate-spin" size={14} /> : "Withdraw"}
+                    </button>
+                  </form>
+                  <p className="text-[8px] font-bold text-white/40 mt-3">* Minimum withdrawal is ₹500. Requests are processed on Mondays and Fridays.</p>
+                </div>
+                
+                <div className="p-4 bg-rose-50/50 rounded-2xl border border-rose-100 flex items-start gap-3">
+                  <XCircle size={16} className="text-rose-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[9px] font-black text-rose-700 uppercase tracking-widest mb-1">Platform Deduction Fee</p>
+                    <p className="text-[10px] font-bold text-rose-600/80">₹100 is deducted from each payout until ₹600 is reached.</p>
+                    <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest mt-2">Paid so far: ₹{platformFeeDeducted} / ₹600</p>
+                  </div>
+                </div>
+
+                <div className="mt-8">
+                  <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Recent Payouts</h4>
+                  {payoutsList.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No payout requests</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {payoutsList.map(req => (
+                        <div key={req._id} className="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex items-center justify-between">
+                          <div>
+                            <p className="text-[10px] font-black text-gray-900 uppercase">₹{req.requestedAmount}</p>
+                            <p className="text-[8px] font-bold text-gray-400 uppercase">{new Date(req.createdAt).toLocaleDateString()}</p>
+                          </div>
+                          <div className="text-right">
+                            <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${
+                              req.status === 'approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                              req.status === 'rejected' ? 'bg-rose-50 text-rose-600 border-rose-100' :
+                              'bg-amber-50 text-amber-600 border-amber-100'
+                            }`}>
+                              {req.status}
+                            </span>
+                            {req.platformDeduction > 0 && (
+                              <p className="text-[8px] font-bold text-rose-500 uppercase mt-1">-₹{req.platformDeduction} fee</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         ) : (
           /* History View - Dark Minimalist */
           <div className="space-y-6 animate-in fade-in duration-700">
@@ -846,6 +964,16 @@ const DeliveryDashboard = () => {
           >
             <User size={22} />
             <span className="text-[8px] font-black uppercase tracking-[0.2em]">Profile</span>
+          </button>
+
+          <div className="w-[1px] h-6 bg-white/10 rounded-full" />
+
+          <button
+            onClick={() => setActiveTab('wallet')}
+            className={`flex-1 flex flex-col items-center gap-1.5 transition-all duration-300 ${activeTab === 'wallet' ? 'text-sky-400 scale-110' : 'text-gray-500 hover:text-gray-300'}`}
+          >
+            <Zap size={22} />
+            <span className="text-[8px] font-black uppercase tracking-[0.2em]">Wallet</span>
           </button>
         </div>
       </div>

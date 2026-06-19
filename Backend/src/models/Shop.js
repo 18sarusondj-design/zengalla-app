@@ -84,7 +84,7 @@ const shopSchema = new mongoose.Schema({
   hadFreeSponsorship: { type: Boolean, default: false },
   bannersEnabled: { type: Boolean, default: false },
   bannersEnabledAt: { type: Date, default: null },
-  bannersPlan: { type: String, enum: ['none', '7day', '30day'], default: 'none' },
+  bannersPlan: { type: String, enum: ['none', '7day', '30day', '6month', '1year'], default: 'none' },
   bannersExpiresAt: { type: Date, default: null },
   rating: { type: Number, default: 0 },
   totalOrders: { type: Number, default: 0 },

@@ -41,6 +41,8 @@ const userSchema = new mongoose.Schema({
   accountNumber: { type: String, default: '' },
   ifscCode: { type: String, default: '' },
   bankName: { type: String, default: '' },
+  // Delivery partner payout system
+  platformFeeDeducted: { type: Number, default: 0 }, // Total deducted so far, max 600
 }, { timestamps: true });
 
 

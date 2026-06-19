@@ -518,13 +518,13 @@ const DeliveryManagement = () => {
                           <p className="text-4xl font-black text-slate-900 tracking-tighter">{reportOrders.length}</p>
                        </div>
                        <div className="bg-emerald-50 rounded-[32px] p-8 border border-emerald-100 shadow-sm relative overflow-hidden group">
-                           <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-2">Net Payout (After Deductions)</p>
+                           <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-2">Total Gross Earnings</p>
                            <p className="text-4xl font-black text-slate-900 tracking-tighter">
-                             ₹{(reportOrders.reduce((sum, o) => sum + (o.deliveryFee || 0) + (o.extraAmount || 0), 0) - 100).toLocaleString()}
+                             ₹{(reportOrders.reduce((sum, o) => sum + (o.deliveryFee || 0) + (o.extraAmount || 0), 0)).toLocaleString()}
                            </p>
                            <div className="mt-4 pt-4 border-t border-emerald-100/50">
-                              <p className="text-[8px] font-black text-rose-500 uppercase flex items-center gap-1.5">
-                                 <XCircle size={10}/> Weekly System Deduction (₹100)
+                              <p className="text-[8px] font-black text-emerald-500 uppercase flex items-center gap-1.5">
+                                 <CheckCircle size={10}/> Before Payout Deductions
                               </p>
                            </div>
                         </div>

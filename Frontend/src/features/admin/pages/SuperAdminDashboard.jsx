@@ -84,17 +84,13 @@ const SuperAdminDashboard = () => {
     };
 
    const stats = useMemo(() => {
-      const nonAdminUsers = users.filter(u => {
-         const isMasterEmail = u.email?.toLowerCase() === 'sarusondj@gmail.com'.toLowerCase();
-         return u.role !== 'admin' && !isMasterEmail;
-      });
       return {
-         totalShops: shops.length,
-         totalCustomers: users.filter(u => u.role === 'customer' && u.email?.toLowerCase() !== 'sarusondj@gmail.com'.toLowerCase()).length,
-         pending: shops.filter(s => !s.isActive).length,
+         totalShops: adminStats.totalShops ?? 0,
+         totalCustomers: adminStats.totalUsers ?? 0,
+         pending: adminStats.pendingVendors ?? 0,
          reports: reports.length
       };
-   }, [shops, users, reports]);
+   }, [adminStats, reports]);
 
 
    // Dual Registration Aggregator (Vendors & Users)
@@ -121,8 +117,7 @@ const SuperAdminDashboard = () => {
       });
 
       users.forEach(u => {
-         const isMasterEmail = u.email?.toLowerCase() === 'sarusondj@gmail.com'.toLowerCase();
-         if (u.role !== 'customer' || isMasterEmail) return; // ONLY count customers in this bar
+         if (u.role !== 'customer') return; // ONLY count customers in this bar
 
          const date = new Date(u.created_at);
          const mIdx = last6Months.findIndex(m => m.monthIdx === date.getMonth() && m.year === date.getFullYear());

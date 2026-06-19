@@ -25,6 +25,16 @@ const Users = ({ roleFilter }) => {
   const [isModified, setIsModified] = useState(false);
   const [isSafeDeleteOpen, setIsSafeDeleteOpen] = useState(false);
 
+  // Lock background scroll when modal is open
+  useEffect(() => {
+    if (selectedVendor) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [selectedVendor]);
+
   useEffect(() => {
     fetchUsers();
   }, [roleFilter]);
@@ -534,7 +544,7 @@ const Users = ({ roleFilter }) => {
           />
           
           {/* Modal */}
-          <div style={{ position: 'relative', width: '100%', maxWidth: '560px', background: 'white', borderRadius: '32px', overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,0.4)' }}>
+          <div style={{ position: 'relative', width: '100%', maxWidth: '560px', background: 'white', borderRadius: '32px', overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', maxHeight: '92vh' }}>
             
             {/* Close Button */}
             <button 
@@ -561,8 +571,8 @@ const Users = ({ roleFilter }) => {
               </div>
             </div>
 
-            {/* Body */}
-            <div style={{ padding: '40px', maxHeight: '60vh', overflowY: 'auto' }}>
+            {/* Body — scrollable */}
+            <div style={{ flex: 1, padding: '24px 36px', overflowY: 'auto', minHeight: 0 }}>
               
               {/* Account Status */}
               <div style={{ marginBottom: '24px' }}>
@@ -646,10 +656,15 @@ const Users = ({ roleFilter }) => {
                 const hoursLeft = expiresAt ? Math.ceil(msLeft / (1000 * 60 * 60)) : 0;
                 const plan = modalData?.bannersPlan || 'none';
                 // Warning thresholds
-                const warnDays = plan === '30day' ? 3 : 2;
+                const warnDays = plan === '1year' ? 14 : plan === '6month' ? 7 : plan === '30day' ? 3 : 2;
                 const isWarningSoon = isActive && daysLeft <= warnDays && daysLeft > 0;
 
-                const planDurationLabel = plan === '30day' ? '30-Day Plan — ₹600' : plan === '7day' ? '7-Day Plan — ₹200' : null;
+                const planDurationLabel = {
+                  '7day': '7-Day Plan — ₹200',
+                  '30day': '30-Day Plan — ₹600',
+                  '6month': '6-Month Plan — ₹3,200',
+                  '1year': '1-Year Plan — ₹6,000'
+                }[plan] || null;
                 const expiryLabel = expiresAt
                   ? expiresAt.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
                   : null;
@@ -690,8 +705,51 @@ const Users = ({ roleFilter }) => {
                       </div>
                     </div>
 
-                    {/* Plan Cards */}
+                    {/* Extend Section */}
+                    {(() => {
+                      const expiresAt2 = modalData?.bannersExpiresAt ? new Date(modalData.bannersExpiresAt) : null;
+                      const isCurrentlyActive2 = modalData?.bannersEnabled && expiresAt2 && expiresAt2 > new Date();
+                      if (!isCurrentlyActive2) return null;
+
+                      const planOptions = [
+                        { key: '7day',   label: '+7 Days',   price: '₹200',   ms: 7   * 24 * 60 * 60 * 1000 },
+                        { key: '30day',  label: '+30 Days',  price: '₹600',   ms: 30  * 24 * 60 * 60 * 1000 },
+                        { key: '6month', label: '+6 Months', price: '₹3,200', ms: 180 * 24 * 60 * 60 * 1000 },
+                        { key: '1year',  label: '+1 Year',   price: '₹6,000', ms: 365 * 24 * 60 * 60 * 1000 },
+                      ];
+                      const fmt = (d) => d.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+                      return (
+                        <div style={{ marginBottom: '24px', background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', borderRadius: '18px', padding: '18px', border: '1.5px solid #bbf7d0' }}>
+                          <p style={{ fontSize: '9px', fontWeight: '900', color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.3em', marginBottom: '8px' }}>
+                            🔄 Extend Current Plan
+                          </p>
+                          <p style={{ fontSize: '10px', fontWeight: '700', color: '#166534', marginBottom: '12px', lineHeight: 1.4 }}>
+                            Like a Jio recharge — new plan stacks on current expiry. Access continues uninterrupted.
+                          </p>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                            {planOptions.map(opt => {
+                              const newExpiry = new Date(expiresAt2.getTime() + opt.ms);
+                              return (
+                                <button
+                                  key={opt.key}
+                                  onClick={() => handleToggleBannersAccess(modalData._id, modalData.shopId, opt.key)}
+                                  disabled={!!isProcessing}
+                                  style={{ background: 'white', border: '2px solid #86efac', borderRadius: '12px', padding: '10px 8px', cursor: 'pointer', textAlign: 'left', opacity: isProcessing ? 0.6 : 1 }}
+                                >
+                                  <p style={{ fontSize: '10px', fontWeight: '900', color: '#166534', margin: 0 }}>{opt.label} — {opt.price}</p>
+                                  <p style={{ fontSize: '7px', fontWeight: '700', color: '#16a34a', margin: '3px 0 0', textTransform: 'uppercase' }}>New expiry: {fmt(newExpiry)}</p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Plan Cards — 2×2 grid */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+
                       {/* 7-Day Plan */}
                       <button
                         onClick={() => handleToggleBannersAccess(modalData._id, modalData.shopId, '7day')}
@@ -699,15 +757,14 @@ const Users = ({ roleFilter }) => {
                         style={{
                           background: (isActive && plan === '7day') ? '#0ea5e9' : '#f8fafc',
                           border: `2px solid ${(isActive && plan === '7day') ? '#0ea5e9' : '#e2e8f0'}`,
-                          borderRadius: '14px', padding: '14px 12px', cursor: 'pointer',
-                          textAlign: 'left', transition: 'all 0.2s',
-                          opacity: isProcessing ? 0.6 : 1
+                          borderRadius: '14px', padding: '12px 10px', cursor: 'pointer',
+                          textAlign: 'left', transition: 'all 0.2s', opacity: isProcessing ? 0.6 : 1
                         }}
                       >
-                        <p style={{ fontSize: '11px', fontWeight: '900', color: (isActive && plan === '7day') ? 'white' : '#111827', margin: 0 }}>7-Day Plan</p>
-                        <p style={{ fontSize: '18px', fontWeight: '900', color: (isActive && plan === '7day') ? 'white' : '#0ea5e9', margin: '4px 0 2px', letterSpacing: '-0.03em' }}>₹200</p>
-                        <p style={{ fontSize: '8px', fontWeight: '700', color: (isActive && plan === '7day') ? 'rgba(255,255,255,0.8)' : '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
-                          {(isActive && plan === '7day') ? '✓ Currently Active' : 'Tap to Grant'}
+                        <p style={{ fontSize: '10px', fontWeight: '900', color: (isActive && plan === '7day') ? 'white' : '#111827', margin: 0 }}>7-Day Plan</p>
+                        <p style={{ fontSize: '17px', fontWeight: '900', color: (isActive && plan === '7day') ? 'white' : '#0ea5e9', margin: '3px 0 1px', letterSpacing: '-0.03em' }}>₹200</p>
+                        <p style={{ fontSize: '7px', fontWeight: '700', color: (isActive && plan === '7day') ? 'rgba(255,255,255,0.75)' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
+                          {(isActive && plan === '7day') ? '✓ Active' : '₹29/day'}
                         </p>
                       </button>
 
@@ -718,18 +775,55 @@ const Users = ({ roleFilter }) => {
                         style={{
                           background: (isActive && plan === '30day') ? '#8b5cf6' : '#f8fafc',
                           border: `2px solid ${(isActive && plan === '30day') ? '#8b5cf6' : '#e2e8f0'}`,
-                          borderRadius: '14px', padding: '14px 12px', cursor: 'pointer',
-                          textAlign: 'left', transition: 'all 0.2s', position: 'relative',
-                          opacity: isProcessing ? 0.6 : 1
+                          borderRadius: '14px', padding: '12px 10px', cursor: 'pointer',
+                          textAlign: 'left', transition: 'all 0.2s', opacity: isProcessing ? 0.6 : 1
                         }}
                       >
-                        <span style={{ position: 'absolute', top: '8px', right: '8px', background: '#f59e0b', color: 'white', fontSize: '6px', fontWeight: '900', padding: '2px 6px', borderRadius: '999px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>BEST VALUE</span>
-                        <p style={{ fontSize: '11px', fontWeight: '900', color: (isActive && plan === '30day') ? 'white' : '#111827', margin: 0 }}>30-Day Plan</p>
-                        <p style={{ fontSize: '18px', fontWeight: '900', color: (isActive && plan === '30day') ? 'white' : '#8b5cf6', margin: '4px 0 2px', letterSpacing: '-0.03em' }}>₹600</p>
-                        <p style={{ fontSize: '8px', fontWeight: '700', color: (isActive && plan === '30day') ? 'rgba(255,255,255,0.8)' : '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
-                          {(isActive && plan === '30day') ? '✓ Currently Active' : 'Tap to Grant'}
+                        <p style={{ fontSize: '10px', fontWeight: '900', color: (isActive && plan === '30day') ? 'white' : '#111827', margin: 0 }}>30-Day Plan</p>
+                        <p style={{ fontSize: '17px', fontWeight: '900', color: (isActive && plan === '30day') ? 'white' : '#8b5cf6', margin: '3px 0 1px', letterSpacing: '-0.03em' }}>₹600</p>
+                        <p style={{ fontSize: '7px', fontWeight: '700', color: (isActive && plan === '30day') ? 'rgba(255,255,255,0.75)' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
+                          {(isActive && plan === '30day') ? '✓ Active' : '₹20/day'}
                         </p>
                       </button>
+
+                      {/* 6-Month Plan */}
+                      <button
+                        onClick={() => handleToggleBannersAccess(modalData._id, modalData.shopId, '6month')}
+                        disabled={!!isProcessing}
+                        style={{
+                          background: (isActive && plan === '6month') ? '#f59e0b' : '#f8fafc',
+                          border: `2px solid ${(isActive && plan === '6month') ? '#f59e0b' : '#e2e8f0'}`,
+                          borderRadius: '14px', padding: '12px 10px', cursor: 'pointer',
+                          textAlign: 'left', transition: 'all 0.2s', position: 'relative', opacity: isProcessing ? 0.6 : 1
+                        }}
+                      >
+                        <span style={{ position: 'absolute', top: '7px', right: '7px', background: '#0ea5e9', color: 'white', fontSize: '5px', fontWeight: '900', padding: '2px 5px', borderRadius: '999px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>POPULAR</span>
+                        <p style={{ fontSize: '10px', fontWeight: '900', color: (isActive && plan === '6month') ? 'white' : '#111827', margin: 0 }}>6-Month Plan</p>
+                        <p style={{ fontSize: '17px', fontWeight: '900', color: (isActive && plan === '6month') ? 'white' : '#f59e0b', margin: '3px 0 1px', letterSpacing: '-0.03em' }}>₹3,200</p>
+                        <p style={{ fontSize: '7px', fontWeight: '700', color: (isActive && plan === '6month') ? 'rgba(255,255,255,0.75)' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
+                          {(isActive && plan === '6month') ? '✓ Active' : '₹18/day · Save 40%'}
+                        </p>
+                      </button>
+
+                      {/* 1-Year Plan */}
+                      <button
+                        onClick={() => handleToggleBannersAccess(modalData._id, modalData.shopId, '1year')}
+                        disabled={!!isProcessing}
+                        style={{
+                          background: (isActive && plan === '1year') ? '#10b981' : '#f8fafc',
+                          border: `2px solid ${(isActive && plan === '1year') ? '#10b981' : '#e2e8f0'}`,
+                          borderRadius: '14px', padding: '12px 10px', cursor: 'pointer',
+                          textAlign: 'left', transition: 'all 0.2s', position: 'relative', opacity: isProcessing ? 0.6 : 1
+                        }}
+                      >
+                        <span style={{ position: 'absolute', top: '7px', right: '7px', background: '#f59e0b', color: 'white', fontSize: '5px', fontWeight: '900', padding: '2px 5px', borderRadius: '999px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>BEST VALUE</span>
+                        <p style={{ fontSize: '10px', fontWeight: '900', color: (isActive && plan === '1year') ? 'white' : '#111827', margin: 0 }}>1-Year Plan</p>
+                        <p style={{ fontSize: '17px', fontWeight: '900', color: (isActive && plan === '1year') ? 'white' : '#10b981', margin: '3px 0 1px', letterSpacing: '-0.03em' }}>₹6,000</p>
+                        <p style={{ fontSize: '7px', fontWeight: '700', color: (isActive && plan === '1year') ? 'rgba(255,255,255,0.75)' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
+                          {(isActive && plan === '1year') ? '✓ Active' : '₹16/day · Save 45%'}
+                        </p>
+                      </button>
+
                     </div>
 
                     {/* Revoke Button (only when active) */}
@@ -750,66 +844,58 @@ const Users = ({ roleFilter }) => {
                   </div>
                 );
               })()}
+            </div>
 
-              {/* SAVE BUTTON (Only if modified) */}
+            {/* STICKY FOOTER — always visible, outside scroll area */}
+            <div style={{ padding: '16px 32px', borderTop: '1px solid #f1f5f9', background: 'white', flexShrink: 0 }}>
               {isModified && (
-                <div style={{ marginBottom: '24px', animation: 'fadeIn 0.3s' }}>
-                  <button 
-                    onClick={async () => {
-                      setIsProcessing(modalData._id);
-                      try {
-                        const planChanged = modalData.subscriptionPlan !== selectedVendor.subscriptionPlan;
-                        const statusChanged = modalData.status !== selectedVendor.status;
-                        const bannersAccessChanged = modalData.bannersEnabled !== selectedVendor.bannersEnabled;
+                <button
+                  onClick={async () => {
+                    setIsProcessing(modalData._id);
+                    try {
+                      const planChanged = modalData.subscriptionPlan !== selectedVendor.subscriptionPlan;
+                      const statusChanged = modalData.status !== selectedVendor.status;
+                      const bannersAccessChanged = modalData.bannersEnabled !== selectedVendor.bannersEnabled;
 
-                        if (planChanged) {
-                          await handleUpdatePlan(modalData.shopId, modalData.subscriptionPlan, true);
-                        }
-                        if (bannersAccessChanged) {
-                          await handleToggleBannersAccess(modalData._id, modalData.shopId, modalData.bannersEnabled ? (modalData.bannersPlan || '7day') : 'revoke', true);
-                        }
-                        
-                        if (statusChanged) {
-                          await api.patch(`/admin/users/${modalData._id}/status`, { status: modalData.status });
-                        }
-                        
-                        toast.success("✓ Vendor configuration updated successfully");
-                        
-                        setIsModified(false);
-                        setSelectedVendor(null);
-                        setModalData(null);
-                        fetchUsers(); // Refresh the list
-                      } catch (err) {
-                        toast.error("Some changes failed to save");
-                      } finally {
-                        setIsProcessing(null);
-                      }
-                    }}
-                    disabled={!!isProcessing}
-                    style={{ 
-                      width: '100%', padding: '16px', borderRadius: '16px', border: 'none',
-                      background: '#0ea5e9', color: 'white', fontSize: '12px', fontWeight: '900',
-                      textTransform: 'uppercase', letterSpacing: '0.2em', cursor: 'pointer',
-                      boxShadow: '0 10px 20px rgba(14, 165, 233, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
-                    }}
-                  >
-                    {isProcessing ? <RefreshCcw size={16} className="animate-spin" /> : <ShieldCheck size={18} />}
-                    Save Configuration
-                  </button>
-                </div>
+                      if (planChanged) await handleUpdatePlan(modalData.shopId, modalData.subscriptionPlan, true);
+                      if (bannersAccessChanged) await handleToggleBannersAccess(modalData._id, modalData.shopId, modalData.bannersEnabled ? (modalData.bannersPlan || '7day') : 'revoke', true);
+                      if (statusChanged) await api.patch(`/admin/users/${modalData._id}/status`, { status: modalData.status });
+                      
+                      toast.success('✓ Vendor configuration updated successfully');
+                      setIsModified(false);
+                      setSelectedVendor(null);
+                      setModalData(null);
+                      fetchUsers();
+                    } catch (err) {
+                      toast.error('Some changes failed to save');
+                    } finally {
+                      setIsProcessing(null);
+                    }
+                  }}
+                  disabled={!!isProcessing}
+                  style={{
+                    width: '100%', padding: '14px', borderRadius: '14px', border: 'none',
+                    background: '#0ea5e9', color: 'white', fontSize: '11px', fontWeight: '900',
+                    textTransform: 'uppercase', letterSpacing: '0.2em', cursor: 'pointer',
+                    boxShadow: '0 8px 16px rgba(14,165,233,0.25)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    marginBottom: '10px', animation: 'fadeIn 0.3s'
+                  }}
+                >
+                  {isProcessing ? <RefreshCcw size={15} className="animate-spin" /> : <ShieldCheck size={16} />}
+                  Save Configuration
+                </button>
               )}
-
-              {/* Footer Actions */}
-              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '20px', display: 'flex', alignItems: 'center', justifyItems: 'stretch', gap: '12px' }}>
-                <button 
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
                   onClick={() => handleManualWhatsApp(selectedVendor)}
-                  style={{ flex: 1, padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '10px', fontWeight: '900', color: '#0ea5e9', background: '#f0f9ff', borderRadius: '12px', border: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}
+                  style={{ flex: 1, padding: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '10px', fontWeight: '900', color: '#0ea5e9', background: '#f0f9ff', borderRadius: '12px', border: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}
                 >
                   <Phone size={14} /> Contact Vendor
                 </button>
-                <button 
+                <button
                   onClick={() => setIsSafeDeleteOpen(true)}
-                  style={{ flex: 1, padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '10px', fontWeight: '900', color: '#ef4444', background: '#fef2f2', borderRadius: '12px', border: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}
+                  style={{ flex: 1, padding: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '10px', fontWeight: '900', color: '#ef4444', background: '#fef2f2', borderRadius: '12px', border: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}
                 >
                   <Trash2 size={14} /> Delete Account
                 </button>

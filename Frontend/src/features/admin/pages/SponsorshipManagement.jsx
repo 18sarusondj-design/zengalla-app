@@ -243,7 +243,6 @@ const SponsorshipManagement = () => {
 
         {/* PIN Code Lookup Bar & Dropdown */}
         <div className="flex items-center gap-3 flex-wrap md:flex-nowrap shrink-0">
-          {uniquePins.length > 0 && (
             <div className="relative">
               <button
                 type="button"
@@ -311,7 +310,6 @@ const SponsorshipManagement = () => {
                 <div className="fixed inset-0 z-40" onClick={() => setPinDropdownOpen(false)} />
               )}
             </div>
-          )}
 
           <form onSubmit={handlePinSearch} className="flex items-center gap-3">
             <div className="relative">

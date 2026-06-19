@@ -1086,6 +1086,27 @@ export const StoreProvider = ({ children }) => {
     }
   }, []);
 
+  const requestPayout = useCallback(async (amount, shopId) => {
+    try {
+      const { data } = await api.post('/payouts/request', { amount, shopId });
+      toast.success('Payout request submitted successfully!');
+      return { success: true, payout: data.payout };
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message || 'Failed to request payout');
+      return { success: false, error: err.response?.data?.error || err.message };
+    }
+  }, []);
+
+  const getMyPayouts = useCallback(async () => {
+    try {
+      const { data } = await api.get('/payouts/my');
+      return data;
+    } catch (err) {
+      console.error(err);
+      return { payouts: [], platformFeeDeducted: 0 };
+    }
+  }, []);
+
   const handleGlobalScan = useCallback((barcode) => {
     // Broadcaster for HID scanners
     console.log('Global Barcode Scan:', barcode);
@@ -1116,6 +1137,7 @@ export const StoreProvider = ({ children }) => {
     getStaff, createStaff, updateStaff, deleteStaff,
     getDeliveryPartners, createDeliveryPartner, updateDeliveryPartner, deleteDeliveryPartner,
     getAvailableOrders, getMyActiveOrder, acceptOrder, assignOrder, rejectOrder, updateDeliveryStatus, getDeliveryHistory, updateDriverLocation, toggleOnlineStatus, handleGlobalScan,
+    requestPayout, getMyPayouts,
     isDeliveryMode, setIsDeliveryMode, getNotifications
   }), [
     products, shops, orders, cart, currentShopId, loading, vendorShop,
@@ -1129,6 +1151,7 @@ export const StoreProvider = ({ children }) => {
     getStaff, createStaff, updateStaff, deleteStaff,
     getDeliveryPartners, createDeliveryPartner, updateDeliveryPartner, deleteDeliveryPartner,
     getAvailableOrders, getMyActiveOrder, acceptOrder, assignOrder, rejectOrder, updateDeliveryStatus, getDeliveryHistory, updateDriverLocation, toggleOnlineStatus, handleGlobalScan,
+    requestPayout, getMyPayouts,
     isDeliveryMode, setIsDeliveryMode, getNotifications
   ]);
 

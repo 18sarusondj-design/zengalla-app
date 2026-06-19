@@ -360,7 +360,7 @@ export const deleteDeliveryPartner = async (req, res) => {
 
 
 // PATCH /api/admin/shops/:id/banners-access
-// Body: { plan: '7day' | '30day' } to grant, { action: 'revoke' } to disable
+// Body: { plan: '7day' | '30day' } to grant/extend, { action: 'revoke' } to disable
 export const toggleShopBannersAccess = async (req, res) => {
   try {
     const shop = await Shop.findById(req.params.id);
@@ -369,20 +369,30 @@ export const toggleShopBannersAccess = async (req, res) => {
     const { plan, action } = req.body || {};
 
     if (action === 'revoke') {
-      // Revoke / disable
+      // Revoke / disable immediately
       shop.bannersEnabled = false;
       shop.bannersEnabledAt = null;
       shop.bannersPlan = 'none';
       shop.bannersExpiresAt = null;
-    } else if (plan === '7day' || plan === '30day') {
-      // Grant a new plan
-      const durationMs = plan === '7day'
-        ? 7 * 24 * 60 * 60 * 1000
-        : 30 * 24 * 60 * 60 * 1000;
+
+    } else if (['7day', '30day', '6month', '1year'].includes(plan)) {
+      const durationMs = {
+        '7day':   7   * 24 * 60 * 60 * 1000,
+        '30day':  30  * 24 * 60 * 60 * 1000,
+        '6month': 180 * 24 * 60 * 60 * 1000,
+        '1year':  365 * 24 * 60 * 60 * 1000,
+      }[plan];
+
+      // Jio-style stacking: if current plan is still active, extend from its expiry
+      const currentExpiry = shop.bannersExpiresAt ? new Date(shop.bannersExpiresAt) : null;
+      const isCurrentlyActive = shop.bannersEnabled && currentExpiry && currentExpiry > new Date();
+      const baseTime = isCurrentlyActive ? currentExpiry.getTime() : Date.now();
+
       shop.bannersEnabled = true;
-      shop.bannersEnabledAt = new Date();
+      shop.bannersEnabledAt = shop.bannersEnabledAt || new Date(); // Keep original grant date
       shop.bannersPlan = plan;
-      shop.bannersExpiresAt = new Date(Date.now() + durationMs);
+      shop.bannersExpiresAt = new Date(baseTime + durationMs);
+
     } else {
       // Legacy toggle (no plan body) — default to 7day
       if (shop.bannersEnabled) {
@@ -397,7 +407,7 @@ export const toggleShopBannersAccess = async (req, res) => {
         shop.bannersExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       }
     }
-    
+
     await shop.save();
 
     const sanitizedShop = shop.toObject();
