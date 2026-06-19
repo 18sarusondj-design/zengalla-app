@@ -370,7 +370,11 @@ export const updateOrderStatus = async (req, res) => {
       });
     }
 
-    res.json({ success: true, order });
+    const populatedOrder = await Order.findById(order._id)
+      .populate('shopId')
+      .populate('deliveryPartnerId', 'name phone location isOnline');
+
+    res.json({ success: true, order: populatedOrder });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -629,22 +633,27 @@ export const assignOrder = async (req, res) => {
     
     await order.save();
 
+    // Populate shopId and deliveryPartnerId before sending response
+    const populatedOrder = await Order.findById(order._id)
+      .populate('shopId')
+      .populate('deliveryPartnerId', 'name phone location isOnline');
+
     // Notify Delivery Partner
-    const shopDetail = await Shop.findById(order.shopId);
+    const shopDetail = populatedOrder.shopId;
     sendPushNotification(partnerId, {
       title: '📦 New Delivery Assigned!',
-      body: `New pickup from ${shopDetail?.name || 'Shop'} — Order ID: #${order._id.toString().slice(-6)}`,
+      body: `New pickup from ${shopDetail?.name || 'Shop'} — Order ID: #${populatedOrder._id.toString().slice(-6)}`,
       url: '/delivery/dashboard',
-      orderId: order._id,
+      orderId: populatedOrder._id,
       priority: 'high',
-      tag: `delivery-${order._id}`,
+      tag: `delivery-${populatedOrder._id}`,
       actions: [
         { action: 'accept', title: 'Accept' },
         { action: 'view', title: 'Details' }
       ]
     });
 
-    res.json({ success: true, order });
+    res.json({ success: true, order: populatedOrder });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

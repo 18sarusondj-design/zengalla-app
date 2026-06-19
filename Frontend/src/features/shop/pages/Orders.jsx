@@ -17,15 +17,23 @@ import api from '../../../config/api.js';
 
 const notifyPartner = (partner, ord) => {
   if (!partner?.phone) return;
-  const shopLoc = ord.shop?.location 
-    ? `${ord.shop.location.lat},${ord.shop.location.lng}`
-    : encodeURIComponent(ord.shop?.address || ord.shopName || '');
+  const shopObj = ord.shop || ord.shopId || {};
+  const shopLoc = shopObj.location 
+    ? `${shopObj.location.lat},${shopObj.location.lng}`
+    : encodeURIComponent(shopObj.address || ord.shopName || '');
   
-  const msg = `🚀 *ORDER PACKED & READY!* \n\n` +
+  const isReady = ord.status === 'READY';
+  const statusTitle = isReady ? '*ORDER PACKED & READY!*' : '*NEW ORDER ASSIGNED!*';
+  const actionText = isReady 
+    ? 'Please come and receive the order fast for delivery.' 
+    : 'Please check the order details and head to the store for pickup.';
+
+  const msg = `🚀 ${statusTitle}\n\n` +
     `Order: #${(ord._id || ord.id || '').toString().slice(-6).toUpperCase()}\n` +
-    `Store: ${ord.shop?.name || 'Store'}\n` +
-    `Customer: ${ord.customerName}\n\n` +
-    `*Action:* Item is packed. Please come and receive the order fast for delivery.\n\n` +
+    `Store: ${shopObj.name || ord.shopName || 'Store'}\n` +
+    `Store Address: ${shopObj.address || 'N/A'}\n` +
+    `Customer: ${ord.customerName || 'N/A'}\n\n` +
+    `*Action:* ${actionText}\n\n` +
     `📍 *Shop Location:* https://www.google.com/maps/search/?api=1&query=${shopLoc}`;
   
   const phone = partner.phone.replace(/\D/g, '');
@@ -1242,6 +1250,11 @@ const Orders = () => {
             </div>
 
             <div className="px-8 pb-2">
+              {(!deliveryFee || parseFloat(deliveryFee) <= 0) && (
+                <div className="mb-3 px-4 py-2.5 bg-rose-50 border border-rose-100 rounded-2xl text-[9px] font-black text-rose-500 uppercase tracking-wider text-center">
+                  ⚠️ Enter a delivery fee to enable partner assignment
+                </div>
+              )}
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-3">Available Personnel</p>
             </div>
 
@@ -1311,22 +1324,27 @@ const Orders = () => {
                   );
                 }
 
+                const isAssignDisabled = !deliveryFee || parseFloat(deliveryFee) <= 0;
+
                 return rankedPartners.map(partner => (
                   <button
                     key={partner.id || partner._id}
+                    disabled={isAssignDisabled}
                     onClick={() => {
                       assignOrder(orderToAssign._id || orderToAssign.id, partner.id || partner._id, parseFloat(deliveryFee || 0), parseFloat(extraAmount || 0));
-                      if (orderToAssign.status === 'READY' || orderToAssign.status === 'PACKING') {
-                         notifyPartner(partner, orderToAssign);
-                      }
+                      // Send WhatsApp message to partner on assignment
+                      notifyPartner(partner, orderToAssign);
+                      
                       setOrderToAssign(null);
                       setDeliveryFee('');
                       setExtraAmount('');
                     }}
-                    className={`w-full p-4 rounded-[24px] border transition-all flex items-center justify-between active:scale-95 shadow-sm ${
-                      partner.rank === 0 ? 'bg-white border-gray-100 hover:bg-gray-50' : 
-                      partner.rank === 1 ? 'bg-sky-50/50 border-sky-100 hover:bg-sky-50' :
-                      'bg-gray-50/30 border-gray-100 opacity-80 grayscale-[0.5] hover:grayscale-0 hover:bg-white transition-all'
+                    className={`w-full p-4 rounded-[24px] border transition-all flex items-center justify-between shadow-sm ${
+                      isAssignDisabled
+                        ? 'bg-gray-100 border-gray-200 opacity-40 cursor-not-allowed pointer-events-none'
+                        : partner.rank === 0 ? 'bg-white border-gray-100 hover:bg-gray-50 active:scale-95' : 
+                          partner.rank === 1 ? 'bg-sky-50/50 border-sky-100 hover:bg-sky-50 active:scale-95' :
+                          'bg-gray-50/30 border-gray-100 opacity-80 grayscale-[0.5] hover:grayscale-0 hover:bg-white active:scale-95'
                     }`}
                   >
                     <div className="flex items-center gap-4">
