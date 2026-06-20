@@ -4,10 +4,13 @@ import {
   ShoppingBag, Search, Plus, Minus, Trash2, 
   ArrowLeft, Download, FileText, CheckCircle2, 
   Loader2, AlertCircle, Eye, ShoppingCart, 
-  Scale, Scan, Upload, ChevronRight, ChevronLeft, Store, Banknote, MapPin, XCircle
+  Scale, Scan, Upload, ChevronRight, ChevronLeft, Store, Banknote, MapPin, XCircle, X as XIcon, Printer
 } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import ProfessionalInvoicing from '../components/ProfessionalInvoicing';
 import api from '../../../config/api';
 
 const B2BProcurement = () => {
@@ -41,6 +44,11 @@ const B2BProcurement = () => {
 
   const [viewMode, setViewMode] = useState('SUPPLIERS'); // 'SUPPLIERS' or 'MY_ORDERS'
   const [myOrders, setMyOrders] = useState([]);
+
+  // Auto Invoice States
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [invoiceOrder, setInvoiceOrder] = useState(null);
+  const invoiceRef = useRef(null);
 
   // Pagination States
   const [supplierPage, setSupplierPage] = useState(1);
@@ -424,6 +432,26 @@ const B2BProcurement = () => {
       const res = await api.post('/orders', payload);
       if (res.data.success) {
         toast.success(confirmedAmount > 0 ? "Procurement Order with Payment Placed!" : "Procurement Order Placed!");
+        // Auto-generate invoice — build the invoice object from order data
+        const orderData = res.data.bill || res.data.order || res.data.data || {};
+        const invoiceData = {
+          ...orderData,
+          // Ensure we have all fields needed by ProfessionalInvoicing
+          items: payload.items,
+          totalPrice: payload.totalPrice,
+          customerName: vendorShop.name,
+          customerBusinessName: vendorShop.name,
+          customerBusinessAddress: vendorShop.address,
+          paymentMethod: payload.paymentMethod,
+          paymentStatus: finalPaymentStatus,
+          balanceDue: Math.max(0, totalAmount - confirmedAmount),
+          invoiceNumber: orderData._id ? `B2B-${orderData._id.toString().slice(-8).toUpperCase()}` : `B2B-${Date.now().toString().slice(-8)}`,
+          createdAt: orderData.createdAt || new Date().toISOString(),
+          _id: orderData._id || Date.now().toString()
+        };
+        setInvoiceOrder(invoiceData);
+        setShowInvoiceModal(true);
+        // Reset procurement state
         setProcureItems([]);
         setSelectedSupplier(null);
         setShowQRModal(false);
@@ -436,6 +464,37 @@ const B2BProcurement = () => {
       toast.error(err.message);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleDownloadInvoicePDF = async () => {
+    if (!invoiceRef.current) return;
+    try {
+      toast.info('Generating PDF...');
+      const canvas = await html2canvas(invoiceRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let position = 0;
+      if (imgHeight <= pageHeight) {
+        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      } else {
+        // Multi-page
+        while (position < imgHeight) {
+          pdf.addImage(imgData, 'PNG', 0, -position, imgWidth, imgHeight);
+          position += pageHeight;
+          if (position < imgHeight) pdf.addPage();
+        }
+      }
+      const invoiceNum = invoiceOrder?.invoiceNumber || 'B2B-Invoice';
+      pdf.save(`${invoiceNum}.pdf`);
+      toast.success('Invoice PDF downloaded!');
+    } catch (err) {
+      toast.error('Failed to generate PDF');
+      console.error(err);
     }
   };
 
@@ -648,8 +707,8 @@ const B2BProcurement = () => {
                              <p className="text-[11px] font-bold text-slate-400 mt-1 uppercase tracking-tight">{(order.items || []).length} Products · ₹{order.totalPrice}</p>
                           </div>
                        </div>
-                       <div className="flex items-center gap-4 text-right">
-                          <div className="text-right mr-4">
+                       <div className="flex items-center gap-3 text-right">
+                          <div className="text-right mr-2">
                              <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Placed On</p>
                              <p className="text-xs font-black text-slate-600 uppercase">{new Date(order.createdAt).toLocaleDateString()}</p>
                           </div>
@@ -658,16 +717,35 @@ const B2BProcurement = () => {
                           }`}>
                              {order.status}
                           </span>
-                           <button
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               handleDeleteOrder(order._id);
-                             }}
-                             className="w-10 h-10 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-500 flex items-center justify-center transition-all active:scale-95 ml-2"
-                             title="Delete Purchase"
-                           >
-                             <Trash2 size={16} />
-                           </button>
+                          {/* Tax Invoice Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const inv = {
+                                ...order,
+                                invoiceNumber: `B2B-${(order._id || '').toString().slice(-8).toUpperCase()}`,
+                                customerBusinessName: order.customerBusinessName || order.customerName,
+                                customerBusinessAddress: order.customerBusinessAddress || order.address,
+                              };
+                              setInvoiceOrder(inv);
+                              setShowInvoiceModal(true);
+                            }}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-sky-50 hover:bg-sky-500 border border-sky-100 hover:border-sky-500 text-sky-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm"
+                            title="View & Download Tax Invoice"
+                          >
+                            <FileText size={14} />
+                            <span className="hidden sm:inline">Invoice</span>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteOrder(order._id);
+                            }}
+                            className="w-10 h-10 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-500 flex items-center justify-center transition-all active:scale-95"
+                            title="Delete Purchase"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                        </div>
                     </div>
                   ))}
@@ -1490,6 +1568,66 @@ const B2BProcurement = () => {
                  </div>
               </div>
            </div>
+        </div>
+      )}
+
+      {/* ==================== B2B AUTO INVOICE MODAL ==================== */}
+      {showInvoiceModal && invoiceOrder && (
+        <div className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-start justify-center overflow-y-auto py-8 px-4">
+          <div className="relative w-full max-w-4xl">
+            {/* Action Bar */}
+            <div className="sticky top-0 z-10 flex items-center justify-between bg-slate-900/95 backdrop-blur-md rounded-2xl px-5 py-3 mb-4 shadow-2xl border border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-sky-500 flex items-center justify-center">
+                  <FileText size={16} className="text-white" />
+                </div>
+                <div>
+                  <p className="text-white font-black text-sm">B2B Tax Invoice Generated</p>
+                  <p className="text-slate-400 text-[10px] font-bold">{invoiceOrder.invoiceNumber} · Order Placed Successfully</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleDownloadInvoicePDF}
+                  className="flex items-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-black uppercase tracking-wide transition-all shadow-lg shadow-sky-500/30"
+                >
+                  <Download size={14} />
+                  Download PDF
+                </button>
+                <button
+                  onClick={() => { setShowInvoiceModal(false); setInvoiceOrder(null); }}
+                  className="w-9 h-9 flex items-center justify-center bg-slate-700 hover:bg-red-500 text-slate-300 hover:text-white rounded-xl transition-all"
+                >
+                  <XIcon size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Invoice Preview */}
+            <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
+              <div ref={invoiceRef}>
+                <ProfessionalInvoicing bill={invoiceOrder} shop={selectedSupplier || vendorShop} />
+              </div>
+            </div>
+
+            {/* Bottom CTA */}
+            <div className="mt-4 flex items-center justify-center gap-4">
+              <button
+                onClick={handleDownloadInvoicePDF}
+                className="flex items-center gap-2 px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-2xl text-sm font-black uppercase tracking-wide transition-all shadow-xl shadow-sky-500/30"
+              >
+                <Download size={16} />
+                Download Invoice PDF
+              </button>
+              <button
+                onClick={() => { setShowInvoiceModal(false); setInvoiceOrder(null); }}
+                className="flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl text-sm font-black uppercase tracking-wide transition-all"
+              >
+                <XIcon size={16} />
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

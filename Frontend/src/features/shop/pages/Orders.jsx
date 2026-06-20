@@ -1,16 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../shop/context/StoreContext';
 import { useAuth } from '../../auth/context/AuthContext';
 import {
   Phone, Clock, ShoppingBag, X, MapPin, Trash, Smartphone, Calendar,
   XCircle, MessageSquare, List, ChevronRight, Package, Truck, Store,
-  CheckCircle, AlertCircle, Download, Ticket, Gift, RotateCw, Eye, Banknote, Shield, User
+  CheckCircle, AlertCircle, Download, Ticket, Gift, RotateCw, Eye, Banknote, Shield, User, FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import ReceiptTemplate from '../components/ReceiptTemplate';
+import ProfessionalInvoicing from '../components/ProfessionalInvoicing';
 import Pagination from '../../common/components/Pagination';
 import LeafletMap from '../../common/components/LeafletMap';
 import api from '../../../config/api.js';
@@ -136,6 +137,49 @@ const Orders = () => {
   const [deliveryFee, setDeliveryFee] = useState('');
   const [extraAmount, setExtraAmount] = useState('');
   const [viewingImage, setViewingImage] = useState(null);
+
+  // B2B Invoice Modal State
+  const [showB2BInvoice, setShowB2BInvoice] = useState(false);
+  const [b2bInvoiceOrder, setB2bInvoiceOrder] = useState(null);
+  const b2bInvoiceRef = useRef(null);
+
+  const handleDownloadB2BInvoicePDF = async () => {
+    if (!b2bInvoiceRef.current) return;
+    try {
+      toast.info('Generating Invoice PDF...');
+      const canvas = await html2canvas(b2bInvoiceRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let position = 0;
+      if (imgHeight <= pageHeight) {
+        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      } else {
+        while (position < imgHeight) {
+          pdf.addImage(imgData, 'PNG', 0, -position, imgWidth, imgHeight);
+          position += pageHeight;
+          if (position < imgHeight) pdf.addPage();
+        }
+      }
+      pdf.save(`${b2bInvoiceOrder?.invoiceNumber || 'B2B-Invoice'}.pdf`);
+      toast.success('Invoice downloaded!');
+    } catch (err) {
+      toast.error('Failed to generate PDF');
+    }
+  };
+
+  const openB2BInvoice = (order) => {
+    setB2bInvoiceOrder({
+      ...order,
+      invoiceNumber: `B2B-${(order._id || '').toString().slice(-8).toUpperCase()}`,
+      customerBusinessName: order.customerBusinessName || order.customerName,
+      customerBusinessAddress: order.customerBusinessAddress || order.address,
+    });
+    setShowB2BInvoice(true);
+  };
 
   const isLoaded = true;
 
@@ -972,31 +1016,98 @@ const Orders = () => {
 
                 {/* Final Actions Footer */}
                 <div className="p-8 bg-slate-50 border-t border-slate-100">
-                   {selectedOrder.balanceDue > 0 ? (
-                     <button 
-                       onClick={async () => {
-                         const res = await updateOrderPayment(selectedOrder._id || selectedOrder.id, { paidAmount: selectedOrder.balanceDue, paymentMethod: 'CASH' });
-                         if (res.success) toast.success("Ledger Updated!");
-                       }}
-                       className="w-full py-5 bg-slate-900 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-emerald-600 transition-all flex items-center justify-center gap-3"
-                     >
-                        <Banknote size={18} /> Settle Due Balance
-                     </button>
-                   ) : (
-                     <button 
-                       onClick={() => generateAndDownloadPDF(selectedOrder)}
-                       className="w-full py-5 bg-sky-600 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-sky-700 transition-all flex items-center justify-center gap-3"
-                     >
-                        <Download size={18} /> Download Official Receipt
-                     </button>
-                   )}
-                </div>
+                    {selectedOrder.balanceDue > 0 ? (
+                      <button 
+                        onClick={async () => {
+                          const res = await updateOrderPayment(selectedOrder._id || selectedOrder.id, { paidAmount: selectedOrder.balanceDue, paymentMethod: 'CASH' });
+                          if (res.success) toast.success("Ledger Updated!");
+                        }}
+                        className="w-full py-5 bg-slate-900 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-emerald-600 transition-all flex items-center justify-center gap-3"
+                      >
+                         <Banknote size={18} /> Settle Due Balance
+                      </button>
+                    ) : isB2B ? (
+                      <button 
+                        onClick={() => openB2BInvoice(selectedOrder)}
+                        className="w-full py-5 bg-sky-600 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-sky-700 transition-all flex items-center justify-center gap-3"
+                      >
+                         <FileText size={18} /> Download B2B Tax Invoice
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => generateAndDownloadPDF(selectedOrder)}
+                        className="w-full py-5 bg-sky-600 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-sky-700 transition-all flex items-center justify-center gap-3"
+                      >
+                         <Download size={18} /> Download Official Receipt
+                      </button>
+                    )}
+                 </div>
               </div>
             </div>
           </div>
         </div>
       );
     })()}
+
+      {/* B2B Tax Invoice Modal (Supplier Side) */}
+      {showB2BInvoice && b2bInvoiceOrder && (
+        <div className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-start justify-center overflow-y-auto py-8 px-4">
+          <div className="relative w-full max-w-4xl">
+            {/* Action Bar */}
+            <div className="sticky top-0 z-10 flex items-center justify-between bg-slate-900/95 backdrop-blur-md rounded-2xl px-5 py-3 mb-4 shadow-2xl border border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-sky-500 flex items-center justify-center">
+                  <FileText size={16} className="text-white" />
+                </div>
+                <div>
+                  <p className="text-white font-black text-sm">B2B Tax Invoice</p>
+                  <p className="text-slate-400 text-[10px] font-bold">{b2bInvoiceOrder.invoiceNumber} · Supplier Copy</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleDownloadB2BInvoicePDF}
+                  className="flex items-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-black uppercase tracking-wide transition-all shadow-lg shadow-sky-500/30"
+                >
+                  <Download size={14} />
+                  Download PDF
+                </button>
+                <button
+                  onClick={() => { setShowB2BInvoice(false); setB2bInvoiceOrder(null); }}
+                  className="w-9 h-9 flex items-center justify-center bg-slate-700 hover:bg-red-500 text-slate-300 hover:text-white rounded-xl transition-all"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Invoice Preview */}
+            <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
+              <div ref={b2bInvoiceRef}>
+                <ProfessionalInvoicing bill={b2bInvoiceOrder} shop={vendorShop} />
+              </div>
+            </div>
+
+            {/* Bottom CTA */}
+            <div className="mt-4 flex items-center justify-center gap-4">
+              <button
+                onClick={handleDownloadB2BInvoicePDF}
+                className="flex items-center gap-2 px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-2xl text-sm font-black uppercase tracking-wide transition-all shadow-xl shadow-sky-500/30"
+              >
+                <Download size={16} />
+                Download Invoice PDF
+              </button>
+              <button
+                onClick={() => { setShowB2BInvoice(false); setB2bInvoiceOrder(null); }}
+                className="flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl text-sm font-black uppercase tracking-wide transition-all"
+              >
+                <X size={16} />
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
         {orderToDownload && (
