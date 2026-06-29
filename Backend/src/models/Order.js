@@ -40,6 +40,7 @@ const orderSchema = new mongoose.Schema({
   deliveryFee: { type: Number, default: 0 },
   extraAmount: { type: Number, default: 0 },
   platformFee: { type: Number, default: 0 },
+  isPlatformFeeSettled: { type: Boolean, default: false },
   balanceDue: { type: Number, default: 0 },
   pickupTime: { type: String, default: 'ASAP' },
   customerGstin: { type: String, default: '' },

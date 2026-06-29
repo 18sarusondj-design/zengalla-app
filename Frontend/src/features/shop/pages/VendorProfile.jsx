@@ -3,7 +3,9 @@ import { useAuth } from '../../auth/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../shop/context/StoreContext';
 import { useQueryParam } from '../../../hooks/useQueryParam';
-import { Store, MapPin, Camera, Save, Loader2, Mail, Phone, Info, Navigation, Power, CheckCircle, XCircle, Smartphone, QrCode, Printer, Truck, Shield, Key, Award, Download, Eye, EyeOff, Clock, Users, Plus, Trash2, Sparkles, Share2, MessageSquare, ExternalLink, Gift, X, Wallet, CreditCard, Zap, Globe, Search } from 'lucide-react';
+import VendorPlatformDues from '../components/VendorPlatformDues';
+import VendorSponsorship from '../components/VendorSponsorship';
+import { Store, MapPin, Camera, Save, Loader2, Mail, Phone, Info, Navigation, Power, CheckCircle, XCircle, Smartphone, QrCode, Printer, Truck, Shield, Key, Award, Download, Eye, EyeOff, Clock, Users, Plus, Trash2, Sparkles, Share2, MessageSquare, ExternalLink, Gift, X, Wallet, CreditCard, Zap, Globe, Search, Banknote, Lock } from 'lucide-react';
 import api from '../../../config/api.js';
 import { toast } from 'sonner';
 import { jsPDF } from 'jspdf';
@@ -569,9 +571,10 @@ const VendorProfile = () => {
   };
 
   const handleSubscriptionPayment = async (type, planName, durationDays, amount) => {
+    let toastId;
     try {
       setIsProcessingPayment(true);
-      const toastId = toast.loading('Initializing secure payment gateway...');
+      toastId = toast.loading('Initializing secure payment gateway...');
       
       // 1. Get Super Admin Public Key
       const keyRes = await api.get('/admin-payments/keys');
@@ -627,12 +630,13 @@ const VendorProfile = () => {
         }
       };
       
-      const rzp = new window.Razorpay(options);
+        const rzp = new window.Razorpay(options);
       rzp.on('payment.failed', function (response){
         toast.error('Payment failed or cancelled.');
       });
       rzp.open();
     } catch (err) {
+      if (toastId) toast.dismiss(toastId);
       toast.error(err.response?.data?.error || err.message || 'Payment failed');
     } finally {
       setIsProcessingPayment(false);
@@ -731,7 +735,8 @@ const VendorProfile = () => {
                   { id: 'marketing', label: 'Coupons & Offers', icon: Award, color: '#0ea5e9' },
                   { id: 'credit', label: 'Credit Ledger', icon: Wallet, color: '#0ea5e9' },
                   { id: 'wholesale', label: 'B2B Wholesale', icon: Shield, color: '#0ea5e9' },
-                  vendorShop?.isSponsored && { id: 'sponsorship', label: 'Sponsorship', icon: Sparkles, color: '#f59e0b' },
+                  { id: 'ledger', label: 'Platform Dues', icon: Banknote, color: '#f43f5e' },
+                  { id: 'sponsorship', label: 'Top Spot Sponsorship', icon: Sparkles, color: '#f59e0b' },
                 ].filter(Boolean).map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -1004,8 +1009,8 @@ const VendorProfile = () => {
 
                 {activeTab === 'location' && (
                   <div className="space-y-2 animate-in fade-in slide-in-from-bottom-3 duration-500 h-full flex flex-col">
-                    <div className="relative group h-64 rounded-[32px] overflow-hidden border-2 border-blue-50 shadow-xl bg-gray-50 flex items-center justify-center">
-                      <div className="w-full h-full relative cursor-pointer" onClick={() => setIsMapModalOpen(true)}>
+                    <div className={`relative group h-64 rounded-[32px] overflow-hidden border-2 border-blue-50 shadow-xl bg-gray-50 flex items-center justify-center ${vendorShop?.canEditLocation ? 'cursor-pointer' : 'opacity-70 pointer-events-none'}`}>
+                      <div className="w-full h-full relative" onClick={() => { if (vendorShop?.canEditLocation) setIsMapModalOpen(true); }}>
                         <LeafletMap
                           height="100%"
                           userCoords={formData.location?.coordinates}
@@ -1015,23 +1020,35 @@ const VendorProfile = () => {
                         />
 
                         {/* Hover Overlay */}
-                        <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-[2px] pointer-events-none z-[1000]">
-                          <div className="bg-white/90 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 transform translate-y-4 group-hover:translate-y-0 transition-all">
-                            <Navigation className="text-blue-500 animate-bounce" size={18} />
-                            <span className="font-black text-[10px] uppercase tracking-widest text-gray-800">Tap to Adjust Point</span>
+                        {vendorShop?.canEditLocation && (
+                          <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-[2px] pointer-events-none z-[1000]">
+                            <div className="bg-white/90 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 transform translate-y-4 group-hover:translate-y-0 transition-all">
+                              <Navigation className="text-blue-500 animate-bounce" size={18} />
+                              <span className="font-black text-[10px] uppercase tracking-widest text-gray-800">Tap to Adjust Point</span>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {!vendorShop?.canEditLocation && (
+                      <div className="p-4 bg-rose-50/80 border border-rose-100 rounded-2xl flex gap-3 items-start mt-2">
+                        <Lock size={16} className="text-rose-500 shrink-0 mt-0.5" />
+                        <p className="text-[9px] font-bold text-rose-700 leading-relaxed uppercase tracking-tight">
+                          Location is locked to ensure sponsorship and delivery accuracy. Please contact Super Admin to request a location change.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                       <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">PIN Code</label>
                         <input
                           type="text" maxLength="6" placeholder="580020"
                           value={formData.pinCode}
+                          disabled={!vendorShop?.canEditLocation}
                           onChange={(e) => setFormData({ ...formData, pinCode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
-                          className="w-full bg-white/80 border-2 border-blue-50 focus:border-blue-400 rounded-xl p-3 text-[11px] font-bold text-gray-800 transition-all outline-none"
+                          className={`w-full bg-white/80 border-2 border-blue-50 focus:border-blue-400 rounded-xl p-3 text-[11px] font-bold text-gray-800 transition-all outline-none ${!vendorShop?.canEditLocation ? 'opacity-50 cursor-not-allowed' : ''}`}
                         />
                       </div>
                       <div className="space-y-2">
@@ -1039,8 +1056,9 @@ const VendorProfile = () => {
                         <input
                           type="text" placeholder="DHARWAD"
                           value={formData.areaName}
+                          disabled={!vendorShop?.canEditLocation}
                           onChange={(e) => setFormData({ ...formData, areaName: e.target.value.toUpperCase() })}
-                          className="w-full bg-white/80 border-2 border-blue-50 focus:border-blue-400 rounded-xl p-3 text-[11px] font-bold text-gray-800 transition-all outline-none"
+                          className={`w-full bg-white/80 border-2 border-blue-50 focus:border-blue-400 rounded-xl p-3 text-[11px] font-bold text-gray-800 transition-all outline-none ${!vendorShop?.canEditLocation ? 'opacity-50 cursor-not-allowed' : ''}`}
                         />
                       </div>
                     </div>
@@ -1049,11 +1067,14 @@ const VendorProfile = () => {
                       <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest ml-4">Address Information</label>
                       <textarea
                         rows="2" value={formData.location.address}
+                        disabled={!vendorShop?.canEditLocation}
                         onChange={(e) => setFormData({ ...formData, location: { ...formData.location, address: e.target.value } })}
-                        className="w-full bg-white/80 border-2 border-blue-50 focus:border-blue-400 rounded-xl p-3 text-[11px] font-bold text-gray-800 transition-all outline-none resize-none"
+                        className={`w-full bg-white/80 border-2 border-blue-50 focus:border-blue-400 rounded-xl p-3 text-[11px] font-bold text-gray-800 transition-all outline-none resize-none ${!vendorShop?.canEditLocation ? 'opacity-50 cursor-not-allowed' : ''}`}
                       />
                     </div>
-                    <SectionSaveButton label="Location" />
+                    {vendorShop?.canEditLocation && (
+                      <SectionSaveButton label="Location" />
+                    )}
                   </div>
                 )}
 
@@ -1558,57 +1579,15 @@ const VendorProfile = () => {
                   </div>
                 )}
 
-                {activeTab === 'sponsorship' && vendorShop?.isSponsored && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
-                    {/* BOOST YOUR SALES SECTION */}
-                    <div className="bg-gradient-to-br from-rose-500 to-pink-600 rounded-[32px] p-6 text-white shadow-xl relative overflow-hidden">
-                      <div className="absolute right-0 top-0 opacity-10 transform translate-x-4 -translate-y-4">
-                        <Gift size={120} />
-                      </div>
-                      <h3 className="text-xl font-black uppercase tracking-tight mb-1">Boost Your Sales</h3>
-                      <p className="text-white/80 text-xs font-bold uppercase tracking-widest">Create a shop-wide offer banner to attract customers.</p>
+                {activeTab === 'ledger' && (
+                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <VendorPlatformDues />
+                  </div>
+                )}
 
-                      <div className="mt-6 space-y-4">
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black text-white/70 uppercase tracking-widest ml-1">Offer Message (Max 40 Chars)</label>
-                          <div className="relative">
-                            <input
-                              type="text"
-                              maxLength="40"
-                              placeholder="Reward Description"
-                              value={formData.promoBanner}
-                              onChange={(e) => setFormData({ ...formData, promoBanner: e.target.value })}
-                              className="w-full bg-white text-gray-900 rounded-2xl p-4 pr-12 text-xs font-bold outline-none focus:ring-4 focus:ring-white/20 transition-all"
-                            />
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-rose-500">
-                              <Sparkles size={18} />
-                            </div>
-                          </div>
-                        </div>
-
-                        {formData.promoBanner && (
-                          <div className="mt-6 pt-6 border-t border-white/10">
-                            <p className="text-[9px] font-black text-white/50 uppercase tracking-widest mb-3">Live Preview on Store Page</p>
-                            <div className="bg-rose-600/30 backdrop-blur-md rounded-2xl p-4 border border-white/10 flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-white text-rose-500 rounded-xl flex items-center justify-center shrink-0">
-                                  <Award size={20} />
-                                </div>
-                                <div>
-                                  <p className="text-[11px] font-black text-white uppercase tracking-tight">{formData.promoBanner}</p>
-                                  <p className="text-[8px] font-bold text-white/60 uppercase tracking-widest">Active Coupon: Apply at Checkout</p>
-                                </div>
-                              </div>
-                              <button type="button" className="px-4 py-2 bg-white text-rose-500 rounded-lg font-black text-[8px] uppercase tracking-widest shadow-lg active:scale-95 transition-all">
-                                Copy Code
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <SectionSaveButton label="Sponsorship Data" />
+                {activeTab === 'sponsorship' && (
+                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <VendorSponsorship vendorShop={vendorShop} />
                   </div>
                 )}
               </div>

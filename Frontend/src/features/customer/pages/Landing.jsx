@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Store, ShoppingBag, Smartphone, Truck, ArrowRight, Play, X, HelpCircle } from 'lucide-react';
 import { useAuth } from '../../auth/context/AuthContext';
 import ShopMapModal from '../components/ShopMapModal';
+import BannerCarousel from '../components/BannerCarousel';
 import Logo from '../../common/components/Logo';
 import PWAInstallButton from '../../common/components/PWAInstallButton';
 import SEO from '../../common/components/SEO';
@@ -78,6 +79,9 @@ const Landing = () => {
           </div>
         </div>
       </section>
+
+      {/* === GLOBAL BANNERS === */}
+      <BannerCarousel />
 
       {/* === HOW IT WORKS === */}
       <section className="px-6 py-16 bg-white">

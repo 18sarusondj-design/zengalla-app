@@ -6,6 +6,7 @@ import {
   CreditCard, ChevronRight, Store, Calendar, CheckCircle2,
   Package, Receipt, AlertCircle, Trash2
 } from 'lucide-react';
+import { toast } from 'sonner';
 import api from '../../../config/api.js';
 
 const cardPalettes = [
@@ -22,6 +23,7 @@ const Dues = () => {
   const [creditOrders, setCreditOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null); // selected order detail
+  const [isInitiatingPayment, setIsInitiatingPayment] = useState(false);
 
   useEffect(() => {
     if (token && user) fetchCredits();
@@ -89,6 +91,107 @@ const Dues = () => {
       : Math.max(0, total - paid);
     return s + due;
   }, 0);
+
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleOnlinePayment = async (order, balanceDue) => {
+    try {
+      setIsInitiatingPayment(true);
+      const loaded = await loadRazorpayScript();
+      if (!loaded || !window.Razorpay) {
+        toast.error('Payment gateway failed to load. Please check your internet connection.');
+        setIsInitiatingPayment(false);
+        return;
+      }
+
+      const shopId = order.shopId?._id || order.shopId;
+
+      // 1. Create Razorpay Order via Backend using Shop's credentials
+      const { data: orderData } = await api.post('/payments/razorpay/order', {
+        amount: balanceDue,
+        shopId: shopId
+      });
+
+      if (!orderData || !orderData.id) {
+        toast.error('Failed to initiate payment.');
+        setIsInitiatingPayment(false);
+        return;
+      }
+
+      // 2. Open Razorpay Popup
+      const options = {
+        key: orderData.key_id,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: order.shopId?.name || 'Grozy',
+        description: `Payment for Order #${(order._id || order.id).slice(-6)}`,
+        order_id: orderData.id,
+        handler: async function (response) {
+          try {
+            toast.loading("Verifying payment...", { id: 'verify-payment' });
+            
+            // 3. Verify Payment and Update Order
+            const { data: verifyData } = await api.post('/payments/razorpay/verify', {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              shopId: shopId,
+              orderId: order._id || order.id
+            });
+
+            if (verifyData.success) {
+              toast.success("Payment successful! Due cleared.", { id: 'verify-payment' });
+              setSelected(null);
+              fetchCredits(); // Refresh list
+            } else {
+              toast.error("Payment verification failed", { id: 'verify-payment' });
+            }
+          } catch (err) {
+            console.error("Verification error:", err);
+            toast.error(err.response?.data?.error || "Payment verification failed", { id: 'verify-payment' });
+          } finally {
+            setIsInitiatingPayment(false);
+          }
+        },
+        prefill: {
+          name: order.customerName || user?.name || '',
+          email: order.email || user?.email || '',
+          contact: order.phone || user?.phone || ''
+        },
+        theme: { color: '#0ea5e9' },
+        modal: {
+          ondismiss: function() {
+            setIsInitiatingPayment(false);
+            toast.error("Payment cancelled");
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response) {
+        setIsInitiatingPayment(false);
+        toast.error(response.error.description || "Payment failed");
+      });
+      rzp.open();
+
+    } catch (err) {
+      console.error("Payment setup error:", err);
+      toast.error(err.response?.data?.error || "Failed to start payment");
+      setIsInitiatingPayment(false);
+    }
+  };
 
   // ─── DETAIL VIEW ───────────────────────────────────────────────
   if (selected) {
@@ -235,16 +338,32 @@ const Dues = () => {
             style={{ background: 'linear-gradient(135deg,#1e0a3c,#3b1584)' }}>
             <div className="absolute top-0 right-0 w-40 h-40 rounded-full pointer-events-none"
               style={{ background: 'radial-gradient(circle,rgba(167,139,250,0.15) 0%,transparent 70%)', transform: 'translate(40%,-50%)' }} />
-            <div className="relative flex items-start gap-4">
-              <div className="w-10 h-10 bg-white/10 border border-white/10 rounded-xl flex items-center justify-center shrink-0 text-sky-400">
-                <AlertCircle size={18} />
-              </div>
-              <div>
-                <h4 className="font-black text-white text-sm mb-1">How to settle this due</h4>
-                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest leading-relaxed">
-                  Visit <span className="text-violet-300">{order.shopId?.name || 'the store'}</span> and pay ₹{balanceDue.toLocaleString()} at the counter. The amount will be cleared automatically once the vendor records it.
-                </p>
-              </div>
+            <div className="relative flex flex-col gap-4">
+               <div className="flex items-start gap-4">
+                 <div className="w-10 h-10 bg-white/10 border border-white/10 rounded-xl flex items-center justify-center shrink-0 text-sky-400">
+                   <AlertCircle size={18} />
+                 </div>
+                 <div>
+                   <h4 className="font-black text-white text-sm mb-1">How to settle this due</h4>
+                   <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest leading-relaxed">
+                     Visit <span className="text-violet-300">{order.shopId?.name || 'the store'}</span> and pay ₹{balanceDue.toLocaleString()} at the counter. The amount will be cleared automatically once the vendor records it.
+                   </p>
+                 </div>
+               </div>
+               
+               {/* Online Payment Option */}
+               {order.shopId?.razorpayKeyId && balanceDue > 0 && (
+                 <div className="mt-2 pt-4 border-t border-white/10">
+                    <button 
+                      onClick={() => handleOnlinePayment(order, balanceDue)}
+                      disabled={isInitiatingPayment}
+                      className="w-full bg-brand-primary hover:bg-brand-primary/90 text-white py-3 rounded-[16px] flex items-center justify-center gap-2 font-black text-xs uppercase tracking-widest transition-all active:scale-95 disabled:opacity-70 shadow-lg shadow-brand-primary/20"
+                    >
+                      <CreditCard size={16} />
+                      {isInitiatingPayment ? 'Processing...' : `Pay ₹${balanceDue.toLocaleString()} Online`}
+                    </button>
+                 </div>
+               )}
             </div>
           </div>
 

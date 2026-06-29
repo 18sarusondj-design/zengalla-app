@@ -402,6 +402,11 @@ export const updateShop = async (req, res) => {
       delete updateData.razorpayKeySecret;
     }
 
+    // Auto-lock location if it was just changed
+    if (isPinChanged || isLocationChanged) {
+      updateData.canEditLocation = false;
+    }
+
     // Force uppercase for identification fields
     if (updateData.gstin) updateData.gstin = updateData.gstin.toUpperCase();
     if (updateData.fssai) updateData.fssai = updateData.fssai.toUpperCase();

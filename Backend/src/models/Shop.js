@@ -73,6 +73,7 @@ const shopSchema = new mongoose.Schema({
   storeCode: { type: String, unique: true, sparse: true },
   paymentQR: { type: String, default: '' },
   pinCode: { type: String, index: true },
+  canEditLocation: { type: Boolean, default: false },
   areaName: { type: String, default: '' },
   subscriptionPlan: { type: String, enum: ['none', 'basic', 'premium'], default: 'none' },
   softwarePlanName: { type: String, default: '' }, // e.g., '30-Day Free Trial', '1 Month Paid'

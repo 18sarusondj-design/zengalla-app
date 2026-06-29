@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../../shop/context/StoreContext';
-import { CheckCircle2, ChevronLeft, Package, Clock, Phone, XCircle, MessageSquare, MapPin, ChevronDown, Truck, Star } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, Package, Clock, Phone, XCircle, MessageSquare, MapPin, ChevronDown, Truck, Star, CreditCard } from 'lucide-react';
 import FullScreenLoader from '../components/FullScreenLoader';
 import api from '../../../config/api.js';
 import { toast } from 'sonner';
@@ -20,7 +20,7 @@ const OrderStatus = () => {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
   const [trackingData, setTrackingData] = useState(null);
-
+  const [isInitiatingPayment, setIsInitiatingPayment] = useState(false);
   
   // Get order ID from state (post-checkout) or default to newest order for demo
   const orderId = location.state?.orderId || (orders[0]?._id || orders[0]?.id);
@@ -134,6 +134,104 @@ const OrderStatus = () => {
   const platformFee = order.platformFee || 0;
   const totalPayable = itemsSubtotal + deliveryCharges + platformFee;
 
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleOnlinePayment = async () => {
+    try {
+      setIsInitiatingPayment(true);
+      const loaded = await loadRazorpayScript();
+      if (!loaded || !window.Razorpay) {
+        toast.error('Payment gateway failed to load. Please check your internet connection.');
+        setIsInitiatingPayment(false);
+        return;
+      }
+
+      // 1. Create Razorpay Order via Backend using Shop's credentials
+      const { data: orderData } = await api.post('/payments/razorpay/order', {
+        amount: order.balanceDue,
+        shopId: order.shopId?._id || order.shopId
+      });
+
+      if (!orderData || !orderData.id) {
+        toast.error('Failed to initiate payment.');
+        setIsInitiatingPayment(false);
+        return;
+      }
+
+      // 2. Open Razorpay Popup
+      const options = {
+        key: orderData.key_id,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: shop?.name || 'Grozy',
+        description: `Payment for Order #${(order._id || order.id).slice(-6)}`,
+        order_id: orderData.id,
+        handler: async function (response) {
+          try {
+            toast.loading("Verifying payment...", { id: 'verify-payment' });
+            
+            // 3. Verify Payment and Update Order
+            const { data: verifyData } = await api.post('/payments/razorpay/verify', {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              shopId: order.shopId?._id || order.shopId,
+              orderId: order._id || order.id
+            });
+
+            if (verifyData.success) {
+              toast.success("Payment successful! Order updated.", { id: 'verify-payment' });
+              // Refresh page to get latest order status
+              window.location.reload(); 
+            } else {
+              toast.error("Payment verification failed", { id: 'verify-payment' });
+            }
+          } catch (err) {
+            console.error("Verification error:", err);
+            toast.error(err.response?.data?.error || "Payment verification failed", { id: 'verify-payment' });
+          } finally {
+            setIsInitiatingPayment(false);
+          }
+        },
+        prefill: {
+          name: order.customerName || '',
+          email: order.email || '',
+          contact: order.phone || ''
+        },
+        theme: { color: '#0ea5e9' },
+        modal: {
+          ondismiss: function() {
+            setIsInitiatingPayment(false);
+            toast.error("Payment cancelled");
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response) {
+        setIsInitiatingPayment(false);
+        toast.error(response.error.description || "Payment failed");
+      });
+      rzp.open();
+
+    } catch (err) {
+      console.error("Payment setup error:", err);
+      toast.error(err.response?.data?.error || "Failed to start payment");
+      setIsInitiatingPayment(false);
+    }
+  };
 
 
   const handleCancel = async () => {
@@ -468,6 +566,25 @@ const OrderStatus = () => {
 
         {/* Action Buttons */}
         <div className="flex flex-col gap-2 mt-2">
+          
+          {/* Online Payment for COD / Dues */}
+          {order.paymentMethod === 'CASH' && order.balanceDue > 0 && !isCancelled && currentStatus !== 'COMPLETED' && shop?.razorpayKeyId && (
+            <div className="bg-sky-50 rounded-[24px] p-4 border-2 border-sky-100 flex flex-col gap-3 shadow-lg shadow-sky-100/50">
+               <div>
+                  <h3 className="text-sm font-black text-sky-900 uppercase tracking-tight">Prefer Cashless?</h3>
+                  <p className="text-[10px] font-bold text-sky-700 uppercase tracking-widest mt-0.5">Pay online now or pay cash to the delivery partner.</p>
+               </div>
+               <button 
+                  onClick={handleOnlinePayment}
+                  disabled={isInitiatingPayment}
+                  className="bg-brand-primary text-white py-4 rounded-[18px] flex items-center justify-center gap-2 font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-brand-primary/20 disabled:opacity-70"
+               >
+                 <CreditCard size={18} />
+                 {isInitiatingPayment ? 'Connecting...' : `Pay ₹${order.balanceDue} Securely`}
+               </button>
+            </div>
+          )}
+
           {order.status === 'NEW' && !isCancelled ? (
             <button 
               onClick={handleCancel}

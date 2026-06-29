@@ -4,7 +4,8 @@ import {
   getStats, getReports, replyToReport, getAllShops, toggleSponsorship,
   deleteReport, updateShopPlan, getSystemSettings, updateSystemSettings,
   getAllDeliveryPartners, updateDeliveryPartner, deleteDeliveryPartner, toggleShopBannersAccess,
-  getSponsorships, createSponsorship, updateSponsorship, deleteSponsorship, getShopsByPinCode
+  getSponsorships, createSponsorship, updateSponsorship, deleteSponsorship, getShopsByPinCode, getUserTransactions,
+  unlockShopLocation
 } from '../controllers/adminController.js';
 
 import { authenticate, requireRole } from '../middleware/auth.js';
@@ -23,7 +24,9 @@ router.patch('/users/:id/status', updateUserStatus);
 router.patch('/users/:id/role', updateUserRole);
 router.patch('/shops/:id/sponsor', toggleSponsorship);
 router.patch('/shops/:id/plan', updateShopPlan);
+router.post('/shops/:id/unlock-location', unlockShopLocation);
 router.patch('/shops/:id/banners-access', toggleShopBannersAccess);
+router.get('/users/:shopId/transactions', getUserTransactions);
 router.delete('/users/:id', deleteUser);
 router.delete('/reports/:id', deleteReport);
 

@@ -3,6 +3,8 @@ import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import Shop from '../models/Shop.js';
 import SystemSettings from '../models/SystemSettings.js';
+import Transaction from '../models/Transaction.js';
+import Sponsorship from '../models/Sponsorship.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -37,7 +39,7 @@ router.get('/keys', authenticate, async (req, res) => {
 router.post('/create-order', authenticate, async (req, res) => {
   try {
     const { amount, type } = req.body;
-    if (!['MASTER_CATALOG_UNLOCK', 'SHOP_SUBSCRIPTION', 'BANNER_SUBSCRIPTION'].includes(type)) {
+    if (!['MASTER_CATALOG_UNLOCK', 'SHOP_SUBSCRIPTION', 'BANNER_SUBSCRIPTION', 'SPONSORSHIP'].includes(type)) {
       return res.status(400).json({ error: 'Invalid payment type' });
     }
 
@@ -45,7 +47,7 @@ router.post('/create-order', authenticate, async (req, res) => {
     const options = {
       amount: amount * 100, // paise
       currency: 'INR',
-      receipt: `rcpt_mc_${req.user._id}_${Date.now()}`
+      receipt: `r_${req.user._id.toString().slice(-6)}_${Date.now()}`
     };
 
     const order = await rzp.orders.create(options);
@@ -73,6 +75,19 @@ router.post('/verify-payment', authenticate, async (req, res) => {
       .digest('hex');
 
     if (expectedSignature === razorpay_signature) {
+      const rzp = await getSuperAdminRazorpay();
+      const paymentDetails = await rzp.payments.fetch(razorpay_payment_id);
+      const amount = paymentDetails.amount / 100;
+
+      await Transaction.create({
+        shopId,
+        type,
+        planName,
+        amount,
+        paymentId: razorpay_payment_id,
+        orderId: razorpay_order_id
+      });
+
       if (type === 'MASTER_CATALOG_UNLOCK') {
         await Shop.findByIdAndUpdate(shopId, { masterCatalogEnabled: true });
         res.json({ success: true, message: 'Master Catalog Unlocked Successfully!' });
@@ -92,6 +107,52 @@ router.post('/verify-payment', authenticate, async (req, res) => {
         shop.bannersPlan = planName;
         await shop.save();
         res.json({ success: true, message: 'Banner Subscription Activated Successfully!' });
+      } else if (type === 'SPONSORSHIP') {
+        const shop = await Shop.findById(shopId);
+        if (!shop || !shop.pinCode) {
+          return res.status(400).json({ error: 'Shop or PIN code missing' });
+        }
+        const pinCode = shop.pinCode;
+
+        // Find the earliest available slot for this pincode
+        // Get the latest endDate for each of the 4 slots
+        const activeSponsorships = await Sponsorship.find({
+          pinCode,
+          endDate: { $gte: new Date() }
+        });
+
+        // Track max endDate per slot
+        const slotEnds = { 1: Date.now(), 2: Date.now(), 3: Date.now(), 4: Date.now() };
+        activeSponsorships.forEach(s => {
+          const sEnd = new Date(s.endDate).getTime();
+          if (sEnd > slotEnds[s.slotNumber]) {
+            slotEnds[s.slotNumber] = sEnd;
+          }
+        });
+
+        // Find the slot with the earliest available time
+        let bestSlot = 1;
+        let earliestAvail = slotEnds[1];
+        for (let i = 2; i <= 4; i++) {
+          if (slotEnds[i] < earliestAvail) {
+            earliestAvail = slotEnds[i];
+            bestSlot = i;
+          }
+        }
+
+        const startDate = new Date(Math.max(Date.now(), earliestAvail));
+        const endDate = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+        await Sponsorship.create({
+          shopId,
+          pinCode,
+          startDate,
+          endDate,
+          slotNumber: bestSlot,
+          priority: bestSlot // Priority determines display order
+        });
+        
+        res.json({ success: true, message: 'Sponsorship Slot Booked Successfully!' });
       } else {
         res.json({ success: true, message: 'Payment verified!' });
       }

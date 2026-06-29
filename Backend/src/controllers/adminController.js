@@ -4,6 +4,7 @@ import Order from '../models/Order.js';
 import Report from '../models/Report.js';
 import SystemSettings from '../models/SystemSettings.js';
 import Sponsorship from '../models/Sponsorship.js';
+import Transaction from '../models/Transaction.js';
 
 // GET /api/admin/users?role=
 export const getUsers = async (req, res) => {
@@ -312,6 +313,22 @@ export const updateShopPlan = async (req, res) => {
   }
 };
 
+// POST /api/admin/shops/:id/unlock-location
+export const unlockShopLocation = async (req, res) => {
+  try {
+    const shop = await Shop.findByIdAndUpdate(
+      req.params.id, 
+      { canEditLocation: true }, 
+      { new: true }
+    ).select('-razorpayKeySecret');
+    
+    if (!shop) return res.status(404).json({ error: 'Shop not found' });
+    res.json({ success: true, shop, message: 'Location edit unlocked for this shop.' });
+  } catch (err) {
+    console.error('UNLOCK_LOCATION_ERROR:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
 // GET /api/admin/system-settings
 export const getSystemSettings = async (req, res) => {
   try {
@@ -533,6 +550,17 @@ export const getShopsByPinCode = async (req, res) => {
     const { pinCode } = req.params;
     const shops = await Shop.find({ pinCode }).select('-razorpayKeySecret');
     res.json({ success: true, shops });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/admin/users/:shopId/transactions
+export const getUserTransactions = async (req, res) => {
+  try {
+    const { shopId } = req.params;
+    const transactions = await Transaction.find({ shopId }).sort({ createdAt: -1 });
+    res.json({ success: true, transactions });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

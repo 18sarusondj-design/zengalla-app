@@ -6,6 +6,7 @@ const sponsorshipSchema = new mongoose.Schema({
   priority: { type: Number, default: 1 },
   startDate: { type: Date, required: true },
   endDate: { type: Date, required: true },
+  slotNumber: { type: Number, required: true, min: 1, max: 4 },
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 

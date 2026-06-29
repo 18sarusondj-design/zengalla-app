@@ -52,6 +52,12 @@ const FeaturedCarousel = memo(({ featuredShops, navigate }) => {
         <div className="h-px flex-1 bg-gradient-to-r from-sky-200 dark:from-sky-800 to-transparent" />
       </div>
 
+      <style>{`
+        @keyframes slideProgress {
+          0% { width: 0%; }
+          100% { width: 100%; }
+        }
+      `}</style>
       {/* Cinematic Banner */}
       <div className="relative rounded-[28px] overflow-hidden shadow-2xl shadow-sky-900/20 border border-sky-200/30 dark:border-slate-800 h-56 md:h-72 bg-gray-900">
         {featuredShops.map((shop, idx) => (
@@ -150,7 +156,7 @@ const FeaturedCarousel = memo(({ featuredShops, navigate }) => {
         ))}
 
         {/* Dot indicators */}
-        {featuredShops.length > 1 && (
+        {featuredShops.length > 0 && (
           <div className="absolute bottom-4 right-5 flex items-center gap-1.5 z-20">
             {featuredShops.map((_, idx) => (
               <button
@@ -160,11 +166,23 @@ const FeaturedCarousel = memo(({ featuredShops, navigate }) => {
                   e.stopPropagation();
                   goToSlide(idx);
                 }}
-                className={`rounded-full transition-all duration-300 ${
-                  idx === activeSlide ? 'w-5 h-2 bg-sky-500' : 'w-2 h-2 bg-white/40 hover:bg-white/70'
+                className={`relative overflow-hidden rounded-full transition-all duration-300 ${
+                  idx === activeSlide ? 'w-10 h-2 bg-black/30 dark:bg-white/30' : 'w-2 h-2 bg-white/50 hover:bg-white/80'
                 }`}
-              />
-
+              >
+                {idx === activeSlide && featuredShops.length > 1 && (
+                  <div 
+                    className="absolute top-0 left-0 h-full bg-sky-500 rounded-full"
+                    style={{
+                      width: '0%',
+                      animation: 'slideProgress 5s linear forwards'
+                    }}
+                  />
+                )}
+                {idx === activeSlide && featuredShops.length === 1 && (
+                  <div className="absolute top-0 left-0 h-full w-full bg-sky-500 rounded-full" />
+                )}
+              </button>
             ))}
           </div>
         )}

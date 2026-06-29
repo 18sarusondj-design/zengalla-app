@@ -2,32 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const MOCK_BANNERS = [
-  {
-    id: 1,
-    imageUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200&h=400',
-    title: 'Fresh Organic Produce',
-    subtitle: 'Up to 20% off on all vegetables today!',
-    linkType: 'category',
-    linkUrl: 'Vegetables'
-  },
-  {
-    id: 2,
-    imageUrl: 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&q=80&w=1200&h=400',
-    title: 'Daily Essentials',
-    subtitle: 'Stock up your pantry with best deals.',
-    linkType: 'custom',
-    linkUrl: '/offers'
-  },
-  {
-    id: 3,
-    imageUrl: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=1200&h=400',
-    title: 'Premium Spices',
-    subtitle: 'Discover the rich flavors of India.',
-    linkType: 'store',
-    linkUrl: '/store/premium-spices'
-  }
-];
+import api from '../../../config/api.js';
 
 const BannerCarousel = () => {
   const [banners, setBanners] = useState([]);
@@ -40,12 +15,18 @@ const BannerCarousel = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Simulate fetching banners
     const fetchBanners = async () => {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 800)); // Simulate network
-      setBanners(MOCK_BANNERS);
-      setLoading(false);
+      try {
+        const { data } = await api.get('/global-banners');
+        if (data && data.success) {
+          setBanners(data.banners);
+        }
+      } catch (error) {
+        console.error("Failed to load banners:", error);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchBanners();
   }, []);
@@ -63,7 +44,7 @@ const BannerCarousel = () => {
     
     timerRef.current = setInterval(() => {
       nextSlide();
-    }, 4000);
+    }, 3000);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -94,21 +75,11 @@ const BannerCarousel = () => {
   const handleBannerClick = (banner) => {
     if (!banner.linkUrl) return;
     
-    // Simulate routing based on linkType
-    switch (banner.linkType) {
-      case 'product':
-        // Navigate to product modal or page (handled by parent usually, but we simulate custom URL)
-        console.log(`Opening product ${banner.linkUrl}`);
-        break;
-      case 'category':
-        console.log(`Filtering by category ${banner.linkUrl}`);
-        break;
-      case 'store':
-        console.log(`Opening store ${banner.linkUrl}`);
-        break;
-      default:
-        navigate(banner.linkUrl);
-        break;
+    // Open external URL in a new tab if it starts with http/https
+    if (banner.linkUrl.startsWith('http://') || banner.linkUrl.startsWith('https://')) {
+      window.open(banner.linkUrl, '_blank');
+    } else {
+      navigate(banner.linkUrl);
     }
   };
 
@@ -130,6 +101,12 @@ const BannerCarousel = () => {
          onTouchMove={handleTouchMove}
          onTouchEnd={handleTouchEnd}
     >
+      <style>{`
+        @keyframes slideProgress {
+          0% { width: 0%; }
+          100% { width: 100%; }
+        }
+      `}</style>
       <div className="relative w-full aspect-[21/9] md:aspect-[21/7] lg:aspect-[21/6] rounded-2xl md:rounded-3xl overflow-hidden shadow-md border border-gray-100 dark:border-slate-800 cursor-pointer">
         {/* Slides Container */}
         <div 
@@ -138,7 +115,7 @@ const BannerCarousel = () => {
         >
           {banners.map((banner) => (
             <div 
-              key={banner.id} 
+              key={banner._id || banner.id} 
               className="min-w-full h-full relative"
               onClick={() => handleBannerClick(banner)}
             >
@@ -186,19 +163,32 @@ const BannerCarousel = () => {
         )}
 
         {/* Pagination Dots */}
-        {banners.length > 1 && (
+        {banners.length > 0 && (
           <div className="absolute bottom-2 md:bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 md:gap-2">
             {banners.map((_, index) => (
               <button
                 key={index}
                 onClick={(e) => { e.stopPropagation(); setCurrentIndex(index); }}
-                className={`transition-all duration-300 rounded-full ${
+                className={`relative overflow-hidden transition-all duration-300 rounded-full ${
                   currentIndex === index 
-                    ? 'w-4 md:w-6 h-1.5 md:h-2 bg-sky-500' 
+                    ? 'w-8 md:w-12 h-1.5 md:h-2 bg-black/30 dark:bg-white/30' 
                     : 'w-1.5 md:w-2 h-1.5 md:h-2 bg-white/50 hover:bg-white/80'
                 }`}
                 aria-label={`Go to slide ${index + 1}`}
-              />
+              >
+                {currentIndex === index && banners.length > 1 && (
+                  <div 
+                    className="absolute top-0 left-0 h-full bg-sky-500 rounded-full"
+                    style={{
+                      width: isPaused ? '100%' : '0%',
+                      animation: isPaused ? 'none' : 'slideProgress 3s linear forwards'
+                    }}
+                  />
+                )}
+                {currentIndex === index && banners.length === 1 && (
+                  <div className="absolute top-0 left-0 h-full w-full bg-sky-500 rounded-full" />
+                )}
+              </button>
             ))}
           </div>
         )}

@@ -1,6 +1,8 @@
 import RazorpayPkg from 'razorpay';
 import crypto from 'crypto';
 import Shop from '../models/Shop.js';
+import Order from '../models/Order.js';
+import { sendPushNotification } from '../services/notificationService.js';
 
 const Razorpay = RazorpayPkg.default || RazorpayPkg;
 
@@ -77,6 +79,32 @@ export const verifyRazorpayPayment = async (req, res) => {
       .digest('hex');
 
     if (expectedSignature === razorpay_signature) {
+      // If an orderId is passed, this is a post-placement payment (like settling Dues or paying COD online)
+      if (req.body.orderId) {
+        const order = await Order.findById(req.body.orderId);
+        if (order) {
+          const amountPaid = order.balanceDue;
+          order.balanceDue = 0;
+          order.paymentStatus = 'PAID';
+          order.onlineAmount = (order.onlineAmount || 0) + amountPaid;
+          
+          if (!order.paymentMethod.includes('ONLINE')) {
+             order.paymentMethod = order.paymentMethod === 'PAY_LATER' ? 'ONLINE' : 'SPLIT';
+          }
+          await order.save();
+
+          // Notify the Vendor
+          if (shop.owner) {
+             sendPushNotification(shop.owner, {
+               title: '💰 Online Payment Received!',
+               body: `A customer just paid ₹${amountPaid} online for Order #${order._id.toString().slice(-6)}.`,
+               url: '/vendor/dashboard/orders',
+               priority: 'high',
+               tag: `payment-${order._id}`
+             });
+          }
+        }
+      }
       res.json({ success: true });
     } else {
       res.status(400).json({ success: false, error: 'Invalid signature' });

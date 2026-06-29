@@ -22,6 +22,9 @@ import bannerRoutes from './routes/banners.js';
 import payoutRoutes from './routes/payoutRoutes.js';
 import masterProductRoutes from './routes/masterProducts.js';
 import adminPaymentRoutes from './routes/adminPayments.js';
+import ledgerRoutes from './routes/ledgerRoutes.js';
+import sponsorshipRoutes from './routes/sponsorshipRoutes.js';
+import globalBannerRoutes from './routes/globalBanners.js';
 
 const app = express();
 
@@ -85,6 +88,8 @@ app.use('/api/banners', bannerRoutes);
 app.use('/api/payouts', payoutRoutes);
 app.use('/api/master-products', masterProductRoutes);
 app.use('/api/admin-payments', adminPaymentRoutes);
+app.use('/api/sponsorship', sponsorshipRoutes);
+app.use('/api/global-banners', globalBannerRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

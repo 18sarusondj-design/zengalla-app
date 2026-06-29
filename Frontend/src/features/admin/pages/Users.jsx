@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../auth/context/AuthContext';
-import { Users as UsersIcon, Search, Trash2, Download, ShieldCheck, ShieldAlert, Sparkles, Clock, Calendar, RefreshCcw, Phone, MessageSquare, Map, Globe, Zap, Award, MapPin } from 'lucide-react';
+import { Users as UsersIcon, Search, Trash2, Download, ShieldCheck, ShieldAlert, Sparkles, Clock, Calendar, RefreshCcw, Phone, MessageSquare, Map, Globe, Zap, Award, MapPin, Banknote } from 'lucide-react';
 import { toast } from 'sonner';
 import Pagination from '../../common/components/Pagination';
 import api from '../../../config/api.js';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import SafeDeleteModal from '../../common/components/SafeDeleteModal';
+import AdminVendorLedgerModal from '../components/AdminVendorLedgerModal';
 
 const Users = ({ roleFilter }) => {
   const { token, user: currentUser } = useAuth();
@@ -24,16 +25,39 @@ const Users = ({ roleFilter }) => {
   const [modalData, setModalData] = useState(null);
   const [isModified, setIsModified] = useState(false);
   const [isSafeDeleteOpen, setIsSafeDeleteOpen] = useState(false);
+  const [ledgerVendor, setLedgerVendor] = useState(null);
+
+  // Transaction History State
+  const [transactions, setTransactions] = useState([]);
+  const [isTransactionsLoading, setIsTransactionsLoading] = useState(false);
+  const [showTransactionsModal, setShowTransactionsModal] = useState(false);
 
   // Lock background scroll when modal is open
   useEffect(() => {
-    if (selectedVendor) {
+    if (selectedVendor || showTransactionsModal || ledgerVendor) {
       document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      const root = document.getElementById('root');
+      if (root) root.style.overflow = 'hidden';
+      const adminScroll = document.getElementById('admin-main-scroll');
+      if (adminScroll) adminScroll.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+      const root = document.getElementById('root');
+      if (root) root.style.overflow = '';
+      const adminScroll = document.getElementById('admin-main-scroll');
+      if (adminScroll) adminScroll.style.overflow = '';
     }
-    return () => { document.body.style.overflow = ''; };
-  }, [selectedVendor]);
+    return () => { 
+      document.body.style.overflow = ''; 
+      document.documentElement.style.overflow = '';
+      const root = document.getElementById('root');
+      if (root) root.style.overflow = '';
+      const adminScroll = document.getElementById('admin-main-scroll');
+      if (adminScroll) adminScroll.style.overflow = '';
+    };
+  }, [selectedVendor, showTransactionsModal, ledgerVendor]);
 
   useEffect(() => {
     fetchUsers();
@@ -60,6 +84,25 @@ const Users = ({ roleFilter }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchTransactions = async (shopId) => {
+    setIsTransactionsLoading(true);
+    try {
+      const { data } = await api.get(`/admin/users/${shopId}/transactions`);
+      if (data.success) {
+        setTransactions(data.transactions);
+      }
+    } catch (err) {
+      toast.error('Failed to fetch transaction history');
+    } finally {
+      setIsTransactionsLoading(false);
+    }
+  };
+
+  const handleViewHistory = (shopId) => {
+    setShowTransactionsModal(true);
+    fetchTransactions(shopId);
   };
 
   const handleDownloadPDF = () => {
@@ -230,14 +273,40 @@ const Users = ({ roleFilter }) => {
       doc.text("Thank you for your continued partnership!", 40, 160);
       
       // Save directly
-      doc.save(`Renewal_Notice_${u.name ? u.name.replace(/\s+/g, '_') : 'Vendor'}.pdf`);
-
+      doc.save(`${u.shopName ? u.shopName.replace(/\s+/g, '_') : 'Vendor'}_Notice.pdf`);
     } catch (err) {
-      toast.error(err.message || 'Failed to dispatch message');
+      console.error(err);
+      toast.error('Failed to process request');
     } finally {
       setIsProcessing(null);
     }
   };
+
+  const handlePaymentReminderWhatsApp = (u) => {
+    const phone = u.phone || '';
+    const cleanPhone = phone.replace(/\D/g, '').length === 10 ? `91${phone.replace(/\D/g, '')}` : phone.replace(/\D/g, '');
+    let msg = '';
+    
+    const expiresAt = u.planExpiresAt ? new Date(u.planExpiresAt) : null;
+    if (expiresAt) {
+      if (expiresAt > new Date()) {
+        const timeStr = expiresAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const dateStr = expiresAt.toLocaleDateString();
+        msg = `Hi ${u.name || 'Partner'}, your software plan for "${u.shopName || 'Grozy Shop'}" will expire on ${dateStr} at ${timeStr}. To avoid any damage or interruption to your services, please subscribe and renew your plan before it expires.`;
+      } else {
+        const timeStr = expiresAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const dateStr = expiresAt.toLocaleDateString();
+        msg = `Hi ${u.name || 'Partner'}, your software plan for "${u.shopName || 'Grozy Shop'}" has EXPIRED on ${dateStr} at ${timeStr}. To avoid any damage or interruption to your services, please subscribe and renew your plan immediately.`;
+      }
+    } else {
+      msg = `Hi ${u.name || 'Partner'}, your software plan for "${u.shopName || 'Grozy Shop'}" requires renewal. Please subscribe to avoid any interruption to your services.`;
+    }
+    
+    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+    toast.success('Payment Reminder WhatsApp Triggered!');
+  };
+
+
 
     const handleToggleSponsorship = async (userId, shopId, silent = false) => {
       if (!shopId) {
@@ -491,12 +560,21 @@ const Users = ({ roleFilter }) => {
                        )}
                        <div className="flex items-center gap-2 w-full justify-end">
                          {roleFilter === 'vendor' ? (
-                           <button 
-                             onClick={() => { setSelectedVendor(u); setModalData({ ...u }); setIsModified(false); }}
-                             className="px-6 py-2 bg-sky-50 text-sky-600 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-sky-600 hover:text-white transition-all"
-                           >
-                             Manage Shop
-                           </button>
+                           <div className="flex gap-2">
+                             <button 
+                               onClick={() => setLedgerVendor(u)}
+                               className="px-4 py-2 bg-rose-50 text-rose-600 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all flex items-center gap-1"
+                             >
+                               <Banknote size={12} />
+                               Ledger
+                             </button>
+                             <button 
+                               onClick={() => { setSelectedVendor(u); setModalData({ ...u }); setIsModified(false); }}
+                               className="px-6 py-2 bg-sky-50 text-sky-600 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-sky-600 hover:text-white transition-all"
+                             >
+                               Manage Shop
+                             </button>
+                           </div>
                          ) : (
                            <>
                              <button 
@@ -544,7 +622,7 @@ const Users = ({ roleFilter }) => {
           />
           
           {/* Modal */}
-          <div style={{ position: 'relative', width: '100%', maxWidth: '560px', background: 'white', borderRadius: '32px', overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', maxHeight: '92vh' }}>
+          <div style={{ position: 'relative', width: '100%', maxWidth: '850px', background: 'white', borderRadius: '32px', overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', maxHeight: '100%' }}>
             
             {/* Close Button */}
             <button 
@@ -572,7 +650,7 @@ const Users = ({ roleFilter }) => {
             </div>
 
             {/* Body — scrollable */}
-            <div style={{ flex: 1, padding: '24px 36px', overflowY: 'auto', minHeight: 0 }}>
+            <div style={{ flex: 1, padding: '40px', overflowY: 'auto', minHeight: 0 }}>
               
               {/* Account Status */}
               <div style={{ marginBottom: '24px' }}>
@@ -605,19 +683,37 @@ const Users = ({ roleFilter }) => {
               {/* Software Subscription Details */}
               <div style={{ marginBottom: '24px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <p style={{ fontSize: '9px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.3em', margin: 0 }}>Software Subscription & Billing</p>
+                  <p style={{ fontSize: '9px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.3em', margin: 0 }}>Active Plans & Billing</p>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => handlePaymentReminderWhatsApp(modalData)}
+                      disabled={!!isProcessing}
+                      style={{ background: '#ecfdf5', color: '#059669', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <MessageSquare size={12} /> Send Payment Reminder
+                    </button>
+                    <button
+                      onClick={() => handleViewHistory(modalData.shopId)}
+                      style={{ background: '#f0f9ff', color: '#0ea5e9', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Clock size={12} /> View Payment History
+                    </button>
+                  </div>
+                </div>
+                
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', marginTop: '12px' }}>
                   <button
-                    onClick={() => handleManualWhatsApp(modalData)}
+                    onClick={() => handleUnlockLocation(modalData.shopId)}
                     disabled={!!isProcessing}
-                    style={{ background: '#ecfdf5', color: '#059669', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    style={{ flex: 1, background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', padding: '10px 12px', borderRadius: '12px', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                   >
-                    <MessageSquare size={12} /> Send Payment Reminder
+                    <Lock size={14} /> Unlock Location Edit
                   </button>
                 </div>
                 
-                <div style={{ background: '#f8fafc', borderRadius: '20px', padding: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', border: '1px solid #e2e8f0' }}>
+                <div style={{ background: '#f8fafc', borderRadius: '20px', padding: '16px 20px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px', border: '1px solid #e2e8f0' }}>
                   <div>
-                    <p style={{ fontSize: '10px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Current Plan</p>
+                    <p style={{ fontSize: '10px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Software Plan</p>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontSize: '16px', fontWeight: '900', color: '#0f172a' }}>{modalData?.softwarePlanName || 'Free Trial'}</span>
                       <span style={{ background: '#e0f2fe', color: '#0284c7', fontSize: '8px', fontWeight: '900', padding: '2px 6px', borderRadius: '999px', textTransform: 'uppercase' }}>
@@ -625,56 +721,19 @@ const Users = ({ roleFilter }) => {
                       </span>
                     </div>
                   </div>
-                  <div>
-                    <p style={{ fontSize: '10px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Billing Cycle</p>
-                    <p style={{ fontSize: '12px', fontWeight: '700', color: '#334155', margin: 0 }}>
-                      <span style={{ color: '#10b981' }}>Start:</span> {modalData?.planStartedAt ? new Date(modalData.planStartedAt).toLocaleDateString() : 'N/A'} <br/>
-                      <span style={{ color: '#ef4444' }}>Expiry:</span> {modalData?.planExpiresAt ? new Date(modalData.planExpiresAt).toLocaleDateString() : 'N/A'}
-                    </p>
-                  </div>
+                  {modalData?.planExpiresAt && (
+                    <div style={{ textAlign: 'right' }}>
+                      <p style={{ fontSize: '10px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Billing Cycle</p>
+                      <p style={{ fontSize: '11px', fontWeight: '700', color: '#334155', margin: 0 }}>
+                        <span style={{ color: '#10b981' }}>Start:</span> {new Date(modalData.planStartedAt).toLocaleDateString()} <br/>
+                        <span style={{ color: '#ef4444' }}>Expiry:</span> {new Date(modalData.planExpiresAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Access Control */}
-              <div style={{ marginBottom: '24px' }}>
-                <p style={{ fontSize: '9px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.3em', marginBottom: '12px' }}>Platform Visibility & Access</p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  
-                  <button 
-                    onClick={() => { setModalData(prev => ({ ...prev, subscriptionPlan: 'basic' })); setIsModified(true); }}
-                    style={{ 
-                      padding: '20px', borderRadius: '20px', border: modalData?.subscriptionPlan === 'basic' ? '2px solid #111827' : '2px solid #f3f4f6',
-                      background: modalData?.subscriptionPlan === 'basic' ? '#f9fafb' : 'white',
-                      cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: '10px'
-                    }}
-                  >
-                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: modalData?.subscriptionPlan === 'basic' ? '#111827' : '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Zap size={18} color={modalData?.subscriptionPlan === 'basic' ? 'white' : '#9ca3af'} />
-                    </div>
-                    <div>
-                      <p style={{ fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#111827', margin: 0 }}>Offline Access</p>
-                      <p style={{ fontSize: '9px', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', margin: '3px 0 0' }}>In-Store Only</p>
-                    </div>
-                  </button>
 
-                  <button 
-                    onClick={() => { setModalData(prev => ({ ...prev, subscriptionPlan: 'premium' })); setIsModified(true); }}
-                    style={{ 
-                      padding: '20px', borderRadius: '20px', border: modalData?.subscriptionPlan === 'premium' ? '2px solid #0ea5e9' : '2px solid #f3f4f6',
-                      background: modalData?.subscriptionPlan === 'premium' ? '#f0f9ff' : 'white',
-                      cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: '10px'
-                    }}
-                  >
-                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: modalData?.subscriptionPlan === 'premium' ? '#0ea5e9' : '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Globe size={18} color={modalData?.subscriptionPlan === 'premium' ? 'white' : '#9ca3af'} />
-                    </div>
-                    <div>
-                      <p style={{ fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#0c4a6e', margin: 0 }}>Online Access</p>
-                      <p style={{ fontSize: '9px', fontWeight: '700', color: '#38bdf8', textTransform: 'uppercase', margin: '3px 0 0' }}>Public Marketplace</p>
-                    </div>
-                  </button>
-                </div>
-              </div>
 
 
 
@@ -704,167 +763,34 @@ const Users = ({ roleFilter }) => {
 
                 return (
                   <div style={{ marginBottom: '24px' }}>
-                    <p style={{ fontSize: '9px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.3em', marginBottom: '12px' }}>Marketing Features — Offer Banners</p>
-
-                    {/* Status Summary */}
-                    <div style={{ background: isActive ? (isWarningSoon ? '#fffbeb' : '#f0f9ff') : isExpired ? '#fef2f2' : '#f8fafc', borderRadius: '16px', padding: '14px 16px', marginBottom: '12px', border: `1px solid ${isActive ? (isWarningSoon ? '#fde68a' : '#bae6fd') : isExpired ? '#fecaca' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: isActive ? (isWarningSoon ? '#f59e0b' : '#0ea5e9') : isExpired ? '#ef4444' : '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <Zap size={20} color="white" />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: '12px', fontWeight: '900', color: '#111827', margin: 0 }}>
-                          {isActive ? (planDurationLabel || 'Active Plan') : isExpired ? 'Plan Expired' : 'No Active Plan'}
-                        </p>
-                        {isActive && expiresAt && (
-                          <>
-                            <p style={{ fontSize: '9px', fontWeight: '700', color: isWarningSoon ? '#d97706' : '#0ea5e9', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                              {daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left` : `${hoursLeft}h left`} — Expires {expiryLabel}
-                            </p>
-                            {isWarningSoon && (
-                              <p style={{ fontSize: '8px', fontWeight: '800', color: '#b45309', margin: '3px 0 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                ⚠ Expiring soon! Contact vendor to renew.
-                              </p>
-                            )}
-                          </>
-                        )}
-                        {isExpired && expiresAt && (
-                          <p style={{ fontSize: '9px', fontWeight: '700', color: '#ef4444', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                            Expired on {expiryLabel}
-                          </p>
-                        )}
-                        {!isActive && !isExpired && (
-                          <p style={{ fontSize: '9px', fontWeight: '700', color: '#9ca3af', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Select a plan below to grant access</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Extend Section */}
-                    {(() => {
-                      const expiresAt2 = modalData?.bannersExpiresAt ? new Date(modalData.bannersExpiresAt) : null;
-                      const isCurrentlyActive2 = modalData?.bannersEnabled && expiresAt2 && expiresAt2 > new Date();
-                      if (!isCurrentlyActive2) return null;
-
-                      const planOptions = [
-                        { key: '7day',   label: '+7 Days',   price: '₹200',   ms: 7   * 24 * 60 * 60 * 1000 },
-                        { key: '30day',  label: '+30 Days',  price: '₹600',   ms: 30  * 24 * 60 * 60 * 1000 },
-                        { key: '6month', label: '+6 Months', price: '₹3,200', ms: 180 * 24 * 60 * 60 * 1000 },
-                        { key: '1year',  label: '+1 Year',   price: '₹6,000', ms: 365 * 24 * 60 * 60 * 1000 },
-                      ];
-                      const fmt = (d) => d.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-                      return (
-                        <div style={{ marginBottom: '24px', background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', borderRadius: '18px', padding: '18px', border: '1.5px solid #bbf7d0' }}>
-                          <p style={{ fontSize: '9px', fontWeight: '900', color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.3em', marginBottom: '8px' }}>
-                            🔄 Extend Current Plan
-                          </p>
-                          <p style={{ fontSize: '10px', fontWeight: '700', color: '#166534', marginBottom: '12px', lineHeight: 1.4 }}>
-                            Like a Jio recharge — new plan stacks on current expiry. Access continues uninterrupted.
-                          </p>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                            {planOptions.map(opt => {
-                              const newExpiry = new Date(expiresAt2.getTime() + opt.ms);
-                              return (
-                                <button
-                                  key={opt.key}
-                                  onClick={() => handleToggleBannersAccess(modalData._id, modalData.shopId, opt.key)}
-                                  disabled={!!isProcessing}
-                                  style={{ background: 'white', border: '2px solid #86efac', borderRadius: '12px', padding: '10px 8px', cursor: 'pointer', textAlign: 'left', opacity: isProcessing ? 0.6 : 1 }}
-                                >
-                                  <p style={{ fontSize: '10px', fontWeight: '900', color: '#166534', margin: 0 }}>{opt.label} — {opt.price}</p>
-                                  <p style={{ fontSize: '7px', fontWeight: '700', color: '#16a34a', margin: '3px 0 0', textTransform: 'uppercase' }}>New expiry: {fmt(newExpiry)}</p>
-                                </button>
-                              );
-                            })}
-                          </div>
+                    <div style={{ background: '#f8fafc', borderRadius: '20px', padding: '16px 20px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px', border: '1px solid #e2e8f0' }}>
+                      <div>
+                        <p style={{ fontSize: '10px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Banner Plan</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '16px', fontWeight: '900', color: '#0f172a' }}>{planDurationLabel || 'No Active Plan'}</span>
+                          <span style={{ background: isActive ? '#e0f2fe' : '#fef2f2', color: isActive ? '#0284c7' : '#ef4444', fontSize: '8px', fontWeight: '900', padding: '2px 6px', borderRadius: '999px', textTransform: 'uppercase' }}>
+                            {isActive ? 'ACTIVE' : isExpired ? 'EXPIRED' : 'INACTIVE'}
+                          </span>
                         </div>
-                      );
-                    })()}
-
-                    {/* Plan Cards — 2×2 grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-
-                      {/* 7-Day Plan */}
-                      <button
-                        onClick={() => handleToggleBannersAccess(modalData._id, modalData.shopId, '7day')}
-                        disabled={!!isProcessing}
-                        style={{
-                          background: (isActive && plan === '7day') ? '#0ea5e9' : '#f8fafc',
-                          border: `2px solid ${(isActive && plan === '7day') ? '#0ea5e9' : '#e2e8f0'}`,
-                          borderRadius: '14px', padding: '12px 10px', cursor: 'pointer',
-                          textAlign: 'left', transition: 'all 0.2s', opacity: isProcessing ? 0.6 : 1
-                        }}
-                      >
-                        <p style={{ fontSize: '10px', fontWeight: '900', color: (isActive && plan === '7day') ? 'white' : '#111827', margin: 0 }}>7-Day Plan</p>
-                        <p style={{ fontSize: '17px', fontWeight: '900', color: (isActive && plan === '7day') ? 'white' : '#0ea5e9', margin: '3px 0 1px', letterSpacing: '-0.03em' }}>₹200</p>
-                        <p style={{ fontSize: '7px', fontWeight: '700', color: (isActive && plan === '7day') ? 'rgba(255,255,255,0.75)' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
-                          {(isActive && plan === '7day') ? '✓ Active' : '₹29/day'}
-                        </p>
-                      </button>
-
-                      {/* 30-Day Plan */}
-                      <button
-                        onClick={() => handleToggleBannersAccess(modalData._id, modalData.shopId, '30day')}
-                        disabled={!!isProcessing}
-                        style={{
-                          background: (isActive && plan === '30day') ? '#8b5cf6' : '#f8fafc',
-                          border: `2px solid ${(isActive && plan === '30day') ? '#8b5cf6' : '#e2e8f0'}`,
-                          borderRadius: '14px', padding: '12px 10px', cursor: 'pointer',
-                          textAlign: 'left', transition: 'all 0.2s', opacity: isProcessing ? 0.6 : 1
-                        }}
-                      >
-                        <p style={{ fontSize: '10px', fontWeight: '900', color: (isActive && plan === '30day') ? 'white' : '#111827', margin: 0 }}>30-Day Plan</p>
-                        <p style={{ fontSize: '17px', fontWeight: '900', color: (isActive && plan === '30day') ? 'white' : '#8b5cf6', margin: '3px 0 1px', letterSpacing: '-0.03em' }}>₹600</p>
-                        <p style={{ fontSize: '7px', fontWeight: '700', color: (isActive && plan === '30day') ? 'rgba(255,255,255,0.75)' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
-                          {(isActive && plan === '30day') ? '✓ Active' : '₹20/day'}
-                        </p>
-                      </button>
-
-                      {/* 6-Month Plan */}
-                      <button
-                        onClick={() => handleToggleBannersAccess(modalData._id, modalData.shopId, '6month')}
-                        disabled={!!isProcessing}
-                        style={{
-                          background: (isActive && plan === '6month') ? '#f59e0b' : '#f8fafc',
-                          border: `2px solid ${(isActive && plan === '6month') ? '#f59e0b' : '#e2e8f0'}`,
-                          borderRadius: '14px', padding: '12px 10px', cursor: 'pointer',
-                          textAlign: 'left', transition: 'all 0.2s', position: 'relative', opacity: isProcessing ? 0.6 : 1
-                        }}
-                      >
-                        <span style={{ position: 'absolute', top: '7px', right: '7px', background: '#0ea5e9', color: 'white', fontSize: '5px', fontWeight: '900', padding: '2px 5px', borderRadius: '999px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>POPULAR</span>
-                        <p style={{ fontSize: '10px', fontWeight: '900', color: (isActive && plan === '6month') ? 'white' : '#111827', margin: 0 }}>6-Month Plan</p>
-                        <p style={{ fontSize: '17px', fontWeight: '900', color: (isActive && plan === '6month') ? 'white' : '#f59e0b', margin: '3px 0 1px', letterSpacing: '-0.03em' }}>₹3,200</p>
-                        <p style={{ fontSize: '7px', fontWeight: '700', color: (isActive && plan === '6month') ? 'rgba(255,255,255,0.75)' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
-                          {(isActive && plan === '6month') ? '✓ Active' : '₹18/day · Save 40%'}
-                        </p>
-                      </button>
-
-                      {/* 1-Year Plan */}
-                      <button
-                        onClick={() => handleToggleBannersAccess(modalData._id, modalData.shopId, '1year')}
-                        disabled={!!isProcessing}
-                        style={{
-                          background: (isActive && plan === '1year') ? '#10b981' : '#f8fafc',
-                          border: `2px solid ${(isActive && plan === '1year') ? '#10b981' : '#e2e8f0'}`,
-                          borderRadius: '14px', padding: '12px 10px', cursor: 'pointer',
-                          textAlign: 'left', transition: 'all 0.2s', position: 'relative', opacity: isProcessing ? 0.6 : 1
-                        }}
-                      >
-                        <span style={{ position: 'absolute', top: '7px', right: '7px', background: '#f59e0b', color: 'white', fontSize: '5px', fontWeight: '900', padding: '2px 5px', borderRadius: '999px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>BEST VALUE</span>
-                        <p style={{ fontSize: '10px', fontWeight: '900', color: (isActive && plan === '1year') ? 'white' : '#111827', margin: 0 }}>1-Year Plan</p>
-                        <p style={{ fontSize: '17px', fontWeight: '900', color: (isActive && plan === '1year') ? 'white' : '#10b981', margin: '3px 0 1px', letterSpacing: '-0.03em' }}>₹6,000</p>
-                        <p style={{ fontSize: '7px', fontWeight: '700', color: (isActive && plan === '1year') ? 'rgba(255,255,255,0.75)' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
-                          {(isActive && plan === '1year') ? '✓ Active' : '₹16/day · Save 45%'}
-                        </p>
-                      </button>
-
+                      </div>
+                      {expiresAt && (
+                        <div style={{ textAlign: 'right' }}>
+                          <p style={{ fontSize: '10px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Banner Expiry</p>
+                          <p style={{ fontSize: '11px', fontWeight: '700', color: '#334155', margin: 0 }}>
+                            <span style={{ color: '#ef4444' }}>Expiry:</span> {expiresAt.toLocaleDateString()}
+                            <br />
+                            <span style={{ color: '#0ea5e9' }}>Days Left:</span> {daysLeft > 0 ? daysLeft : 0}
+                          </p>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Revoke Button (only when active) */}
                     {isActive && (
                       <button
                         onClick={() => handleToggleBannersAccess(modalData._id, modalData.shopId, 'revoke')}
                         disabled={!!isProcessing}
                         style={{
+                          marginTop: '12px',
                           width: '100%', padding: '10px', borderRadius: '12px', border: '1.5px solid #fecaca',
                           background: '#fef2f2', color: '#ef4444', fontSize: '9px', fontWeight: '900',
                           textTransform: 'uppercase', letterSpacing: '0.15em', cursor: 'pointer',
@@ -880,7 +806,7 @@ const Users = ({ roleFilter }) => {
             </div>
 
             {/* STICKY FOOTER — always visible, outside scroll area */}
-            <div style={{ padding: '16px 32px', borderTop: '1px solid #f1f5f9', background: 'white', flexShrink: 0 }}>
+            <div style={{ padding: '24px 40px 40px 40px', borderTop: '1px solid #f1f5f9', background: 'white', flexShrink: 0 }}>
               {isModified && (
                 <button
                   onClick={async () => {
@@ -945,6 +871,88 @@ const Users = ({ roleFilter }) => {
           onConfirm={() => handleDelete(selectedVendor._id)}
           targetName={selectedVendor.shopName || selectedVendor.name}
           targetType={roleFilter === 'vendor' ? 'vendor shop' : 'customer account'}
+        />
+      )}
+
+      {/* Transaction History Modal */}
+      {showTransactionsModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+          <div 
+            style={{ position: 'absolute', inset: 0 }}
+            onClick={() => setShowTransactionsModal(false)}
+          />
+          <div style={{ position: 'relative', width: '100%', maxWidth: '600px', background: 'white', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', display: 'flex', flexDirection: 'column', maxHeight: '85vh' }}>
+            <div style={{ padding: '24px 32px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#e0f2fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Clock size={20} color="#0ea5e9" />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '900', color: '#0f172a', letterSpacing: '-0.02em' }}>Payment History</h3>
+                  <p style={{ margin: '4px 0 0', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>All transactions for this vendor</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowTransactionsModal(false)}
+                style={{ width: '32px', height: '32px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: '14px', fontWeight: '900' }}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
+              {isTransactionsLoading ? (
+                <div style={{ padding: '40px 0', textAlign: 'center', color: '#94a3b8' }}>
+                  <RefreshCcw size={24} className="animate-spin" style={{ margin: '0 auto 12px' }} />
+                  <p style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Loading History...</p>
+                </div>
+              ) : transactions.length === 0 ? (
+                <div style={{ padding: '40px 0', textAlign: 'center', color: '#94a3b8' }}>
+                  <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                    <ShieldCheck size={32} color="#cbd5e1" />
+                  </div>
+                  <p style={{ fontSize: '14px', fontWeight: '900', color: '#475569', marginBottom: '4px' }}>No Payments Yet</p>
+                  <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>This vendor has no recorded transactions.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {transactions.map(tx => (
+                    <div key={tx._id} style={{ padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0', background: 'white', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: tx.planType === 'software' ? '#f0fdf4' : '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {tx.planType === 'software' ? <ShieldCheck size={18} color="#16a34a" /> : <Zap size={18} color="#3b82f6" />}
+                        </div>
+                        <div>
+                          <p style={{ margin: 0, fontSize: '14px', fontWeight: '900', color: '#0f172a' }}>{tx.planName}</p>
+                          <p style={{ margin: '4px 0 0', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {new Date(tx.date).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                          {tx.razorpayPaymentId && (
+                            <p style={{ margin: '4px 0 0', fontSize: '9px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                              TXN: {tx.razorpayPaymentId}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <p style={{ margin: 0, fontSize: '16px', fontWeight: '900', color: '#0f172a' }}>₹{tx.amount}</p>
+                        <span style={{ display: 'inline-block', marginTop: '4px', background: '#ecfdf5', color: '#059669', fontSize: '8px', fontWeight: '900', padding: '2px 6px', borderRadius: '999px', textTransform: 'uppercase' }}>
+                          SUCCESS
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {ledgerVendor && (
+        <AdminVendorLedgerModal 
+          shop={ledgerVendor} 
+          onClose={() => setLedgerVendor(null)} 
         />
       )}
     </div>
