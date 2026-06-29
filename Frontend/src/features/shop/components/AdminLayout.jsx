@@ -447,6 +447,10 @@ const AdminLayout = () => {
                   <NavItem to="/super-admin/sponsorships" icon={<Sparkles size={20} />} label="Sponsored Shops" />
 
                   <div className="h-px bg-gray-100 my-2 mx-4" />
+                  <p className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 mt-4">Master Data</p>
+                  <NavItem to="/super-admin/master-catalog" icon={<Package size={20} />} label="Master Catalog" />
+
+                  <div className="h-px bg-gray-100 my-2 mx-4" />
                   <p className="px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 mt-4">Inboxes</p>
                   <NavItem to="/super-admin/support/vendors" icon={<AlertCircle size={20} />} label="Vendor Support" badge={adminStats.vendorReports} />
                   <NavItem to="/super-admin/support/customers" icon={<AlertCircle size={20} />} label="Customer Support" badge={adminStats.customerReports} />
@@ -529,6 +533,7 @@ const AdminLayout = () => {
                     <NavItem to="/super-admin/vendors" icon={<Users size={20} />} label="Vendors" badge={adminStats.vendors} onClick={() => setIsMobileMenuOpen(false)} />
                     <NavItem to="/super-admin/customers" icon={<Users size={20} />} label="Customers" badge={adminStats.customers} onClick={() => setIsMobileMenuOpen(false)} />
                     <NavItem to="/super-admin/sponsorships" icon={<Sparkles size={20} />} label="Sponsored Shops" onClick={() => setIsMobileMenuOpen(false)} />
+                    <NavItem to="/super-admin/master-catalog" icon={<Package size={20} />} label="Master Catalog" onClick={() => setIsMobileMenuOpen(false)} />
                     <NavItem to="/super-admin/support/vendors" icon={<AlertCircle size={20} />} label="Vendor Support" badge={adminStats.vendorReports} onClick={() => setIsMobileMenuOpen(false)} />
                     <NavItem to="/super-admin/support/customers" icon={<AlertCircle size={20} />} label="Customer Support" badge={adminStats.customerReports} onClick={() => setIsMobileMenuOpen(false)} />
                     <NavItem to="/super-admin/profile" icon={<User size={20} />} label="Security Settings" onClick={() => setIsMobileMenuOpen(false)} />
@@ -545,14 +550,32 @@ const AdminLayout = () => {
 
         <div className="flex-1 flex flex-col min-h-0 bg-gray-50/50 relative">
           <div className="flex-1 p-4 md:p-8 md:overflow-hidden md:overflow-y-auto flex flex-col">
-            <Suspense fallback={
-              <div className="flex-1 flex flex-col items-center justify-center h-full min-h-[300px]">
-                <Loader2 size={32} className="animate-spin text-sky-500 mb-4" />
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Loading section...</p>
+            {isVendor && vendorShop?.planExpiresAt && new Date() > new Date(new Date(vendorShop.planExpiresAt).getTime() + 24 * 60 * 60 * 1000) && !location.pathname.includes('/profile') ? (
+              <div className="flex-1 flex flex-col items-center justify-center h-full min-h-[400px] text-center px-4 animate-in fade-in zoom-in duration-500">
+                <div className="w-32 h-32 bg-rose-100 text-rose-500 rounded-[2rem] flex items-center justify-center mb-8 shadow-xl shadow-rose-100 border border-rose-200">
+                  <StoreIconCustom size={56} strokeWidth={2} />
+                </div>
+                <h2 className="text-3xl sm:text-4xl font-black text-slate-900 uppercase tracking-tighter mb-4">Access Locked</h2>
+                <p className="text-slate-500 font-bold mb-8 max-w-md text-sm sm:text-base leading-relaxed">
+                  Your shop subscription expired on {new Date(vendorShop.planExpiresAt).toLocaleDateString()}. You have passed your 1-day grace period. Please renew to restore full access.
+                </p>
+                <button 
+                  onClick={() => navigate('/vendor/dashboard/profile?tab=subscription')} 
+                  className="px-10 py-5 bg-sky-500 text-white font-black text-[11px] uppercase tracking-[0.2em] rounded-2xl hover:bg-slate-900 transition-all shadow-2xl shadow-sky-200"
+                >
+                  Go to Subscription Panel
+                </button>
               </div>
-            }>
-              <Outlet />
-            </Suspense>
+            ) : (
+              <Suspense fallback={
+                <div className="flex-1 flex flex-col items-center justify-center h-full min-h-[300px]">
+                  <Loader2 size={32} className="animate-spin text-sky-500 mb-4" />
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Loading section...</p>
+                </div>
+              }>
+                <Outlet />
+              </Suspense>
+            )}
           </div>
         </div>
 

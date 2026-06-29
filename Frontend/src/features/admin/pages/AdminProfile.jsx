@@ -13,13 +13,36 @@ const AdminProfile = () => {
     name: user?.name || '', 
     phone: user?.phone || '', 
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    razorpayKeyId: '',
+    razorpayKeySecret: ''
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState('identity');
+
+  React.useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const { data } = await api.get('/admin/system-settings');
+        if (data.success && data.settings) {
+          const rzpSettings = data.settings.find(s => s.key === 'SUPER_ADMIN_KEYS');
+          if (rzpSettings) {
+            setFormData(prev => ({
+              ...prev,
+              razorpayKeyId: rzpSettings.razorpayKeyId || '',
+              razorpayKeySecret: rzpSettings.razorpayKeySecret || ''
+            }));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch admin settings');
+      }
+    };
+    fetchSettings();
+  }, []);
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
@@ -47,6 +70,15 @@ const AdminProfile = () => {
       });
 
       if (!result.success) throw new Error(result.error || 'Identity update failed');
+
+      // 3. Handle System Settings Update (Razorpay)
+      await api.patch('/admin/system-settings', {
+        key: 'SUPER_ADMIN_KEYS',
+        updates: {
+          razorpayKeyId: formData.razorpayKeyId,
+          razorpayKeySecret: formData.razorpayKeySecret
+        }
+      });
       
       setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));
       
@@ -102,6 +134,7 @@ const AdminProfile = () => {
                 {[
                   { id: 'identity', label: 'Identity Settings', icon: User, color: '#0ea5e9' },
                   { id: 'security', label: 'Access Credentials', icon: Key, color: '#ef4444' },
+                  { id: 'payments', label: 'Payment Config', icon: Settings, color: '#10b981' },
                 ].map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -234,6 +267,46 @@ const AdminProfile = () => {
                             </div>
                         </div>
                         <p className="text-[10px] font-bold text-gray-500 italic ml-1">Leave both password fields blank if you do not wish to change your current password.</p>
+                     </div>
+                  </div>
+                )}
+                
+                {activeTab === 'payments' && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
+                     <div className="p-8 bg-emerald-50/50 border-2 border-emerald-100 rounded-[40px] shadow-sm space-y-6">
+                        <div className="flex items-center gap-6">
+                          <div className="p-5 bg-emerald-600 text-white rounded-[24px] shadow-2xl shadow-emerald-200">
+                            <Settings size={28} strokeWidth={2.5} />
+                          </div>
+                          <div>
+                            <h2 className="font-black text-2xl text-gray-900 uppercase tracking-tight leading-none">Payment Configuration</h2>
+                            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mt-2">Razorpay Gateway Integration</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-emerald-100/50">
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-4">Razorpay Key ID</label>
+                              <input 
+                                type="text"
+                                placeholder="rzp_live_xxxxxxxxxx"
+                                className="w-full bg-white border-2 border-emerald-100 focus:border-emerald-400 rounded-2xl p-4 text-xs font-bold text-gray-800 transition-all outline-none"
+                                value={formData.razorpayKeyId}
+                                onChange={(e) => setFormData({...formData, razorpayKeyId: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-4">Razorpay Key Secret</label>
+                              <input 
+                                type={showPassword ? "text" : "password"}
+                                placeholder="••••••••••••"
+                                className="w-full bg-white border-2 border-emerald-100 focus:border-emerald-400 rounded-2xl p-4 pr-12 text-xs font-bold text-gray-800 transition-all outline-none"
+                                value={formData.razorpayKeySecret}
+                                onChange={(e) => setFormData({...formData, razorpayKeySecret: e.target.value})}
+                              />
+                            </div>
+                        </div>
+                        <p className="text-[10px] font-bold text-gray-500 italic ml-1">Configure these keys to receive ₹999 unlock payments for the Master Catalog feature.</p>
                      </div>
                   </div>
                 )}

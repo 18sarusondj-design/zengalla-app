@@ -59,6 +59,7 @@ const SuperAdminDashboard = lazy(() => import('./features/admin/pages/SuperAdmin
 const SupportInbox = lazy(() => import('./features/admin/pages/SupportInbox'));
 const AdminProfile = lazy(() => import('./features/admin/pages/AdminProfile'));
 const SponsorshipManagement = lazy(() => import('./features/admin/pages/SponsorshipManagement'));
+const MasterCatalog = lazy(() => import('./features/admin/pages/MasterCatalog'));
 
 const AppTypeRestrictor = ({ children }) => {
   const appType = import.meta.env.VITE_APP_TYPE || 'all'; // 'customer', 'vendor', 'delivery', or 'all'
@@ -197,6 +198,7 @@ function App() {
                 <Route path="support/vendors" element={<SupportInbox roleFilter="vendor" />} />
                 <Route path="support/customers" element={<SupportInbox roleFilter="customer" />} />
                 <Route path="sponsorships" element={<SponsorshipManagement />} />
+                <Route path="master-catalog" element={<MasterCatalog />} />
                 <Route path="profile" element={<AdminProfile />} />
               </Route>
 

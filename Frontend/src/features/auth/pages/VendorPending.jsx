@@ -140,125 +140,38 @@ const VendorPending = () => {
         {/* MAIN CONTENT Area */}
         <div className="flex-1 flex flex-col lg:flex-row gap-4 md:min-h-0 md:overflow-hidden pb-10 md:pb-0">
           
-          {/* Plans Selection - 2 Columns */}
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 md:min-h-0">
+          {/* Plans Selection - 1 Unified Column */}
+          <div className="flex-1 max-w-md">
             <PlanCard 
-              active={selectedPlan === 'basic'}
-              onClick={() => setSelectedPlan('basic')}
-              title="In-Store Basic"
-              price="499"
-              icon={<Zap size={24} />}
-              features={['Unlimited In-Store Billing', 'Digital Ledger (Khata)', 'Staff Accounts', 'Basic Analytics', 'Restricted Online Presence']}
-              color="gray"
-            />
-            <PlanCard 
-              active={selectedPlan === 'premium'}
-              onClick={() => setSelectedPlan('premium')}
-              title="Full Digital Store"
-              price="999"
+              active={true}
+              onClick={() => {}}
+              title="Grozy Platform"
+              price="Included Trial"
               icon={<Globe size={24} />}
-              features={['All Basic Features', 'Public Store on Website', 'Customer Mobile Ordering', 'Home Delivery System', 'Premium Storefront UI']}
+              features={['Unlimited In-Store Billing', 'Digital Ledger (Khata)', 'Staff & Delivery Accounts', 'Public Store on Website', 'Customer Mobile Ordering', 'Home Delivery System']}
               color="sky"
               isPremium
             />
           </div>
 
-          {/* Right Sidebar - Summary & Sponsorship */}
+          {/* Right Sidebar - Status */}
           <div className="w-full lg:w-[320px] flex flex-col gap-3 md:h-full">
-            
-            <div className={`p-4 rounded-[24px] border-2 transition-all cursor-pointer relative group ${addSponsorship ? 'bg-sky-600 border-sky-400 shadow-xl shadow-sky-200' : 'bg-white border-white hover:border-sky-100 shadow-xl shadow-sky-100'}`} onClick={() => setAddSponsorship(!addSponsorship)}>
-               <div className="flex items-center justify-between mb-2">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${addSponsorship ? 'bg-white text-sky-600' : 'bg-sky-600 text-white'}`}>
-                    <Sparkles size={16} />
-                  </div>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); setShowSponsorDetails(true); }}
-                    className={`px-2 py-1 rounded-full flex items-center gap-1.5 text-[7px] font-black uppercase tracking-widest transition-all ${addSponsorship ? 'bg-sky-500 text-white' : 'bg-white/10 text-sky-400 hover:bg-sky-600 hover:text-white'}`}
-                  >
-                    <Info size={10} /> Details
-                  </button>
+            <div className="flex-1 bg-white rounded-[32px] p-8 flex flex-col items-center justify-center text-center text-slate-900 shadow-2xl relative border border-slate-100 overflow-hidden">
+               <div className="absolute top-[-10%] right-[-10%] w-32 h-32 bg-amber-50 rounded-full blur-[40px] pointer-events-none opacity-50" />
+               <div className="w-20 h-20 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                  <ShieldAlert size={40} strokeWidth={2} />
                </div>
-               <h3 className={`text-md font-black uppercase tracking-tighter mb-0.5 ${addSponsorship ? 'text-white' : 'text-slate-900'}`}>Area Sponsorship</h3>
-               <p className={`text-[8px] font-bold uppercase tracking-widest leading-tight mb-2 ${addSponsorship ? 'text-sky-100' : 'text-gray-500'}`}>
-                 Top 4 slots in <span className={`${addSponsorship ? 'text-white' : 'text-sky-600'} font-black underline`}>{user?.pinCode || 'your area'}</span>.
+               <h3 className="text-xl font-black uppercase tracking-tighter mb-2">Account Under Review</h3>
+               <p className="text-xs font-bold text-gray-500 leading-relaxed mb-6">
+                 Your store registration is pending verification. Please contact our support team to verify your details. 
                </p>
-               <div className="flex items-center justify-between">
-                  <span className={`text-lg font-black tracking-tighter italic ${addSponsorship ? 'text-white' : 'text-sky-600'}`}>₹199 <span className="text-[8px] opacity-60">/ Week</span></span>
-                  <div className={`w-10 h-5 rounded-full relative transition-all ${addSponsorship ? 'bg-white/20' : 'bg-gray-100'}`}>
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full transition-all ${addSponsorship ? 'right-0.5 bg-white' : 'left-0.5 bg-gray-400'}`} />
-                  </div>
+               <div className="p-4 bg-sky-50 rounded-2xl border border-sky-100 w-full text-left">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-sky-600 mb-1">Once Verified:</p>
+                  <p className="text-xs font-bold text-sky-900/70">You will instantly receive a <span className="font-black text-sky-600">30-Day Free Trial</span> of the complete Grozy Platform.</p>
                </div>
-            </div>
-
-            {/* Explanation Modal Overlay (Inline) */}
-            {showSponsorDetails && (
-              <div className="absolute inset-x-4 top-[10%] bottom-[10%] lg:inset-auto lg:right-8 lg:top-[120px] lg:bottom-auto lg:w-[420px] bg-white text-slate-900 rounded-[40px] p-8 z-[100] shadow-2xl animate-in zoom-in-95 duration-300 border-4 border-sky-500">
-                 <div className="flex items-center justify-between mb-6">
-                    <h4 className="text-lg font-black uppercase tracking-tighter">Sponsorship System</h4>
-                    <button onClick={() => setShowSponsorDetails(false)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 hover:text-rose-500 transition-all font-black">X</button>
-                 </div>
-                 <div className="space-y-6">
-                    <div className="flex items-start gap-4">
-                       <div className="w-8 h-8 bg-sky-100 text-sky-600 rounded-xl flex items-center justify-center shrink-0">
-                          <BadgeCheck size={18} />
-                       </div>
-                       <div>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-sky-600 mb-1">Slot 1, 2 & 3: PAID EXCLUSIVITY</p>
-                          <p className="text-xs font-bold text-gray-500 leading-relaxed">Only 3 shops per Pin Code can pay for these top spots. First come, first served.</p>
-                       </div>
-                    </div>
-                    <div className="flex items-start gap-4">
-                       <div className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center shrink-0">
-                          <RefreshCcw size={18} className="animate-spin-slow" />
-                       </div>
-                       <div>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-1">Slot 4: SYSTEM WILDCARD (FREE)</p>
-                          <p className="text-xs font-bold text-gray-500 leading-relaxed">This spot rotates every week between ALL shops. We prioritize high ratings and great service. Everyone gets a chance!</p>
-                       </div>
-                    </div>
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                       <p className="text-[8px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2 leading-none">Weekly Update Schedule</p>
-                       <p className="text-[10px] font-black text-slate-700">Every Sunday • 11:30 PM - 12:00 AM</p>
-                    </div>
-                 </div>
-                 <button onClick={() => setShowSponsorDetails(false)} className="w-full mt-8 h-12 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-sky-600 transition-all">Got It</button>
-              </div>
-            )}
-
-            {/* Final Confirmation Card */}
-            <div className="flex-1 bg-white rounded-[32px] p-5 flex flex-col justify-between text-slate-900 shadow-2xl overflow-hidden relative border border-slate-100">
-               <div className="absolute top-[-10%] right-[-10%] w-32 h-32 bg-sky-50 rounded-full blur-[40px] pointer-events-none opacity-50" />
-               <div className="space-y-3 relative z-10">
-                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-gray-400">Checkout Summary</h3>
-                  <div className="space-y-1.5">
-                    <SummaryRow label={`${selectedPlan === 'premium' ? 'Full Digital' : 'Basic'} Plan`} value={`₹${selectedPlan === 'premium' ? '999' : '499'}`} />
-                    {addSponsorship && <SummaryRow label="Sponsorship (7 Days)" value="₹199" />}
-                    <div className="h-px bg-slate-50 my-1" />
-                    <div className="flex items-center justify-between">
-                       <span className="text-[10px] font-black uppercase tracking-widest">Total Bill</span>
-                       <span className="text-2xl font-black tracking-tighter text-sky-600 italic">₹{totalPrice}</span>
-                    </div>
-                  </div>
-               </div>
-
-               <div className="space-y-2 relative z-10 pt-2">
-                  <button 
-                    onClick={handleConfirm}
-                    disabled={loading}
-                    className="w-full h-10 bg-sky-600 hover:bg-slate-900 text-white rounded-xl font-black uppercase tracking-[0.2em] text-[9px] flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-sky-100"
-                  >
-                    {loading ? <Loader2 className="animate-spin" /> : (
-                      <><ShieldCheck size={16} /> Confirm & Activate</>
-                    )}
-                  </button>
-                  <div className="p-2.5 bg-sky-50/50 rounded-xl border border-sky-100">
-                    <p className="text-[7px] font-black text-sky-700 uppercase tracking-widest flex items-center gap-2">
-                       <ShieldCheck size={10} /> Payment Note
-                    </p>
-                    <p className="text-[8px] font-bold text-sky-900/60 mt-0.5 leading-tight">
-                       Setup <span className="font-black text-sky-600">Razorpay</span> in your profile after activation to receive payments.
-                    </p>
-                  </div>
+               <div className="mt-8 flex items-center gap-2 text-gray-400">
+                  <Loader2 size={16} className="animate-spin" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Awaiting Admin Approval</span>
                </div>
             </div>
           </div>
@@ -367,8 +280,7 @@ const PlanCard = ({ active, onClick, title, price, icon, features, isPremium }) 
     <div className="mb-4">
       <h3 className={`text-lg font-black uppercase tracking-tighter mb-1 ${active ? 'text-slate-900' : 'text-slate-500'}`}>{title}</h3>
       <div className="flex items-end gap-1">
-        <span className={`text-3xl font-black tracking-tighter italic ${active ? 'text-sky-600' : 'text-slate-400'}`}>₹{price}</span>
-        <span className={`text-[8px] font-black uppercase tracking-widest mb-1 ${active ? 'text-gray-400' : 'text-slate-300'}`}>/ Month</span>
+        <span className={`text-xl font-black tracking-tighter italic ${active ? 'text-sky-600' : 'text-slate-400'}`}>{price}</span>
       </div>
     </div>
 
@@ -382,9 +294,9 @@ const PlanCard = ({ active, onClick, title, price, icon, features, isPremium }) 
     </ul>
     
     <div className={`mt-auto w-full h-10 rounded-xl flex items-center justify-center font-black uppercase tracking-widest text-[8px] transition-all ${
-      active ? 'bg-sky-600 text-white shadow-lg shadow-sky-200' : 'bg-slate-100 text-slate-400 group-hover:bg-sky-50 group-hover:text-sky-500'
+      active ? 'bg-sky-600/10 text-sky-600' : 'bg-slate-100 text-slate-400'
     }`}>
-      {active ? 'Plan Selected' : 'Select Experience'}
+      Free 30-Day Trial upon verification
     </div>
   </div>
 );

@@ -147,6 +147,8 @@ const VendorProfile = () => {
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [banners, setBanners] = useState([]);
   const [newCoupon, setNewCoupon] = useState({ code: '', discountValue: '', discountType: 'percentage', minOrderAmount: 0, expiryDate: '', bannerId: '', usageLimit: '' });
+  const [subscriptionTabMode, setSubscriptionTabMode] = useState('software'); // 'software' or 'banner'
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const shopUrl = `${window.location.protocol}//${window.location.host}/shop/${vendorShop?.id || vendorShop?._id || ''}`;
 
@@ -566,6 +568,77 @@ const VendorProfile = () => {
     }
   };
 
+  const handleSubscriptionPayment = async (type, planName, durationDays, amount) => {
+    try {
+      setIsProcessingPayment(true);
+      const toastId = toast.loading('Initializing secure payment gateway...');
+      
+      // 1. Get Super Admin Public Key
+      const keyRes = await api.get('/admin-payments/keys');
+      if (!keyRes.data.success) throw new Error('Payment gateway not configured');
+      
+      // 2. Create Order
+      const orderRes = await api.post('/admin-payments/create-order', {
+        amount,
+        type
+      });
+      
+      if (!orderRes.data.success) throw new Error('Order creation failed');
+      
+      toast.dismiss(toastId);
+      
+      const options = {
+        key: keyRes.data.keyId,
+        amount: orderRes.data.order.amount,
+        currency: orderRes.data.order.currency,
+        name: 'Grozy Platform',
+        description: planName,
+        order_id: orderRes.data.order.id,
+        handler: async function (response) {
+          const verifyToastId = toast.loading('Verifying your payment...');
+          try {
+            const verifyRes = await api.post('/admin-payments/verify-payment', {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              shopId: vendorShop._id,
+              type,
+              planName,
+              durationDays
+            });
+            
+            if (verifyRes.data.success) {
+              toast.success(verifyRes.data.message, { id: verifyToastId });
+              await fetchVendorShop(); // Refresh shop data to show new expiry
+            } else {
+              toast.error(verifyRes.data.error || 'Verification failed', { id: verifyToastId });
+            }
+          } catch (err) {
+            toast.error('Payment verification failed on server', { id: verifyToastId });
+          }
+        },
+        prefill: {
+          name: user.name,
+          email: user.email,
+          contact: user.phone
+        },
+        theme: {
+          color: '#0284c7'
+        }
+      };
+      
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response){
+        toast.error('Payment failed or cancelled.');
+      });
+      rzp.open();
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.message || 'Payment failed');
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
   if (globalLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -651,6 +724,7 @@ const VendorProfile = () => {
               <div className="space-y-1 flex-1 pr-1 md:overflow-hidden overflow-y-auto custom-scrollbar-visible py-1">
                 {[
                   { id: 'details', label: 'Store Details', icon: Info, color: '#0ea5e9' },
+                  { id: 'subscription', label: 'Subscription & Billing', icon: CreditCard, color: '#0ea5e9' },
                   { id: 'scheduling', label: 'Scheduling', icon: Clock, color: '#0ea5e9' },
                   { id: 'location', label: 'Store Location', icon: MapPin, color: '#0ea5e9' },
                   { id: 'payments', label: 'Payments & QR', icon: QrCode, color: '#0ea5e9' },
@@ -733,6 +807,140 @@ const VendorProfile = () => {
                     </div>
 
                     <SectionSaveButton label="Details" />
+                  </div>
+                )}
+
+                {activeTab === 'subscription' && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
+                    
+                    {/* Status Dashboard */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Software Status */}
+                      <div className="bg-white/80 border-2 border-sky-100 rounded-3xl p-5 relative overflow-hidden">
+                        <div className="absolute -right-4 -top-4 w-24 h-24 bg-sky-50 rounded-full blur-xl pointer-events-none" />
+                        <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1 relative z-10">Software Plan</h4>
+                        <div className="flex items-center gap-2 mb-3 relative z-10">
+                           <div className="w-8 h-8 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center">
+                              <Store size={16} />
+                           </div>
+                           <div>
+                              <p className="text-lg font-black text-slate-900 leading-none">{vendorShop?.softwarePlanName || 'Free Trial'}</p>
+                              <p className={`text-[10px] font-black uppercase tracking-widest ${new Date(vendorShop?.planExpiresAt) < new Date() ? 'text-red-500' : 'text-emerald-500'}`}>
+                                {vendorShop?.planExpiresAt ? (new Date(vendorShop.planExpiresAt) < new Date() ? 'EXPIRED' : 'ACTIVE') : 'NO PLAN'}
+                              </p>
+                           </div>
+                        </div>
+                        <div className="bg-slate-100 h-2 w-full rounded-full overflow-hidden">
+                           <div 
+                             className={`h-full ${new Date(vendorShop?.planExpiresAt) < new Date() ? 'bg-red-500' : 'bg-emerald-500'}`} 
+                             style={{ width: vendorShop?.planExpiresAt ? Math.min(100, Math.max(0, (new Date(vendorShop.planExpiresAt) - new Date()) / (30 * 24 * 60 * 60 * 1000) * 100)) + '%' : '0%' }}
+                           />
+                        </div>
+                        <p className="text-right text-[9px] font-black uppercase tracking-widest text-gray-400 mt-2">
+                           {vendorShop?.planExpiresAt ? Math.max(0, Math.ceil((new Date(vendorShop.planExpiresAt) - new Date()) / (1000 * 60 * 60 * 24))) + ' Days Left' : '0 Days Left'}
+                        </p>
+                      </div>
+
+                      {/* Banner Status */}
+                      <div className="bg-white/80 border-2 border-purple-100 rounded-3xl p-5 relative overflow-hidden">
+                        <div className="absolute -right-4 -top-4 w-24 h-24 bg-purple-50 rounded-full blur-xl pointer-events-none" />
+                        <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1 relative z-10">Banner Plan</h4>
+                        <div className="flex items-center gap-2 mb-3 relative z-10">
+                           <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">
+                              <Sparkles size={16} />
+                           </div>
+                           <div>
+                              <p className="text-lg font-black text-slate-900 leading-none">{vendorShop?.bannersPlan || 'No Plan'}</p>
+                              <p className={`text-[10px] font-black uppercase tracking-widest ${!vendorShop?.bannersEnabled || new Date(vendorShop?.bannersExpiresAt) < new Date() ? 'text-red-500' : 'text-emerald-500'}`}>
+                                {vendorShop?.bannersEnabled && new Date(vendorShop?.bannersExpiresAt) > new Date() ? 'ACTIVE' : 'INACTIVE'}
+                              </p>
+                           </div>
+                        </div>
+                        <div className="bg-slate-100 h-2 w-full rounded-full overflow-hidden">
+                           <div 
+                             className={`h-full ${!vendorShop?.bannersEnabled || new Date(vendorShop?.bannersExpiresAt) < new Date() ? 'bg-red-500' : 'bg-emerald-500'}`} 
+                             style={{ width: vendorShop?.bannersExpiresAt ? Math.min(100, Math.max(0, (new Date(vendorShop.bannersExpiresAt) - new Date()) / (30 * 24 * 60 * 60 * 1000) * 100)) + '%' : '0%' }}
+                           />
+                        </div>
+                        <p className="text-right text-[9px] font-black uppercase tracking-widest text-gray-400 mt-2">
+                           {vendorShop?.bannersExpiresAt ? Math.max(0, Math.ceil((new Date(vendorShop.bannersExpiresAt) - new Date()) / (1000 * 60 * 60 * 24))) + ' Days Left' : '0 Days Left'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Toggle */}
+                    <div className="flex p-1 bg-gray-100/50 rounded-2xl w-full max-w-sm mx-auto border border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => setSubscriptionTabMode('software')}
+                        className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${subscriptionTabMode === 'software' ? 'bg-white text-sky-600 shadow-sm border border-sky-100' : 'text-gray-400 hover:text-gray-600'}`}
+                      >
+                        Software Access
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSubscriptionTabMode('banner')}
+                        className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${subscriptionTabMode === 'banner' ? 'bg-white text-purple-600 shadow-sm border border-purple-100' : 'text-gray-400 hover:text-gray-600'}`}
+                      >
+                        Banner Access
+                      </button>
+                    </div>
+
+                    {/* Plans Grid */}
+                    {subscriptionTabMode === 'software' ? (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {[
+                          { name: '1 Month', days: 30, price: 499, popular: false },
+                          { name: '6 Months', days: 180, price: 2499, popular: true },
+                          { name: '1 Year', days: 365, price: 4499, popular: false }
+                        ].map((plan, idx) => (
+                          <div key={idx} className={`relative bg-white border-2 rounded-[32px] p-6 flex flex-col items-center text-center transition-all hover:scale-105 hover:shadow-xl ${plan.popular ? 'border-sky-500 shadow-sky-100 shadow-xl' : 'border-slate-100'}`}>
+                            {plan.popular && (
+                              <div className="absolute -top-3 bg-sky-500 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">Most Popular</div>
+                            )}
+                            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter mb-2">{plan.name}</h3>
+                            <div className="flex items-end gap-1 mb-6">
+                              <span className="text-3xl font-black text-sky-600 italic tracking-tighter">₹{plan.price}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleSubscriptionPayment('SHOP_SUBSCRIPTION', `${plan.name} Paid`, plan.days, plan.price)}
+                              disabled={isProcessingPayment}
+                              className={`w-full py-3 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all active:scale-95 ${plan.popular ? 'bg-sky-600 text-white hover:bg-slate-900 shadow-lg shadow-sky-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                            >
+                              Pay Now
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                        {[
+                          { name: '7 Days', days: 7, price: 99, popular: false },
+                          { name: '1 Month', days: 30, price: 299, popular: true },
+                          { name: '6 Months', days: 180, price: 1499, popular: false },
+                          { name: '1 Year', days: 365, price: 2499, popular: false }
+                        ].map((plan, idx) => (
+                          <div key={idx} className={`relative bg-white border-2 rounded-[24px] p-5 flex flex-col items-center text-center transition-all hover:scale-105 hover:shadow-xl ${plan.popular ? 'border-purple-500 shadow-purple-100 shadow-xl' : 'border-slate-100'}`}>
+                            {plan.popular && (
+                              <div className="absolute -top-3 bg-purple-500 text-white px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest">Recommended</div>
+                            )}
+                            <h3 className="text-lg font-black text-slate-900 uppercase tracking-tighter mb-1">{plan.name}</h3>
+                            <div className="flex items-end gap-1 mb-4">
+                              <span className="text-2xl font-black text-purple-600 italic tracking-tighter">₹{plan.price}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleSubscriptionPayment('BANNER_SUBSCRIPTION', `${plan.name} Banner`, plan.days, plan.price)}
+                              disabled={isProcessingPayment}
+                              className={`w-full py-2.5 rounded-xl font-black uppercase tracking-widest text-[9px] transition-all active:scale-95 ${plan.popular ? 'bg-purple-600 text-white hover:bg-slate-900 shadow-lg shadow-purple-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                            >
+                              Pay Now
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 

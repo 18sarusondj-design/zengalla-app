@@ -86,8 +86,25 @@ export const getUsers = async (req, res) => {
 export const updateUserStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    const user = await User.findByIdAndUpdate(req.params.id, { status }, { new: true });
+    const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    user.status = status;
+    await user.save();
+
+    // If activating a vendor, automatically grant 30-day free trial if they haven't had one
+    if (status === 'active' && user.role === 'vendor') {
+      const shop = await Shop.findOne({ owner: user._id });
+      if (shop && !shop.planStartedAt) {
+        shop.subscriptionPlan = 'premium';
+        shop.softwarePlanName = '30-Day Free Trial';
+        shop.planStartedAt = new Date();
+        shop.planExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        shop.isApproved = true;
+        await shop.save();
+      }
+    }
+
     res.json({ success: true, user });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -298,7 +315,7 @@ export const updateShopPlan = async (req, res) => {
 // GET /api/admin/system-settings
 export const getSystemSettings = async (req, res) => {
   try {
-    const settings = await SystemSettings.findOne({ key: 'maintenance' });
+    const settings = await SystemSettings.find({});
     res.json({ success: true, settings });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -308,10 +325,17 @@ export const getSystemSettings = async (req, res) => {
 // PATCH /api/admin/system-settings
 export const updateSystemSettings = async (req, res) => {
   try {
-    const { scheduledTime, message, isActive } = req.body;
+    const { key, updates, scheduledTime, message, isActive } = req.body;
+    const targetKey = key || 'maintenance';
+    
+    let updatePayload = { scheduledTime, message, isActive };
+    if (updates) {
+      updatePayload = { ...updatePayload, ...updates };
+    }
+
     const settings = await SystemSettings.findOneAndUpdate(
-      { key: 'maintenance' },
-      { scheduledTime, message, isActive },
+      { key: targetKey },
+      updatePayload,
       { new: true, upsert: true }
     );
     res.json({ success: true, settings });

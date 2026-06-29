@@ -75,8 +75,10 @@ const shopSchema = new mongoose.Schema({
   pinCode: { type: String, index: true },
   areaName: { type: String, default: '' },
   subscriptionPlan: { type: String, enum: ['none', 'basic', 'premium'], default: 'none' },
+  softwarePlanName: { type: String, default: '' }, // e.g., '30-Day Free Trial', '1 Month Paid'
   planStartedAt: { type: Date },
   planExpiresAt: { type: Date },
+  masterCatalogEnabled: { type: Boolean, default: false },
   isSponsored: { type: Boolean, default: false },
   sponsorshipType: { type: String, enum: ['none', 'paid', 'wildcard'], default: 'none' },
   sponsorshipExpiresAt: { type: Date },

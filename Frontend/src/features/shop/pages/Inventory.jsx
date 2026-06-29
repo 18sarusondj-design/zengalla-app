@@ -20,6 +20,11 @@ const Inventory = () => {
   }, [token, vendorShop, fetchVendorShop, fetchData]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [showBulkInstructions, setShowBulkInstructions] = useState(false);
+  const [bulkLang, setBulkLang] = useState('english');
+  const [bulkFile, setBulkFile] = useState(null);
+  const [isBulkSubmitting, setIsBulkSubmitting] = useState(false);
   const [modalMode, setModalMode] = useState('INFO'); // 'INFO' or 'STOCK'
   const [imageFit, setImageFit] = useState('cover'); // 'cover' or 'contain'
   const [imagePositions, setImagePositions] = useState(['50% 50%', '50% 50%', '50% 50%']);
@@ -130,6 +135,211 @@ const Inventory = () => {
     }
   };
 
+  const performAutoFill = async () => {
+    const loadingToast = toast.loading('Searching Master Catalog...');
+    try {
+      const { data } = await api.get(`/master-products/search?barcode=${newProduct.barcode}`);
+      if (data.success && data.product) {
+        toast.success('Product found in Master Catalog!', { id: loadingToast });
+        const p = data.product;
+        setNewProduct(prev => ({
+          ...prev,
+          name: prev.name || p.name || '',
+          description: prev.description || p.description || '',
+          category: prev.category === 'General' ? (p.category || 'General') : (prev.category || p.category || 'General'),
+          taxRate: prev.taxRate || p.taxRate || 0,
+          unit: prev.unit === 'Unit' ? (p.unit || 'Unit') : (prev.unit || p.unit || 'Unit'),
+          sellingType: prev.sellingType === 'piece' ? (p.sellingType || 'piece') : (prev.sellingType || p.sellingType || 'piece')
+        }));
+        
+        if (p.imageUrl) {
+          setNewProduct(prev => {
+            const newImages = [...(prev.images || [])];
+            if (!newImages[0]) newImages[0] = p.imageUrl;
+            else if (!newImages[1]) newImages[1] = p.imageUrl;
+            else if (!newImages[2]) newImages[2] = p.imageUrl;
+            return { ...prev, images: newImages };
+          });
+        }
+      } else {
+        toast.error('Product not found in Master Catalog', { id: loadingToast });
+      }
+    } catch (err) {
+      toast.error('Failed to search Master Catalog', { id: loadingToast });
+    }
+  };
+
+  const submitBulkImport = async (autoFill) => {
+    if (!bulkFile) return toast.error('Please select an Excel or CSV file first');
+    setIsBulkSubmitting(true);
+    
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(firstSheet);
+          
+          if (!json || json.length === 0) throw new Error('File is empty or invalid format');
+
+          const mappedProducts = json.map(row => ({
+            name: row['Name'] || '',
+            barcode: row['Barcode'] || '',
+            description: row['Description'] || '',
+            mrp: Number(row['MRP']) || 0,
+            price: Number(row['Selling Price']) || 0,
+            wholesalePrice: Number(row['B2B Wholesale Price']) || 0,
+            businessPrice: Number(row['B2B Business Price']) || 0,
+            stock: Number(row['Stock']) || 0,
+            category: row['Category'] || 'General',
+            taxRate: Number(row['GST Rate']) || 0,
+            sellingType: row['Unit Type (e.g., piece/weight)'] || 'piece',
+            unit: row['Unit Label'] || 'Unit'
+          }));
+
+          const loadingToast = toast.loading('Uploading items to server...');
+          const response = await api.post('/products/bulk', { products: mappedProducts, autoFill });
+          
+          if (response.data.success) {
+            toast.success(`Successfully added ${response.data.count} items!`, { id: loadingToast });
+            setIsBulkModalOpen(false);
+            setBulkFile(null);
+            fetchData();
+          }
+        } catch (err) {
+          toast.error(err.response?.data?.error || err.message || 'Failed to process file');
+        } finally {
+          setIsBulkSubmitting(false);
+        }
+      };
+      reader.readAsArrayBuffer(bulkFile);
+    } catch (err) {
+      toast.error('Failed to read file');
+      setIsBulkSubmitting(false);
+    }
+  };
+
+  const handleBulkImport = async (autoFill) => {
+    if (autoFill && !vendorShop?.masterCatalogEnabled) {
+      try {
+        const { data: orderData } = await api.post('/admin-payments/create-order', {
+          amount: 999,
+          type: 'MASTER_CATALOG_UNLOCK'
+        });
+        if (!orderData.success) throw new Error('Failed to create order');
+
+        const options = {
+          key: orderData.order?.key_id || orderData.key,
+          amount: orderData.order?.amount || orderData.amount,
+          currency: orderData.order?.currency || orderData.currency,
+          name: "Master Catalog Unlock",
+          description: "One-time payment to unlock Master Catalog Auto-Fill",
+          order_id: orderData.order?.id || orderData.orderId,
+          handler: async (response) => {
+            try {
+              const { data: verifyData } = await api.post('/admin-payments/verify-payment', {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                shopId: vendorShop._id
+              });
+              if (verifyData.success) {
+                toast.success('Master Catalog Unlocked!');
+                fetchVendorShop();
+                submitBulkImport(true);
+              }
+            } catch (err) {
+              toast.error('Payment verification failed');
+            }
+          },
+          prefill: { name: user?.name, email: user?.email, contact: user?.phone },
+          theme: { color: "#0EA5E9" }
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      } catch (err) {
+        toast.error(err.response?.data?.error || 'Payment initialization failed. Ensure Super Admin has configured Razorpay keys.');
+      }
+      return;
+    }
+    
+    // If it's free or already paid, we MUST have a file to proceed.
+    if (!bulkFile) return toast.error('Please select an Excel or CSV file first');
+    submitBulkImport(autoFill);
+  };
+
+  const handleDownloadTemplate = () => {
+    const templateData = [{
+      'Name': 'Parle G Gold', 'Barcode': '8901719266155', 'Description': 'Biscuits', 
+      'MRP': '20', 'Selling Price': '18', 'B2B Wholesale Price': '15', 'B2B Business Price': '16', 
+      'Stock': '50', 'Category': 'Snacks', 'GST Rate': '18', 'Unit Type (e.g., piece/weight)': 'piece', 'Unit Label': 'Pack'
+    }];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
+    XLSX.writeFile(wb, "Zengalla_Inventory_Template.xlsx");
+  };
+
+  const handleAutoFill = async () => {
+    if (!newProduct.barcode) {
+      return toast.error('Enter a barcode first');
+    }
+    
+    if (!vendorShop?.masterCatalogEnabled) {
+      try {
+        const { data: orderData } = await api.post('/admin-payments/create-order', {
+          amount: 999,
+          type: 'MASTER_CATALOG_UNLOCK'
+        });
+        if (!orderData.success) throw new Error('Failed to create order');
+
+        const options = {
+          key: orderData.order?.key_id || orderData.key,
+          amount: orderData.order?.amount || orderData.amount,
+          currency: orderData.order?.currency || orderData.currency,
+          name: "Master Catalog Unlock",
+          description: "One-time payment to unlock Master Catalog Auto-Fill",
+          order_id: orderData.order?.id || orderData.orderId,
+          handler: async (response) => {
+            try {
+              const { data: verifyData } = await api.post('/admin-payments/verify-payment', {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                shopId: vendorShop._id
+              });
+              
+              if (verifyData.success) {
+                toast.success('Master Catalog Unlocked!');
+                fetchVendorShop();
+                performAutoFill();
+              }
+            } catch (err) {
+              toast.error('Payment verification failed');
+            }
+          },
+          prefill: {
+            name: user?.name,
+            email: user?.email,
+            contact: user?.phone
+          },
+          theme: { color: "#0EA5E9" }
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      } catch (err) {
+        toast.error(err.response?.data?.error || 'Payment initialization failed. Ensure Super Admin has configured Razorpay keys.');
+      }
+      return;
+    }
+
+    performAutoFill();
+  };
+
   const shopProducts = products.filter(p => {
     const pShopId = (p.shopId?._id || p.shopId || p.shop_id?._id || p.shop_id || '').toString();
     const vShopId = (vendorShop?._id || vendorShop?.id || '').toString();
@@ -171,6 +381,12 @@ const Inventory = () => {
             const diff = new Date(b.expiryDate) - new Date();
             return diff > 0 && diff < (5 * 24 * 60 * 60 * 1000);
           });
+        }
+        if (statusFilter === 'Incomplete') {
+          return !p.price || !p.mrp || p.price <= 0 || (p.stockQuantity > 0 && p.batches?.length === 0) || p.batches?.some(b => !b.expiryDate || !b.batchNumber);
+        }
+        if (statusFilter === 'No Image') {
+          return !p.images || p.images.length === 0 || !p.images[0] || p.images[0].trim() === '';
         }
         return true;
       });
@@ -317,6 +533,12 @@ const Inventory = () => {
             title="Refresh Inventory"
           >
             <RotateCcw size={20} />
+          </button>
+          <button 
+            onClick={() => setIsBulkModalOpen(true)} 
+            className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-full font-bold flex items-center gap-2 shadow-lg transition-all"
+          >
+            <Upload size={20} /> Bulk Import
           </button>
           <button onClick={() => { 
             setEditingId(null); 
@@ -480,8 +702,8 @@ const Inventory = () => {
                 </select>
 
                 {/* Desktop Status Filter (Buttons) */}
-                <div className="hidden sm:flex bg-white border border-gray-100 rounded-xl p-1 gap-1">
-                  {['All', 'Low Stock', 'Expired', 'Near Expiry'].map(f => (
+                <div className="hidden md:flex bg-white border border-gray-100 rounded-xl p-1 gap-1">
+                  {['All', 'Low Stock', 'Expired', 'Near Expiry', 'Incomplete', 'No Image'].map(f => (
                     <button
                       key={f}
                       onClick={() => setStatusFilter(f)}
@@ -498,9 +720,12 @@ const Inventory = () => {
                   value={statusFilter}
                   onChange={e => setStatusFilter(e.target.value)}
                 >
-                  {['All', 'Low Stock', 'Expired', 'Near Expiry'].map(f => (
-                    <option key={f} value={f}>{f}</option>
-                  ))}
+                  <option value="All">All</option>
+                  <option value="Low Stock">Low Stock</option>
+                  <option value="Expired">Expired</option>
+                  <option value="Near Expiry">Near Expiry</option>
+                  <option value="Incomplete">Incomplete Data</option>
+                  <option value="No Image">No Image</option>
                 </select>
               </div>
             </div>
@@ -1116,12 +1341,21 @@ const Inventory = () => {
                   </div>
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">SKU / Barcode</label>
-                    <input
-                      type="text"
-                      className="w-full bg-white border-2 border-gray-200 focus:border-sky-500/40 rounded-xl py-2.5 px-4 text-[10px] font-black text-gray-800 outline-none transition-all tracking-widest shadow-sm"
-                      value={newProduct.barcode}
-                      onChange={e => setNewProduct({ ...newProduct, barcode: e.target.value })}
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        className="w-full bg-white border-2 border-gray-200 focus:border-sky-500/40 rounded-xl py-2.5 px-4 text-[10px] font-black text-gray-800 outline-none transition-all tracking-widest shadow-sm"
+                        value={newProduct.barcode}
+                        onChange={e => setNewProduct({ ...newProduct, barcode: e.target.value })}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAutoFill}
+                        className="bg-emerald-500 text-white rounded-xl px-3 font-black text-[10px] uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center justify-center whitespace-nowrap shadow-sm"
+                      >
+                        <Zap size={14} className="mr-1" /> Auto-Fill
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1791,6 +2025,155 @@ const Inventory = () => {
           </div>
         </div>
       )}
+
+      {isBulkModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-gray-900/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-[32px] w-full max-w-2xl shadow-2xl overflow-hidden my-auto relative">
+            <button
+              onClick={() => setIsBulkModalOpen(false)}
+              className="absolute right-6 top-6 w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-full flex items-center justify-center transition-all z-10"
+            >
+              <X size={18} strokeWidth={3} />
+            </button>
+            <div className="p-8">
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-2xl font-black text-gray-900 flex items-center gap-2">
+                  <Upload className="text-sky-500" size={24} /> Bulk Import Products
+                </h2>
+                <button
+                  onClick={() => setShowBulkInstructions(!showBulkInstructions)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-100 transition-all"
+                >
+                  <AlertCircle size={14} /> {showBulkInstructions ? 'Hide Instructions' : 'View Instructions'}
+                </button>
+              </div>
+              <p className="text-xs font-bold text-gray-500 mb-6">Upload your Excel or CSV file to add multiple products at once.</p>
+              
+              {showBulkInstructions && (
+                <div className="mb-6 bg-indigo-50/50 rounded-2xl p-5 border border-indigo-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <h3 className="text-sm font-black text-indigo-900 mb-3 uppercase tracking-widest">Excel Column Guide</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
+                    <div className="bg-white p-3 rounded-xl border border-indigo-50 shadow-sm">
+                      <span className="font-black text-gray-900">Name</span> (Required) - Exact product name
+                    </div>
+                    <div className="bg-white p-3 rounded-xl border border-indigo-50 shadow-sm">
+                      <span className="font-black text-gray-900">Barcode</span> - Product barcode/UPC
+                    </div>
+                    <div className="bg-white p-3 rounded-xl border border-indigo-50 shadow-sm">
+                      <span className="font-black text-gray-900">MRP</span> (Required) - Maximum Retail Price (e.g. 50)
+                    </div>
+                    <div className="bg-white p-3 rounded-xl border border-indigo-50 shadow-sm">
+                      <span className="font-black text-gray-900">Selling Price</span> (Required) - Store price (e.g. 45)
+                    </div>
+                    <div className="bg-white p-3 rounded-xl border border-indigo-50 shadow-sm">
+                      <span className="font-black text-gray-900">B2B Wholesale Price</span> - Price for bulk buyers
+                    </div>
+                    <div className="bg-white p-3 rounded-xl border border-indigo-50 shadow-sm">
+                      <span className="font-black text-gray-900">B2B Business Price</span> - Price for verified businesses
+                    </div>
+                    <div className="bg-white p-3 rounded-xl border border-indigo-50 shadow-sm">
+                      <span className="font-black text-gray-900">Stock</span> - Current inventory count
+                    </div>
+                    <div className="bg-white p-3 rounded-xl border border-indigo-50 shadow-sm">
+                      <span className="font-black text-gray-900">Category</span> - Product category (e.g. Snacks)
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-indigo-500 mt-4 font-bold">Note: Do not rename or remove the column headers from the template file.</p>
+                </div>
+              )}
+              
+              {/* Tutorial Section */}
+              <div className="mb-6 bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-black text-gray-800">Watch Tutorial</h3>
+                  <div className="flex gap-1">
+                    {['english', 'hindi', 'kannada'].map(lang => (
+                      <button 
+                        key={lang}
+                        onClick={() => setBulkLang(lang)}
+                        className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${bulkLang === lang ? 'bg-sky-600 text-white' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}
+                      >
+                        {lang}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="aspect-video bg-gray-900 rounded-xl overflow-hidden flex items-center justify-center relative shadow-inner">
+                  {/* Mock iframe for youtube */}
+                  <div className="text-center text-white p-4">
+                    <Zap size={32} className="mx-auto text-sky-400 mb-2 opacity-50" />
+                    <p className="text-xs font-bold opacity-75">YouTube Tutorial ({bulkLang.toUpperCase()}) goes here</p>
+                    <p className="text-[10px] opacity-50 mt-1">Embed link: https://youtube.com/embed/...</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Template Section */}
+              <div className="mb-6 flex flex-col sm:flex-row gap-4">
+                <div className="flex-1 bg-amber-50 rounded-2xl p-4 border border-amber-100">
+                  <h3 className="text-xs font-black text-amber-900 uppercase tracking-widest mb-1">Step 1: Get Template</h3>
+                  <p className="text-[10px] font-bold text-amber-800 mb-3 leading-relaxed">
+                    Download the template. Do not change the column headers. Fill in your product details.
+                  </p>
+                  <button 
+                    onClick={handleDownloadTemplate}
+                    className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2 w-full"
+                  >
+                    <DownloadIcon size={14} /> Download .XLSX
+                  </button>
+                </div>
+                <div className="flex-1 bg-sky-50 rounded-2xl p-4 border border-sky-100 flex flex-col">
+                  <h3 className="text-xs font-black text-sky-900 uppercase tracking-widest mb-1">Step 2: Upload File</h3>
+                  <p className="text-[10px] font-bold text-sky-800 mb-3 leading-relaxed">
+                    Select your completed file.
+                  </p>
+                  <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-sky-200 rounded-xl bg-white cursor-pointer hover:border-sky-400 transition-all min-h-[60px]">
+                    <span className="text-[10px] font-black text-sky-600 uppercase tracking-widest flex items-center gap-1">
+                      <Upload size={12} /> {bulkFile ? bulkFile.name : 'Select File'}
+                    </span>
+                    <input 
+                      type="file" 
+                      accept=".xlsx, .xls, .csv" 
+                      className="hidden" 
+                      onChange={e => setBulkFile(e.target.files[0])}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button
+                  onClick={() => handleBulkImport(false)}
+                  disabled={isBulkSubmitting}
+                  className="p-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-2xl transition-all disabled:opacity-50 text-left group"
+                >
+                  <h4 className="text-sm font-black text-gray-800 mb-1 group-hover:text-gray-900">Basic Import (Free)</h4>
+                  <p className="text-[10px] font-bold text-gray-500 leading-relaxed">
+                    Imports products exactly as they are in the sheet. No images or auto-filled data.
+                  </p>
+                </button>
+                
+                <button
+                  onClick={() => handleBulkImport(true)}
+                  disabled={isBulkSubmitting}
+                  className="p-4 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-2xl shadow-lg shadow-emerald-200 transition-all disabled:opacity-50 text-left relative overflow-hidden"
+                >
+                  <div className="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full -mr-8 -mt-8 pointer-events-none" />
+                  <h4 className="text-sm font-black mb-1 flex items-center gap-1">
+                    <Sparkles size={14} /> Master Catalog Sync
+                  </h4>
+                  <p className="text-[10px] font-bold text-emerald-50 leading-relaxed">
+                    Automatically fetches HD images, categories, and descriptions for all items! (Premium unlock)
+                  </p>
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>
         {`
           @keyframes blink-orange-glow {

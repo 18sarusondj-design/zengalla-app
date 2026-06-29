@@ -20,6 +20,8 @@ import notificationRoutes from './routes/notifications.js';
 import systemRoutes from './routes/system.js';
 import bannerRoutes from './routes/banners.js';
 import payoutRoutes from './routes/payoutRoutes.js';
+import masterProductRoutes from './routes/masterProducts.js';
+import adminPaymentRoutes from './routes/adminPayments.js';
 
 const app = express();
 
@@ -81,6 +83,8 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/payouts', payoutRoutes);
+app.use('/api/master-products', masterProductRoutes);
+app.use('/api/admin-payments', adminPaymentRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

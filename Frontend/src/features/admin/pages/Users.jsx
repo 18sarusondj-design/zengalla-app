@@ -602,6 +602,39 @@ const Users = ({ roleFilter }) => {
                 </div>
               </div>
 
+              {/* Software Subscription Details */}
+              <div style={{ marginBottom: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <p style={{ fontSize: '9px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.3em', margin: 0 }}>Software Subscription & Billing</p>
+                  <button
+                    onClick={() => handleManualWhatsApp(modalData)}
+                    disabled={!!isProcessing}
+                    style={{ background: '#ecfdf5', color: '#059669', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <MessageSquare size={12} /> Send Payment Reminder
+                  </button>
+                </div>
+                
+                <div style={{ background: '#f8fafc', borderRadius: '20px', padding: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', border: '1px solid #e2e8f0' }}>
+                  <div>
+                    <p style={{ fontSize: '10px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Current Plan</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '16px', fontWeight: '900', color: '#0f172a' }}>{modalData?.softwarePlanName || 'Free Trial'}</span>
+                      <span style={{ background: '#e0f2fe', color: '#0284c7', fontSize: '8px', fontWeight: '900', padding: '2px 6px', borderRadius: '999px', textTransform: 'uppercase' }}>
+                        {modalData?.planExpiresAt && new Date(modalData.planExpiresAt) > new Date() ? 'ACTIVE' : 'EXPIRED'}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '10px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Billing Cycle</p>
+                    <p style={{ fontSize: '12px', fontWeight: '700', color: '#334155', margin: 0 }}>
+                      <span style={{ color: '#10b981' }}>Start:</span> {modalData?.planStartedAt ? new Date(modalData.planStartedAt).toLocaleDateString() : 'N/A'} <br/>
+                      <span style={{ color: '#ef4444' }}>Expiry:</span> {modalData?.planExpiresAt ? new Date(modalData.planExpiresAt).toLocaleDateString() : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Access Control */}
               <div style={{ marginBottom: '24px' }}>
                 <p style={{ fontSize: '9px', fontWeight: '900', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.3em', marginBottom: '12px' }}>Platform Visibility & Access</p>
