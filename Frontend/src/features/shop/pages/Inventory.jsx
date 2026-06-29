@@ -2027,109 +2027,116 @@ const Inventory = () => {
       )}
 
       {isBulkModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-gray-900/60 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white rounded-[32px] w-full max-w-2xl shadow-2xl overflow-hidden my-auto relative">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center sm:p-6 bg-white sm:bg-gray-900/60 backdrop-blur-sm overflow-hidden">
+          <div className="bg-white sm:rounded-[32px] w-full h-full sm:h-auto sm:max-h-[90vh] max-w-5xl shadow-2xl overflow-hidden relative flex flex-col">
             <button
               onClick={() => setIsBulkModalOpen(false)}
-              className="absolute right-6 top-6 w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-full flex items-center justify-center transition-all z-10"
+              className="absolute right-3 top-3 sm:right-6 sm:top-6 w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-full flex items-center justify-center transition-all z-10"
             >
               <X size={18} strokeWidth={3} />
             </button>
-            <div className="p-8">
-              <div className="flex items-center justify-between mb-1">
-                <h2 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-                  <Upload className="text-sky-500" size={24} /> Bulk Import Products
+            <div className="p-4 sm:p-8 flex flex-col h-full overflow-y-auto">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-1 gap-2 pr-10 sm:pr-12">
+                <h2 className="text-xl sm:text-2xl font-black text-gray-900 flex items-center gap-2">
+                  <Upload className="text-sky-500" size={20} /> Bulk Import
                 </h2>
                 <button
                   onClick={() => setShowBulkInstructions(!showBulkInstructions)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-100 transition-all"
+                  className="flex items-center gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 bg-indigo-50 text-indigo-600 rounded-xl font-black text-[9px] sm:text-[10px] uppercase tracking-widest hover:bg-indigo-100 transition-all w-fit"
                 >
                   <AlertCircle size={14} /> {showBulkInstructions ? 'Hide Instructions' : 'View Instructions'}
                 </button>
               </div>
-              <p className="text-xs font-bold text-gray-500 mb-6">Upload your Excel or CSV file to add multiple products at once.</p>
+              <p className="text-[10px] sm:text-xs font-bold text-gray-500 mb-3 sm:mb-6">Upload your Excel or CSV file to add multiple products at once.</p>
               
               {showBulkInstructions && (
-                <div className="mb-6 bg-indigo-50/50 rounded-2xl p-5 border border-indigo-100 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <h3 className="text-sm font-black text-indigo-900 mb-3 uppercase tracking-widest">Excel Column Guide</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
-                    <div className="bg-white p-3 rounded-xl border border-indigo-50 shadow-sm">
-                      <span className="font-black text-gray-900">Name</span> (Required) - Exact product name
+                <div className="mb-3 sm:mb-6 bg-indigo-50/50 rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-indigo-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <h3 className="text-[10px] sm:text-sm font-black text-indigo-900 mb-2 sm:mb-3 uppercase tracking-widest">Excel Column Guide</h3>
+                  <div className="grid grid-cols-2 gap-2 text-[9px] sm:text-[11px]">
+                    <div className="bg-white p-2 sm:p-3 rounded-lg sm:rounded-xl border border-indigo-50 shadow-sm leading-tight">
+                      <span className="font-black text-gray-900">Name</span> (Required)
                     </div>
-                    <div className="bg-white p-3 rounded-xl border border-indigo-50 shadow-sm">
-                      <span className="font-black text-gray-900">Barcode</span> - Product barcode/UPC
+                    <div className="bg-white p-2 sm:p-3 rounded-lg sm:rounded-xl border border-indigo-50 shadow-sm leading-tight">
+                      <span className="font-black text-gray-900">Barcode</span>
                     </div>
-                    <div className="bg-white p-3 rounded-xl border border-indigo-50 shadow-sm">
-                      <span className="font-black text-gray-900">MRP</span> (Required) - Maximum Retail Price (e.g. 50)
+                    <div className="bg-white p-2 sm:p-3 rounded-lg sm:rounded-xl border border-indigo-50 shadow-sm leading-tight">
+                      <span className="font-black text-gray-900">MRP</span> (Required)
                     </div>
-                    <div className="bg-white p-3 rounded-xl border border-indigo-50 shadow-sm">
-                      <span className="font-black text-gray-900">Selling Price</span> (Required) - Store price (e.g. 45)
+                    <div className="bg-white p-2 sm:p-3 rounded-lg sm:rounded-xl border border-indigo-50 shadow-sm leading-tight">
+                      <span className="font-black text-gray-900">Selling Price</span>
                     </div>
-                    <div className="bg-white p-3 rounded-xl border border-indigo-50 shadow-sm">
-                      <span className="font-black text-gray-900">B2B Wholesale Price</span> - Price for bulk buyers
+                    <div className="bg-white p-2 sm:p-3 rounded-lg sm:rounded-xl border border-indigo-50 shadow-sm leading-tight">
+                      <span className="font-black text-gray-900">B2B Wholesale Price</span>
                     </div>
-                    <div className="bg-white p-3 rounded-xl border border-indigo-50 shadow-sm">
-                      <span className="font-black text-gray-900">B2B Business Price</span> - Price for verified businesses
+                    <div className="bg-white p-2 sm:p-3 rounded-lg sm:rounded-xl border border-indigo-50 shadow-sm leading-tight">
+                      <span className="font-black text-gray-900">B2B Business Price</span>
                     </div>
-                    <div className="bg-white p-3 rounded-xl border border-indigo-50 shadow-sm">
-                      <span className="font-black text-gray-900">Stock</span> - Current inventory count
+                    <div className="bg-white p-2 sm:p-3 rounded-lg sm:rounded-xl border border-indigo-50 shadow-sm leading-tight">
+                      <span className="font-black text-gray-900">Stock</span>
                     </div>
-                    <div className="bg-white p-3 rounded-xl border border-indigo-50 shadow-sm">
-                      <span className="font-black text-gray-900">Category</span> - Product category (e.g. Snacks)
+                    <div className="bg-white p-2 sm:p-3 rounded-lg sm:rounded-xl border border-indigo-50 shadow-sm leading-tight">
+                      <span className="font-black text-gray-900">Category</span>
                     </div>
                   </div>
-                  <p className="text-[10px] text-indigo-500 mt-4 font-bold">Note: Do not rename or remove the column headers from the template file.</p>
+                  <p className="text-[8px] sm:text-[10px] text-indigo-500 mt-2 sm:mt-4 font-bold">Note: Do not rename or remove the column headers.</p>
                 </div>
               )}
               
-              {/* Tutorial Section */}
-              <div className="mb-6 bg-gray-50 rounded-2xl p-4 border border-gray-100">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-black text-gray-800">Watch Tutorial</h3>
-                  <div className="flex gap-1">
-                    {['english', 'hindi', 'kannada'].map(lang => (
-                      <button 
-                        key={lang}
-                        onClick={() => setBulkLang(lang)}
-                        className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${bulkLang === lang ? 'bg-sky-600 text-white' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}
-                      >
-                        {lang}
-                      </button>
-                    ))}
+              <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 flex-1 min-h-0">
+                {/* Left Side: Tutorial Section */}
+                <div className="bg-gray-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-gray-100 flex-1 flex flex-col min-h-0">
+                  <div className="flex items-center justify-between mb-2 sm:mb-3 shrink-0">
+                    <h3 className="text-xs sm:text-sm font-black text-gray-800">Watch Tutorial</h3>
+                    <div className="flex gap-1">
+                      {['english', 'hindi', 'kannada'].map(lang => (
+                        <button 
+                          key={lang}
+                          onClick={() => setBulkLang(lang)}
+                          className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-black uppercase tracking-widest transition-all ${bulkLang === lang ? 'bg-sky-600 text-white' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}
+                        >
+                          {lang}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex-1 bg-gray-900 rounded-lg sm:rounded-xl overflow-hidden flex items-center justify-center relative shadow-inner min-h-[120px] lg:min-h-[250px]">
+                    {/* Mock iframe for youtube */}
+                    <div className="text-center text-white p-2 sm:p-4">
+                      <Zap size={24} className="mx-auto text-sky-400 mb-1 sm:mb-2 opacity-50 sm:w-8 sm:h-8" />
+                      <p className="text-[10px] sm:text-xs font-bold opacity-75">YouTube Tutorial ({bulkLang.toUpperCase()}) goes here</p>
+                    </div>
                   </div>
                 </div>
-                <div className="aspect-video bg-gray-900 rounded-xl overflow-hidden flex items-center justify-center relative shadow-inner">
-                  {/* Mock iframe for youtube */}
-                  <div className="text-center text-white p-4">
-                    <Zap size={32} className="mx-auto text-sky-400 mb-2 opacity-50" />
-                    <p className="text-xs font-bold opacity-75">YouTube Tutorial ({bulkLang.toUpperCase()}) goes here</p>
-                    <p className="text-[10px] opacity-50 mt-1">Embed link: https://youtube.com/embed/...</p>
-                  </div>
-                </div>
-              </div>
+
+                {/* Right Side: Remaining Sections */}
+                <div className="flex-1 flex flex-col gap-4 lg:justify-center">
 
               {/* Template Section */}
-              <div className="mb-6 flex flex-col sm:flex-row gap-4">
-                <div className="flex-1 bg-amber-50 rounded-2xl p-4 border border-amber-100">
-                  <h3 className="text-xs font-black text-amber-900 uppercase tracking-widest mb-1">Step 1: Get Template</h3>
-                  <p className="text-[10px] font-bold text-amber-800 mb-3 leading-relaxed">
-                    Download the template. Do not change the column headers. Fill in your product details.
-                  </p>
+              <div className="flex gap-2 sm:gap-4 shrink-0">
+                <div className="flex-1 bg-amber-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-amber-100 flex flex-col justify-between">
+                  <div>
+                    <h3 className="text-[10px] sm:text-xs font-black text-amber-900 uppercase tracking-widest mb-0.5 sm:mb-1">Step 1: Get Template</h3>
+                    <p className="text-[9px] sm:text-[10px] font-bold text-amber-800 mb-2 sm:mb-3 leading-snug">
+                      Download the template. Do not change headers.
+                    </p>
+                  </div>
                   <button 
                     onClick={handleDownloadTemplate}
-                    className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2 w-full"
+                    className="bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-1.5 w-full"
                   >
-                    <DownloadIcon size={14} /> Download .XLSX
+                    <DownloadIcon size={12} className="sm:w-[14px] sm:h-[14px]" /> <span className="hidden sm:inline">Download</span> .XLSX
                   </button>
                 </div>
-                <div className="flex-1 bg-sky-50 rounded-2xl p-4 border border-sky-100 flex flex-col">
-                  <h3 className="text-xs font-black text-sky-900 uppercase tracking-widest mb-1">Step 2: Upload File</h3>
-                  <p className="text-[10px] font-bold text-sky-800 mb-3 leading-relaxed">
-                    Select your completed file.
-                  </p>
-                  <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-sky-200 rounded-xl bg-white cursor-pointer hover:border-sky-400 transition-all min-h-[60px]">
-                    <span className="text-[10px] font-black text-sky-600 uppercase tracking-widest flex items-center gap-1">
-                      <Upload size={12} /> {bulkFile ? bulkFile.name : 'Select File'}
+                <div className="flex-1 bg-sky-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-sky-100 flex flex-col justify-between">
+                  <div>
+                    <h3 className="text-[10px] sm:text-xs font-black text-sky-900 uppercase tracking-widest mb-0.5 sm:mb-1">Step 2: Upload File</h3>
+                    <p className="text-[9px] sm:text-[10px] font-bold text-sky-800 mb-2 sm:mb-3 leading-snug">
+                      Select your completed file.
+                    </p>
+                  </div>
+                  <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-sky-200 rounded-lg sm:rounded-xl bg-white cursor-pointer hover:border-sky-400 transition-all min-h-[40px] sm:min-h-[60px] p-2">
+                    <span className="text-[9px] sm:text-[10px] font-black text-sky-600 uppercase tracking-widest flex items-center gap-1 text-center">
+                      <Upload size={12} /> <span className="line-clamp-1">{bulkFile ? bulkFile.name : 'Select'}</span>
                     </span>
                     <input 
                       type="file" 
@@ -2168,9 +2175,10 @@ const Inventory = () => {
                   </p>
                 </button>
               </div>
-
+              </div>
             </div>
           </div>
+        </div>
         </div>
       )}
 
