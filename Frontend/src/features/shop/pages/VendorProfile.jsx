@@ -5,7 +5,7 @@ import { useStore } from '../../shop/context/StoreContext';
 import { useQueryParam } from '../../../hooks/useQueryParam';
 import VendorPlatformDues from '../components/VendorPlatformDues';
 import VendorSponsorship from '../components/VendorSponsorship';
-import { Store, MapPin, Camera, Save, Loader2, Mail, Phone, Info, Navigation, Power, CheckCircle, XCircle, Smartphone, QrCode, Printer, Truck, Shield, Key, Award, Download, Eye, EyeOff, Clock, Users, Plus, Trash2, Sparkles, Share2, MessageSquare, ExternalLink, Gift, X, Wallet, CreditCard, Zap, Globe, Search, Banknote, Lock } from 'lucide-react';
+import { Store, MapPin, Camera, Save, Loader2, Mail, Phone, Info, Navigation, Power, CheckCircle, XCircle, Smartphone, QrCode, Printer, Truck, Shield, Key, Award, Download, Eye, EyeOff, Clock, Users, Plus, Trash2, Sparkles, Share2, MessageSquare, ExternalLink, Gift, X, Wallet, CreditCard, Zap, Globe, Search, Banknote, Lock, CalendarX } from 'lucide-react';
 import api from '../../../config/api.js';
 import { toast } from 'sonner';
 import { jsPDF } from 'jspdf';
@@ -190,6 +190,7 @@ const VendorProfile = () => {
       start: '09:00',
       end: '21:00'
     },
+    holidays: [],
     promoBanner: '',
     coupons: [],
     isWholesale: false,
@@ -426,7 +427,7 @@ const VendorProfile = () => {
           bannerUrl: formData.bannerUrl
         };
       } else if (label === 'scheduling' || label === 'Schedule') {
-        payload = { operatingHours: formData.operatingHours };
+        payload = { operatingHours: formData.operatingHours, holidays: formData.holidays };
       } else if (label === 'location' || label === 'Location') {
         payload = {
           pinCode: formData.pinCode,
@@ -1000,6 +1001,10 @@ const VendorProfile = () => {
                         </p>
                       </div>
                     </div>
+
+                    {/* ── Holiday / Shop Closure Scheduler ── */}
+                    <HolidayScheduler formData={formData} setFormData={setFormData} />
+
                     <SectionSaveButton label="Schedule" />
                   </div>
                 )}
@@ -1721,6 +1726,146 @@ const VendorProfile = () => {
         </div>
       )}
       {/* Share Coupon Modal */}
+    </div>
+  );
+};
+
+// ── HolidayScheduler: standalone sub-component for the scheduling tab ──
+const HolidayScheduler = ({ formData, setFormData }) => {
+  const [showForm, setShowForm] = React.useState(false);
+  const [newHoliday, setNewHoliday] = React.useState({ startDate: '', endDate: '', reason: '' });
+  const { toast } = require('sonner') || {};
+
+  const addHoliday = () => {
+    if (!newHoliday.startDate || !newHoliday.endDate) {
+      import('sonner').then(m => m.toast.error('Please select start and end dates'));
+      return;
+    }
+    if (new Date(newHoliday.endDate) < new Date(newHoliday.startDate)) {
+      import('sonner').then(m => m.toast.error('End date must be after start date'));
+      return;
+    }
+    setFormData(f => ({
+      ...f,
+      holidays: [...(f.holidays || []), { ...newHoliday, reason: newHoliday.reason || 'Shop Holiday' }]
+    }));
+    setNewHoliday({ startDate: '', endDate: '', reason: '' });
+    setShowForm(false);
+  };
+
+  const removeHoliday = (idx) => {
+    setFormData(f => ({ ...f, holidays: f.holidays.filter((_, i) => i !== idx) }));
+  };
+
+  const holidays = formData.holidays || [];
+
+  return (
+    <div className="space-y-3 pt-2">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 bg-rose-100 text-rose-500 rounded-xl flex items-center justify-center">
+          <CalendarX size={17} strokeWidth={2.5} />
+        </div>
+        <div>
+          <h4 className="font-black text-gray-900 uppercase tracking-tight text-sm">Holiday / Closure Dates</h4>
+          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Customers see a notice on these dates</p>
+        </div>
+      </div>
+
+      {/* Existing holidays */}
+      {holidays.length > 0 && (
+        <div className="space-y-2">
+          {holidays.map((h, idx) => (
+            <div key={idx} className="flex items-center justify-between bg-rose-50 border border-rose-100 rounded-2xl px-4 py-3 animate-in fade-in duration-300">
+              <div className="flex items-center gap-3">
+                <div className="w-7 h-7 bg-rose-100 text-rose-500 rounded-lg flex items-center justify-center shrink-0">
+                  <CalendarX size={14} />
+                </div>
+                <div>
+                  <p className="text-xs font-black text-gray-900">
+                    {new Date(h.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    {' → '}
+                    {new Date(h.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
+                  <p className="text-[9px] font-bold text-rose-500 uppercase tracking-wide">{h.reason || 'Shop Holiday'}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => removeHoliday(idx)}
+                className="w-7 h-7 bg-rose-100 hover:bg-rose-200 text-rose-500 rounded-lg flex items-center justify-center transition-all active:scale-90"
+              >
+                <X size={13} strokeWidth={3} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add new holiday */}
+      {!showForm ? (
+        <button
+          type="button"
+          onClick={() => setShowForm(true)}
+          className="w-full py-3 border-2 border-dashed border-rose-200 hover:border-rose-400 bg-rose-50/50 hover:bg-rose-50 text-rose-500 font-black text-[10px] uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95"
+        >
+          <Plus size={14} strokeWidth={3} /> Schedule Holiday / Closure
+        </button>
+      ) : (
+        <div className="bg-white border-2 border-rose-100 rounded-3xl p-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-rose-400 animate-pulse" />
+            <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest">New Holiday Period</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">From Date</label>
+              <input
+                type="date"
+                value={newHoliday.startDate}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={e => setNewHoliday(h => ({ ...h, startDate: e.target.value }))}
+                className="w-full bg-gray-50 border-2 border-transparent focus:border-rose-400 focus:bg-white rounded-xl p-3 text-sm font-bold text-gray-800 outline-none transition-all"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">To Date</label>
+              <input
+                type="date"
+                value={newHoliday.endDate}
+                min={newHoliday.startDate || new Date().toISOString().split('T')[0]}
+                onChange={e => setNewHoliday(h => ({ ...h, endDate: e.target.value }))}
+                className="w-full bg-gray-50 border-2 border-transparent focus:border-rose-400 focus:bg-white rounded-xl p-3 text-sm font-bold text-gray-800 outline-none transition-all"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Reason <span className="text-gray-300 normal-case font-bold">(shown to customers)</span></label>
+            <input
+              type="text"
+              value={newHoliday.reason}
+              onChange={e => setNewHoliday(h => ({ ...h, reason: e.target.value }))}
+              placeholder="e.g. Diwali Holiday, Annual Maintenance..."
+              className="w-full bg-gray-50 border-2 border-transparent focus:border-rose-400 focus:bg-white rounded-xl p-3 text-sm font-bold text-gray-800 outline-none transition-all"
+            />
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => { setShowForm(false); setNewHoliday({ startDate: '', endDate: '', reason: '' }); }}
+              className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={addHoliday}
+              className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md shadow-rose-200 active:scale-95"
+            >
+              Add Holiday
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

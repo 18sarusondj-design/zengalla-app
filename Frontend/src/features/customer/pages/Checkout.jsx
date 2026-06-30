@@ -461,10 +461,18 @@ const Checkout = () => {
   const [placedOrderId, setPlacedOrderId] = useState('');
 
   const submitOrder = async (rzpDetails = null) => {
+    const isShopOffline = activeShop && activeShop.isActive === false;
     try {
       setIsInitiatingPayment(true);
       const finalPickupTime = formData.pickupTime === 'CUSTOM' ? customTime : formData.pickupTime;
       const selectedAddress = orderType === 'DELIVERY' ? addresses.find(a => (a._id || a.id) === formData.deliveryAddressId) : null;
+
+      // When shop is offline: force COD + OFFLINE_ORDER tag, no payment
+      const effectivePaymentMethod = isShopOffline ? 'COD' : (confirmedPayment ? 'ONLINE' : paymentMethod);
+      const effectivePaymentGateway = isShopOffline ? 'OFFLINE_ORDER' : (confirmedPayment ? 'UPI_SCAN' : paymentGateway);
+      const effectivePaymentStatus = isShopOffline ? 'PENDING'
+        : ((paymentMethod === 'COD' && !confirmedPayment) ? 'PENDING'
+          : ((paymentMethod === 'PAY_LATER' || paymentMethod === 'CREDIT') ? 'CREDIT' : 'PAID'));
       
       const orderPayload = {
         shopId: currentShopId,
@@ -473,9 +481,9 @@ const Checkout = () => {
         phone: formData.phone || user?.phone || '',
         pickupTime: orderType === 'PICKUP' ? finalPickupTime : 'Delivery ASAP',
         orderType,
-        paymentMethod: confirmedPayment ? 'ONLINE' : paymentMethod,
-        paymentStatus: (paymentMethod === 'COD' && !confirmedPayment) ? 'PENDING' : ((paymentMethod === 'PAY_LATER' || paymentMethod === 'CREDIT') ? 'CREDIT' : 'PAID'),
-        paymentGateway: confirmedPayment ? 'UPI_SCAN' : paymentGateway,
+        paymentMethod: effectivePaymentMethod,
+        paymentStatus: effectivePaymentStatus,
+        paymentGateway: effectivePaymentGateway,
         customerGstin,
         razorpayOrderId: (rzpDetails || razorpayDetails)?.razorpay_order_id || '',
         razorpayPaymentId: (rzpDetails || razorpayDetails)?.razorpay_payment_id || '',
@@ -527,6 +535,13 @@ const Checkout = () => {
 
     if (orderType === 'DELIVERY' && (!addresses.length || !formData.deliveryAddressId)) {
       return toast.error("Please add a delivery address");
+    }
+
+    // When shop is OFFLINE: skip all payment flows, place order directly
+    const isShopOffline = activeShop && activeShop.isActive === false;
+    if (isShopOffline) {
+      await submitOrder();
+      return;
     }
 
     if (paymentMethod === 'RAZORPAY' && !paymentConfirmed && !isInitiatingPayment) {
@@ -898,107 +913,131 @@ const Checkout = () => {
 
           {/* Payment Method */}
           <section>
-              <h2 className="text-xs font-black text-gray-900 mb-4 uppercase tracking-[0.2em]">Payment Method</h2>
-            <div className="space-y-3">
-              {/* Razorpay Option - Only show if shop has Razorpay configured */}
-              {activeShop?.razorpayKeyId && (
-                <div 
-                  onClick={() => {
-                    setPaymentMethod('RAZORPAY');
-                    setPaymentGateway('RAZORPAY');
-                  }}
-                  className={`p-5 border-2 rounded-3xl flex items-center justify-between transition-all cursor-pointer ${paymentMethod === 'RAZORPAY' ? 'border-brand-primary bg-brand-primaryLight/30 ring-4 ring-brand-primary/5' : 'border-gray-100 hover:border-brand-primary/50'}`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-2xl ${paymentMethod === 'RAZORPAY' ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/20' : 'bg-gray-100 text-gray-400'}`}>
-                      <CreditCard size={24}/>
-                    </div>
-                    <div>
-                      <h3 className={`font-black text-lg uppercase tracking-tight ${paymentMethod === 'RAZORPAY' ? 'text-brand-primary' : 'text-gray-900'}`}>Online Payment</h3>
-                      <p className="text-[11px] text-gray-500 mt-1 font-bold italic leading-tight">Fastest & Safest Payment Method</p>
-                    </div>
-                  </div>
-                  {paymentMethod === 'RAZORPAY' && <CheckCircle2 className="text-brand-primary" size={28} />}
-                </div>
-              )}
+            <h2 className="text-xs font-black text-gray-900 mb-4 uppercase tracking-[0.2em]">Payment Method</h2>
 
-              {/* COD Option */}
-              <div 
-                onClick={() => {
-                  setPaymentMethod('COD');
-                  setPaymentGateway('COD');
-                }}
-                className={`p-5 border-2 rounded-3xl flex items-center justify-between transition-all cursor-pointer ${paymentMethod === 'COD' ? 'border-brand-primary bg-brand-primaryLight/30 ring-4 ring-brand-primary/5' : 'border-gray-100 hover:border-brand-primary/50'}`}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-2xl ${paymentMethod === 'COD' ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/20' : 'bg-gray-100 text-gray-400'}`}>
-                    <Wallet size={24}/>
+            {activeShop && activeShop.isActive === false ? (
+              /* ── SHOP OFFLINE: No payment required ── */
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-3xl p-6 flex flex-col gap-4 animate-in fade-in duration-500">
+                <div className="flex items-start gap-4">
+                  <div className="w-14 h-14 bg-amber-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-amber-200 shrink-0">
+                    <Phone size={26} strokeWidth={2.5} />
                   </div>
                   <div>
-                    <h3 className={`font-black text-lg uppercase tracking-tight ${paymentMethod === 'COD' ? 'text-brand-primary' : 'text-gray-900'}`}>Cash on Delivery</h3>
-                    <p className="text-[11px] text-gray-500 mt-1 font-bold italic leading-tight">Pay when you receive your order</p>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-700 text-[9px] font-black uppercase tracking-widest rounded-full mb-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      Shop Currently Closed
+                    </div>
+                    <h3 className="font-black text-base text-gray-900 uppercase tracking-tight leading-tight mb-1">No Payment Needed Now</h3>
+                    <p className="text-[11px] text-gray-600 font-bold leading-relaxed">
+                      Place your order now — the vendor will <strong>contact you directly</strong> to confirm payment and arrange delivery once the shop opens.
+                    </p>
                   </div>
                 </div>
-                {paymentMethod === 'COD' && <CheckCircle2 className="text-brand-primary" size={28} />}
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-amber-100">
+                  {[
+                    { icon: '📋', label: 'Order Saved' },
+                    { icon: '📞', label: 'Vendor Calls You' },
+                    { icon: '💳', label: 'Pay on Delivery' },
+                  ].map(step => (
+                    <div key={step.label} className="flex flex-col items-center gap-1 text-center">
+                      <span className="text-xl">{step.icon}</span>
+                      <span className="text-[9px] font-black text-amber-800 uppercase tracking-wide leading-tight">{step.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
+            ) : (
+              /* ── SHOP OPEN: Normal payment options ── */
+              <>
+                <div className="space-y-3">
+                  {/* Razorpay Option - Only show if shop has Razorpay configured */}
+                  {activeShop?.razorpayKeyId && (
+                    <div
+                      onClick={() => { setPaymentMethod('RAZORPAY'); setPaymentGateway('RAZORPAY'); }}
+                      className={`p-5 border-2 rounded-3xl flex items-center justify-between transition-all cursor-pointer ${paymentMethod === 'RAZORPAY' ? 'border-brand-primary bg-brand-primaryLight/30 ring-4 ring-brand-primary/5' : 'border-gray-100 hover:border-brand-primary/50'}`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-2xl ${paymentMethod === 'RAZORPAY' ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/20' : 'bg-gray-100 text-gray-400'}`}>
+                          <CreditCard size={24}/>
+                        </div>
+                        <div>
+                          <h3 className={`font-black text-lg uppercase tracking-tight ${paymentMethod === 'RAZORPAY' ? 'text-brand-primary' : 'text-gray-900'}`}>Online Payment</h3>
+                          <p className="text-[11px] text-gray-500 mt-1 font-bold italic leading-tight">Fastest & Safest Payment Method</p>
+                        </div>
+                      </div>
+                      {paymentMethod === 'RAZORPAY' && <CheckCircle2 className="text-brand-primary" size={28} />}
+                    </div>
+                  )}
 
-              {/* Pay Later Option */}
-              {(isB2BClient || isPayLaterClient) && (
-                <div 
-                  onClick={() => {
-                    setPaymentMethod('PAY_LATER');
-                    setPaymentGateway('CREDIT');
-                  }}
-                  className={`p-5 border-2 rounded-3xl flex items-center justify-between transition-all cursor-pointer ${paymentMethod === 'PAY_LATER' ? 'border-sky-600 bg-sky-50 ring-4 ring-sky-600/5' : 'border-gray-100 hover:border-sky-600/50'}`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-2xl ${paymentMethod === 'PAY_LATER' ? 'bg-sky-600 text-white shadow-lg shadow-sky-600/20' : 'bg-gray-100 text-gray-400'}`}>
-                      <Shield size={24}/>
+                  {/* COD Option */}
+                  <div
+                    onClick={() => { setPaymentMethod('COD'); setPaymentGateway('COD'); }}
+                    className={`p-5 border-2 rounded-3xl flex items-center justify-between transition-all cursor-pointer ${paymentMethod === 'COD' ? 'border-brand-primary bg-brand-primaryLight/30 ring-4 ring-brand-primary/5' : 'border-gray-100 hover:border-brand-primary/50'}`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`p-3 rounded-2xl ${paymentMethod === 'COD' ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/20' : 'bg-gray-100 text-gray-400'}`}>
+                        <Wallet size={24}/>
+                      </div>
+                      <div>
+                        <h3 className={`font-black text-lg uppercase tracking-tight ${paymentMethod === 'COD' ? 'text-brand-primary' : 'text-gray-900'}`}>Cash on Delivery</h3>
+                        <p className="text-[11px] text-gray-500 mt-1 font-bold italic leading-tight">Pay when you receive your order</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className={`font-black text-lg uppercase tracking-tight ${paymentMethod === 'PAY_LATER' ? 'text-sky-600' : 'text-gray-900'}`}>Pay Later (Credit)</h3>
-                      <p className="text-[11px] text-gray-500 mt-1 font-bold italic leading-tight">{isB2BClient ? 'Post-payment for whitelisted business partners' : 'Trusted customer credit account'}</p>
-                    </div>
+                    {paymentMethod === 'COD' && <CheckCircle2 className="text-brand-primary" size={28} />}
                   </div>
-                  {paymentMethod === 'PAY_LATER' && <CheckCircle2 className="text-sky-600" size={28} />}
-                </div>
-              )}
 
-              {/* UPI QR Option - Only show if shop has UPI configured */}
-              {activeShop?.bankDetails?.upiId && (
-                <div 
-                  onClick={() => {
-                    setPaymentMethod('UPI_QR');
-                    setPaymentGateway('UPI_QR');
-                    setShowQRModal(true);
-                  }}
-                  className={`p-5 border-2 rounded-3xl flex items-center justify-between transition-all cursor-pointer ${paymentMethod === 'UPI_QR' ? 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-500/5' : 'border-gray-100 hover:border-emerald-500/50'}`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-2xl ${paymentMethod === 'UPI_QR' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-gray-100 text-gray-400'}`}>
-                      <Scan size={24}/>
+                  {/* Pay Later Option */}
+                  {(isB2BClient || isPayLaterClient) && (
+                    <div
+                      onClick={() => { setPaymentMethod('PAY_LATER'); setPaymentGateway('CREDIT'); }}
+                      className={`p-5 border-2 rounded-3xl flex items-center justify-between transition-all cursor-pointer ${paymentMethod === 'PAY_LATER' ? 'border-sky-600 bg-sky-50 ring-4 ring-sky-600/5' : 'border-gray-100 hover:border-sky-600/50'}`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-2xl ${paymentMethod === 'PAY_LATER' ? 'bg-sky-600 text-white shadow-lg shadow-sky-600/20' : 'bg-gray-100 text-gray-400'}`}>
+                          <Shield size={24}/>
+                        </div>
+                        <div>
+                          <h3 className={`font-black text-lg uppercase tracking-tight ${paymentMethod === 'PAY_LATER' ? 'text-sky-600' : 'text-gray-900'}`}>Pay Later (Credit)</h3>
+                          <p className="text-[11px] text-gray-500 mt-1 font-bold italic leading-tight">{isB2BClient ? 'Post-payment for whitelisted business partners' : 'Trusted customer credit account'}</p>
+                        </div>
+                      </div>
+                      {paymentMethod === 'PAY_LATER' && <CheckCircle2 className="text-sky-600" size={28} />}
                     </div>
-                    <div>
-                      <h3 className={`font-black text-lg uppercase tracking-tight ${paymentMethod === 'UPI_QR' ? 'text-emerald-500' : 'text-gray-900'}`}>UPI QR Scanner</h3>
-                      <p className="text-[11px] text-gray-500 mt-1 font-bold italic leading-tight">Scan & Pay with any UPI app</p>
+                  )}
+
+                  {/* UPI QR Option */}
+                  {activeShop?.bankDetails?.upiId && (
+                    <div
+                      onClick={() => { setPaymentMethod('UPI_QR'); setPaymentGateway('UPI_QR'); setShowQRModal(true); }}
+                      className={`p-5 border-2 rounded-3xl flex items-center justify-between transition-all cursor-pointer ${paymentMethod === 'UPI_QR' ? 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-500/5' : 'border-gray-100 hover:border-emerald-500/50'}`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-2xl ${paymentMethod === 'UPI_QR' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-gray-100 text-gray-400'}`}>
+                          <Scan size={24}/>
+                        </div>
+                        <div>
+                          <h3 className={`font-black text-lg uppercase tracking-tight ${paymentMethod === 'UPI_QR' ? 'text-emerald-500' : 'text-gray-900'}`}>UPI QR Scanner</h3>
+                          <p className="text-[11px] text-gray-500 mt-1 font-bold italic leading-tight">Scan & Pay with any UPI app</p>
+                        </div>
+                      </div>
+                      {paymentMethod === 'UPI_QR' && <CheckCircle2 className="text-emerald-500" size={28} />}
                     </div>
-                  </div>
-                  {paymentMethod === 'UPI_QR' && <CheckCircle2 className="text-emerald-500" size={28} />}
+                  )}
                 </div>
-              )}
-            </div>
-            <div className="flex justify-end mt-2">
-              <button 
-                type="button" 
-                onClick={() => setShowPaymentGuide(true)}
-                className="text-[10px] font-black text-sky-500 hover:text-sky-600 uppercase tracking-widest flex items-center gap-1.5 transition-all active:scale-95"
-              >
-                <div className="w-5 h-5 bg-sky-50 rounded-full flex items-center justify-center border border-sky-100">
-                  <HelpCircle size={10} />
+                <div className="flex justify-end mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowPaymentGuide(true)}
+                    className="text-[10px] font-black text-sky-500 hover:text-sky-600 uppercase tracking-widest flex items-center gap-1.5 transition-all active:scale-95"
+                  >
+                    <div className="w-5 h-5 bg-sky-50 rounded-full flex items-center justify-center border border-sky-100">
+                      <HelpCircle size={10} />
+                    </div>
+                    How it works?
+                  </button>
                 </div>
-                How it works?
-              </button>
-            </div>
+              </>
+            )}
           </section>
         </div>
       </div>

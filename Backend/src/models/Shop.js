@@ -30,6 +30,11 @@ const shopSchema = new mongoose.Schema({
     start: { type: String, default: '09:00' },
     end: { type: String, default: '21:00' },
   },
+  holidays: [{
+    startDate: { type: Date, required: true },
+    endDate: { type: Date, required: true },
+    reason: { type: String, default: 'Shop Holiday' },
+  }],
   coupons: [{
     code: { type: String, uppercase: true },
     discountValue: Number,

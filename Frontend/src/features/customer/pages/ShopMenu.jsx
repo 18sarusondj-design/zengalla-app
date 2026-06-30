@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQueryParam } from '../../../hooks/useQueryParam';
 import { useStore } from '../../shop/context/StoreContext';
 import { useAuth } from '../../auth/context/AuthContext';
-import { Store, MapPin, ChevronLeft, ChevronRight, ShoppingBag, Plus, Minus, Loader2, ArrowRight, Search, X, Info, Gift, Bell, Copy, Check, Phone, Clock, Eye, ShoppingCart, Trash2, Sparkles, Ticket, Star, SlidersHorizontal } from 'lucide-react';
+import { Store, MapPin, ChevronLeft, ChevronRight, ShoppingBag, Plus, Minus, Loader2, ArrowRight, Search, X, Info, Gift, Bell, Copy, Check, Phone, Clock, Eye, ShoppingCart, Trash2, Sparkles, Ticket, Star, SlidersHorizontal, CalendarX } from 'lucide-react';
 import api from '../../../config/api.js';
 import { toast } from 'sonner';
 import FullScreenLoader from '../components/FullScreenLoader';
@@ -44,6 +44,20 @@ const ShopMenu = () => {
   const isShopOpen = (s) => {
     if (!s) return false;
     if (s.isActive === false) return false;
+
+    // Check holidays
+    if (s.holidays?.length > 0) {
+      const today = new Date();
+      const isHoliday = s.holidays.some(h => {
+        const start = new Date(h.startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(h.endDate);
+        end.setHours(23, 59, 59, 999);
+        return today >= start && today <= end;
+      });
+      if (isHoliday) return false;
+    }
+
     if (!s.operatingHours?.enabled) return true;
     
     const now = new Date();
@@ -730,31 +744,49 @@ const ShopMenu = () => {
           </button>
         </div>
 
-        {/* Offline Banner - Integrated into Hero */}
+        {/* Offline / Holiday Banner - Integrated into Hero */}
         {shop && !isShopOpen(shop) && (
           <div className="relative px-5 pt-8 animate-in slide-in-from-top-4 duration-700">
-            <div className="bg-rose-500/90 backdrop-blur-md text-white px-5 py-4 rounded-[32px] shadow-2xl border border-white/20 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-11 h-11 bg-white/20 rounded-2xl flex items-center justify-center shrink-0 border border-white/10">
-                  <Clock size={20} className="animate-pulse text-white" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[11px] font-black uppercase tracking-widest leading-none mb-1.5 flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                    Orders Accepted
+            {(() => {
+              let holidayReason = null;
+              if (shop.holidays?.length > 0) {
+                const today = new Date();
+                const activeHoliday = shop.holidays.find(h => {
+                  const start = new Date(h.startDate); start.setHours(0, 0, 0, 0);
+                  const end = new Date(h.endDate); end.setHours(23, 59, 59, 999);
+                  return today >= start && today <= end;
+                });
+                if (activeHoliday) holidayReason = activeHoliday.reason;
+              }
+
+              return (
+                <div className="bg-rose-500/90 backdrop-blur-md text-white px-5 py-4 rounded-[32px] shadow-2xl border border-white/20 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-11 h-11 bg-white/20 rounded-2xl flex items-center justify-center shrink-0 border border-white/10">
+                      {holidayReason ? <CalendarX size={20} className="text-white" /> : <Clock size={20} className="animate-pulse text-white" />}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-black uppercase tracking-widest leading-none mb-1.5 flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                        {holidayReason ? 'Shop on Holiday' : 'Orders Accepted'}
+                      </div>
+                      <p className="text-[9px] font-bold uppercase tracking-wider opacity-90 leading-tight max-w-[180px]">
+                        {holidayReason ? `Closed for: ${holidayReason}` : "We're currently offline. Place your order now & we'll contact you soon!"}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-[9px] font-bold uppercase tracking-wider opacity-90 leading-tight max-w-[180px]">
-                    We're currently offline. Place your order now & we'll contact you soon!
-                  </p>
+                  <button 
+                    onClick={() => {
+                      if (holidayReason) toast.info(`Shop is closed due to: ${holidayReason}`);
+                      else toast.info(`Operating Hours: ${shop.operatingHours?.start || 'N/A'} - ${shop.operatingHours?.end || 'N/A'}`);
+                    }}
+                    className="px-4 h-10 bg-white text-rose-500 hover:bg-rose-50 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all shrink-0 shadow-lg"
+                  >
+                    Info
+                  </button>
                 </div>
-              </div>
-              <button 
-                onClick={() => toast.info(`Operating Hours: ${shop.operatingHours?.start || 'N/A'} - ${shop.operatingHours?.end || 'N/A'}`)}
-                className="px-4 h-10 bg-white text-rose-500 hover:bg-rose-50 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all shrink-0 shadow-lg"
-              >
-                Hours
-              </button>
-            </div>
+              );
+            })()}
           </div>
         )}
 

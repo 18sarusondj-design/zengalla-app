@@ -21,6 +21,18 @@ const fmtTime = (t) => {
 const isShopOpen = (s) => {
   if (!s) return false;
   if (s.isActive === false) return false;
+
+  // Check holidays
+  if (s.holidays?.length > 0) {
+    const today = new Date();
+    const isHoliday = s.holidays.some(h => {
+      const start = new Date(h.startDate); start.setHours(0, 0, 0, 0);
+      const end = new Date(h.endDate); end.setHours(23, 59, 59, 999);
+      return today >= start && today <= end;
+    });
+    if (isHoliday) return false;
+  }
+
   if (!s.operatingHours?.enabled) return true;
   
   const now = new Date();
