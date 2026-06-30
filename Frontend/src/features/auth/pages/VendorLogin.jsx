@@ -2,14 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../auth/context/AuthContext';
 import { toast } from 'sonner';
-import { Store, Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, ShieldCheck, Truck } from 'lucide-react';
+import { Store, Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, ShieldCheck, Truck, AlertTriangle } from 'lucide-react';
 import Logo from '../../common/components/Logo';
 import PWAInstallButton from '../../common/components/PWAInstallButton';
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const { login, loading, user } = useAuth();
+  const [wrongRoleError, setWrongRoleError] = useState(null);
+  const { login, logout, loading, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -61,11 +62,19 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) return toast.error('Please enter all fields');
+    setWrongRoleError(null);
     
     const toastId = toast.loading('Authenticating...');
     try {
       const result = await login(email, password);
       if (result.success) {
+        // Block plain customers from vendor login page
+        if (result.user?.role === 'customer') {
+          await logout();
+          toast.dismiss(toastId);
+          setWrongRoleError('customer');
+          return;
+        }
         toast.success('Successfully logged in!', { id: toastId });
       } else {
         throw new Error(result.error);
@@ -136,6 +145,31 @@ const Login = () => {
               <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none scale-[2.5] group-hover:rotate-12 transition-transform duration-1000">
                 <Logo variant="icon" className="w-32 h-32" />
               </div>
+
+              {/* Wrong Role Banner */}
+              {wrongRoleError === 'customer' && (
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                      <AlertTriangle size={16} className="text-blue-600" strokeWidth={3} />
+                    </div>
+                    <div>
+                      <p className="font-black text-xs text-blue-900 uppercase tracking-tight mb-0.5">Wrong Login Page</p>
+                      <p className="text-[10px] text-blue-700 font-bold leading-relaxed">
+                        This page is for <strong>vendors &amp; staff only</strong>. Your account is registered as a <strong>Customer</strong>.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/login')}
+                    className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md shadow-blue-100 flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <Store size={14} strokeWidth={3} />
+                    Go to Customer Login Page
+                  </button>
+                </div>
+              )}
 
               <form className="space-y-4" onSubmit={handleSubmit}>
                 <div className="space-y-4">

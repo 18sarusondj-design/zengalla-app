@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../../config/api.js';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { Sparkles, Star, CalendarDays, Loader2, ArrowRight } from 'lucide-react';
 import useRazorpay from 'react-razorpay';
 

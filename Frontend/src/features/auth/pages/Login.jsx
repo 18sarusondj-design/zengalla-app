@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../auth/context/AuthContext';
 import { toast } from 'sonner';
-import { Store, Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, ShieldCheck, Truck, CheckCircle2 } from 'lucide-react';
+import { Store, Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, ShieldCheck, Truck, CheckCircle2, AlertTriangle } from 'lucide-react';
 import Logo from '../../common/components/Logo';
 import PWAInstallButton from '../../common/components/PWAInstallButton';
 import { GoogleLogin } from '@react-oauth/google';
@@ -14,7 +14,8 @@ const Login = () => {
   const [step, setStep] = useState(1);
   const [otp, setOtp] = useState('');
   const [verifyEmail, setVerifyEmail] = useState('');
-  const { login, googleLogin, loading, user, verifyOtp } = useAuth();
+  const [wrongRoleError, setWrongRoleError] = useState(null);
+  const { login, googleLogin, logout, loading, user, verifyOtp } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -66,11 +67,19 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) return toast.error('Please enter all fields');
+    setWrongRoleError(null);
     
     const toastId = toast.loading('Authenticating...');
     try {
       const result = await login(email, password);
       if (result.success) {
+        // Block vendors/staff from customer login page
+        if (result.user?.role === 'vendor' || result.user?.role === 'staff') {
+          await logout();
+          toast.dismiss(toastId);
+          setWrongRoleError('vendor');
+          return;
+        }
         toast.success('Successfully logged in!', { id: toastId });
       } else if (result.requiresVerification) {
         toast.success('Verification code sent to your email!', { id: toastId });
@@ -162,6 +171,31 @@ const Login = () => {
               <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none scale-[2.5] group-hover:rotate-12 transition-transform duration-1000">
                 <Logo variant="icon" className="w-32 h-32" />
               </div>
+
+              {/* Wrong Role Banner */}
+              {wrongRoleError === 'vendor' && (
+                <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                      <AlertTriangle size={16} className="text-amber-600" strokeWidth={3} />
+                    </div>
+                    <div>
+                      <p className="font-black text-xs text-amber-900 uppercase tracking-tight mb-0.5">Wrong Login Page</p>
+                      <p className="text-[10px] text-amber-700 font-bold leading-relaxed">
+                        This page is for <strong>customers only</strong>. Your account is registered as a <strong>Vendor / Staff</strong>.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/vendor/login')}
+                    className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md shadow-amber-100 flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <Store size={14} strokeWidth={3} />
+                    Go to Vendor Login Page
+                  </button>
+                </div>
+              )}
 
               {step === 1 ? (
                 <form className="space-y-4" onSubmit={handleSubmit}>
