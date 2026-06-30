@@ -25,6 +25,7 @@ import adminPaymentRoutes from './routes/adminPayments.js';
 import ledgerRoutes from './routes/ledgerRoutes.js';
 import sponsorshipRoutes from './routes/sponsorshipRoutes.js';
 import globalBannerRoutes from './routes/globalBanners.js';
+import callRoutes from './routes/calls.js';
 
 const app = express();
 
@@ -90,6 +91,7 @@ app.use('/api/master-products', masterProductRoutes);
 app.use('/api/admin-payments', adminPaymentRoutes);
 app.use('/api/sponsorship', sponsorshipRoutes);
 app.use('/api/global-banners', globalBannerRoutes);
+app.use('/api/calls', callRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

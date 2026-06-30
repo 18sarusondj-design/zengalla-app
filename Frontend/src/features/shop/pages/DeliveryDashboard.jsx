@@ -322,6 +322,23 @@ const DeliveryDashboard = () => {
     setActionLoading(false);
   };
 
+  const handleSecureCall = async (orderId) => {
+    try {
+      toast.info("Initiating secure call...");
+      const res = await api.post('/calls/connect', {
+        orderId,
+        callerType: 'delivery_boy'
+      });
+      if (res.data?.success) {
+        toast.success(res.data.message);
+      } else {
+        toast.error("Failed to connect secure call.");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Call failed.");
+    }
+  };
+
   const handleChangePassword = async (e) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) return toast.error("Passwords do not match");
@@ -603,7 +620,7 @@ const DeliveryDashboard = () => {
 
                       <div className="grid grid-cols-1 gap-3 mb-5">
                         <button
-                          onClick={() => window.open(`tel:${order.phone}`)}
+                          onClick={() => handleSecureCall(order._id)}
                           className="flex items-center justify-center gap-3 h-10 bg-sky-50 text-sky-600 rounded-xl font-black text-[9px] uppercase tracking-widest border border-sky-100 hover:bg-sky-100 transition-all active:scale-95 shadow-sm"
                         >
                           <Phone size={14} /> Contact Client
