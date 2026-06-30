@@ -406,7 +406,13 @@ const AdminLayout = () => {
               )}
 
               <div className="mt-auto pt-4 flex flex-col gap-2">
-
+                <a
+                  href="tel:+919999999999"
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl w-full text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-all font-black text-[10px] uppercase tracking-widest border border-emerald-100"
+                >
+                  <Phone size={18} strokeWidth={3} />
+                  <span>Call Superadmin</span>
+                </a>
                 <button
                   onClick={() => window.dispatchEvent(new CustomEvent('open-report-modal'))}
                   className="flex items-center gap-3 px-4 py-2.5 rounded-xl w-full text-sky-600 bg-sky-50 hover:bg-sky-100 transition-all font-black text-[10px] uppercase tracking-widest border border-sky-100"
@@ -540,13 +546,23 @@ const AdminLayout = () => {
                             <NavItem to="/vendor/dashboard/profile" icon={<User size={20} />} label="Shop Profile" onClick={() => setIsMobileMenuOpen(false)} />
                           </>
                         )}
-                        <button
-                          onClick={() => { setIsMobileMenuOpen(false); window.dispatchEvent(new CustomEvent('open-report-modal')); }}
-                          className="flex items-center gap-3 px-5 py-4 rounded-2xl w-full text-sky-600 bg-sky-50 hover:bg-sky-100 transition-all font-black text-xs uppercase tracking-widest border border-sky-100"
-                        >
-                          <AlertCircle size={18} strokeWidth={3} />
-                          <span>Report Problem</span>
-                        </button>
+                        <div className="mt-2 flex flex-col gap-2">
+                          <a
+                            href="tel:+919999999999"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="flex items-center gap-3 px-5 py-4 rounded-2xl w-full text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-all font-black text-xs uppercase tracking-widest border border-emerald-100"
+                          >
+                            <Phone size={18} strokeWidth={3} />
+                            <span>Call Superadmin</span>
+                          </a>
+                          <button
+                            onClick={() => { setIsMobileMenuOpen(false); window.dispatchEvent(new CustomEvent('open-report-modal')); }}
+                            className="flex items-center gap-3 px-5 py-4 rounded-2xl w-full text-sky-600 bg-sky-50 hover:bg-sky-100 transition-all font-black text-xs uppercase tracking-widest border border-sky-100"
+                          >
+                            <AlertCircle size={18} strokeWidth={3} />
+                            <span>Report Problem</span>
+                          </button>
+                        </div>
                       </>
                     )}
                   </>
