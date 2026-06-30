@@ -20,6 +20,8 @@ const AdminLayout = () => {
   const isAdmin = user?.role === 'admin';
   const isVendor = user?.role === 'vendor';
   const isStaff = user?.role === 'staff';
+  const isSubscriptionExpired = isVendor && (!vendorShop?.planExpiresAt || new Date() > new Date(vendorShop.planExpiresAt));
+  const isOnSubscriptionPage = location.pathname.includes('/profile') && location.search.includes('tab=subscription');
   const [vendorShopName, setVendorShopName] = useState(user?.shopName || 'SHOP ADMIN');
   const [adminStats, setAdminStats] = useState({ vendors: 0, customers: 0, vendorReports: 0, customerReports: 0 });
 
@@ -497,33 +499,56 @@ const AdminLayout = () => {
               <div className="flex-1 flex flex-col gap-2 overflow-y-auto scrollbar-hide">
                 {(isVendor || isStaff) && (
                   <>
-                    {vendorShop?.subscriptionPlan !== 'basic' && (
-                      <>
-                        {!isStaff && <NavItem to="/vendor/dashboard" exact icon={<LayoutDashboard size={20} />} label="Overview" onClick={() => setIsMobileMenuOpen(false)} />}
-                        <NavItem to="/vendor/dashboard/orders" icon={<ShoppingCart size={20} />} label="Orders" onClick={() => setIsMobileMenuOpen(false)} />
-                      </>
-                    )}
-                    {canManageInventory && <NavItem to="/vendor/dashboard/inventory" icon={<Package size={20} />} label="Inventory" onClick={() => setIsMobileMenuOpen(false)} />}
-                    {vendorShop?.bannersEnabled && <NavItem to="/vendor/dashboard/banners" icon={<Sparkles size={20} />} label="Offer Banners" onClick={() => setIsMobileMenuOpen(false)} />}
-                    <NavItem to="/vendor/dashboard/billing" icon={<Receipt size={20} />} label="Billing Area" onClick={() => setIsMobileMenuOpen(false)} />
-                    <NavItem to="/vendor/dashboard/ledger" icon={<HistoryIcon size={20} />} label="Billing History" onClick={() => setIsMobileMenuOpen(false)} />
-                    {isVendor && (
-                      <>
-                        <NavItem to="/vendor/dashboard/procurement" icon={<ShoppingBag size={20} />} label="B2B Procurement" onClick={() => setIsMobileMenuOpen(false)} />
-                        <NavItem to="/vendor/dashboard/b2b" icon={<Users size={20} />} label="B2B Partners" onClick={() => setIsMobileMenuOpen(false)} />
-                        <NavItem to="/vendor/dashboard/staff" icon={<Shield size={20} />} label="Staff Management" onClick={() => setIsMobileMenuOpen(false)} />
-                        {vendorShop?.isPayLater && <NavItem to="/vendor/dashboard/credit-customers" icon={<Wallet size={20} />} label="Credit Ledger" onClick={() => setIsMobileMenuOpen(false)} />}
+                    {isSubscriptionExpired ? (
+                      /* Subscription expired - show lock message in mobile nav */
+                      <div className="flex flex-col items-center gap-4 py-6 px-2 text-center">
+                        <div className="w-16 h-16 bg-rose-100 text-rose-500 rounded-2xl flex items-center justify-center">
+                          <StoreIconCustom size={28} strokeWidth={2} />
+                        </div>
+                        <div>
+                          <p className="font-black text-sm text-slate-900 uppercase tracking-tight mb-1">Access Locked</p>
+                          <p className="text-xs text-slate-400 font-bold leading-relaxed">
+                            {vendorShop?.planExpiresAt ? `Expired on ${new Date(vendorShop.planExpiresAt).toLocaleDateString()}` : 'Subscription required'}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => { setIsMobileMenuOpen(false); navigate('/vendor/dashboard/profile?tab=subscription'); }}
+                          className="w-full py-3 bg-sky-500 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-lg shadow-sky-200"
+                        >
+                          🔐 Activate Subscription
+                        </button>
                         <NavItem to="/vendor/dashboard/profile" icon={<User size={20} />} label="Shop Profile" onClick={() => setIsMobileMenuOpen(false)} />
+                      </div>
+                    ) : (
+                      <>
+                        {vendorShop?.subscriptionPlan !== 'basic' && (
+                          <>
+                            {!isStaff && <NavItem to="/vendor/dashboard" exact icon={<LayoutDashboard size={20} />} label="Overview" onClick={() => setIsMobileMenuOpen(false)} />}
+                            <NavItem to="/vendor/dashboard/orders" icon={<ShoppingCart size={20} />} label="Orders" onClick={() => setIsMobileMenuOpen(false)} />
+                          </>
+                        )}
+                        {canManageInventory && <NavItem to="/vendor/dashboard/inventory" icon={<Package size={20} />} label="Inventory" onClick={() => setIsMobileMenuOpen(false)} />}
+                        {vendorShop?.bannersEnabled && <NavItem to="/vendor/dashboard/banners" icon={<Sparkles size={20} />} label="Offer Banners" onClick={() => setIsMobileMenuOpen(false)} />}
+                        <NavItem to="/vendor/dashboard/billing" icon={<Receipt size={20} />} label="Billing Area" onClick={() => setIsMobileMenuOpen(false)} />
+                        <NavItem to="/vendor/dashboard/ledger" icon={<HistoryIcon size={20} />} label="Billing History" onClick={() => setIsMobileMenuOpen(false)} />
+                        {isVendor && (
+                          <>
+                            <NavItem to="/vendor/dashboard/procurement" icon={<ShoppingBag size={20} />} label="B2B Procurement" onClick={() => setIsMobileMenuOpen(false)} />
+                            <NavItem to="/vendor/dashboard/b2b" icon={<Users size={20} />} label="B2B Partners" onClick={() => setIsMobileMenuOpen(false)} />
+                            <NavItem to="/vendor/dashboard/staff" icon={<Shield size={20} />} label="Staff Management" onClick={() => setIsMobileMenuOpen(false)} />
+                            {vendorShop?.isPayLater && <NavItem to="/vendor/dashboard/credit-customers" icon={<Wallet size={20} />} label="Credit Ledger" onClick={() => setIsMobileMenuOpen(false)} />}
+                            <NavItem to="/vendor/dashboard/profile" icon={<User size={20} />} label="Shop Profile" onClick={() => setIsMobileMenuOpen(false)} />
+                          </>
+                        )}
+                        <button
+                          onClick={() => { setIsMobileMenuOpen(false); window.dispatchEvent(new CustomEvent('open-report-modal')); }}
+                          className="flex items-center gap-3 px-5 py-4 rounded-2xl w-full text-sky-600 bg-sky-50 hover:bg-sky-100 transition-all font-black text-xs uppercase tracking-widest border border-sky-100"
+                        >
+                          <AlertCircle size={18} strokeWidth={3} />
+                          <span>Report Problem</span>
+                        </button>
                       </>
                     )}
-
-                    <button
-                      onClick={() => { setIsMobileMenuOpen(false); window.dispatchEvent(new CustomEvent('open-report-modal')); }}
-                      className="flex items-center gap-3 px-5 py-4 rounded-2xl w-full text-sky-600 bg-sky-50 hover:bg-sky-100 transition-all font-black text-xs uppercase tracking-widest border border-sky-100"
-                    >
-                      <AlertCircle size={18} strokeWidth={3} />
-                      <span>Report Problem</span>
-                    </button>
                   </>
                 )}
                 {isAdmin && (
@@ -551,24 +576,32 @@ const AdminLayout = () => {
         )}
 
         <div className="flex-1 flex flex-col min-h-0 bg-gray-50/50 relative">
-          <div id="admin-main-scroll" className="flex-1 p-4 md:p-8 md:overflow-hidden md:overflow-y-auto flex flex-col">
-            {isVendor && (!vendorShop?.planExpiresAt || new Date() > new Date(vendorShop.planExpiresAt)) && !(location.pathname.includes('/profile') && location.search.includes('tab=subscription')) ? (
-              <div className="flex-1 flex flex-col items-center justify-center h-full min-h-[400px] text-center px-4 animate-in fade-in zoom-in duration-500">
-                <div className="w-32 h-32 bg-rose-100 text-rose-500 rounded-[2rem] flex items-center justify-center mb-8 shadow-xl shadow-rose-100 border border-rose-200">
-                  <StoreIconCustom size={56} strokeWidth={2} />
-                </div>
-                <h2 className="text-3xl sm:text-4xl font-black text-slate-900 uppercase tracking-tighter mb-4">Access Locked</h2>
-                <p className="text-slate-500 font-bold mb-8 max-w-md text-sm sm:text-base leading-relaxed">
-                  Your shop subscription {vendorShop?.planExpiresAt ? `expired on ${new Date(vendorShop.planExpiresAt).toLocaleDateString()}` : 'requires activation'}. Please renew your subscription to restore full access.
-                </p>
-                <button 
-                  onClick={() => navigate('/vendor/dashboard/profile?tab=subscription')} 
-                  className="px-10 py-5 bg-sky-500 text-white font-black text-[11px] uppercase tracking-[0.2em] rounded-2xl hover:bg-slate-900 transition-all shadow-2xl shadow-sky-200"
-                >
-                  Go to Subscription Panel
-                </button>
+          {/* Subscription Lock Screen — covers full area on mobile and desktop */}
+          {isSubscriptionExpired && !isOnSubscriptionPage ? (
+            <div className="fixed md:relative inset-0 md:inset-auto top-16 md:top-auto flex flex-col items-center justify-center bg-white z-30 p-6 text-center animate-in fade-in zoom-in duration-500 md:flex-1 md:min-h-[500px]">
+              <div className="w-28 h-28 md:w-36 md:h-36 bg-gradient-to-br from-rose-100 to-rose-200 text-rose-500 rounded-[2rem] flex items-center justify-center mb-6 shadow-2xl shadow-rose-100 border border-rose-200">
+                <StoreIconCustom size={48} strokeWidth={1.5} />
               </div>
-            ) : (
+              <div className="mb-2 px-3 py-1 bg-rose-100 text-rose-600 text-[9px] font-black uppercase tracking-[0.2em] rounded-full inline-block">
+                🔒 Subscription Required
+              </div>
+              <h2 className="text-2xl sm:text-4xl font-black text-slate-900 uppercase tracking-tighter mt-4 mb-3">Access Locked</h2>
+              <p className="text-slate-500 font-bold mb-8 max-w-sm text-sm leading-relaxed">
+                {vendorShop?.planExpiresAt
+                  ? `Your subscription expired on ${new Date(vendorShop.planExpiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}.`
+                  : 'Your shop requires an active subscription to operate.'}
+                {' '}Please renew to restore full access.
+              </p>
+              <button
+                onClick={() => navigate('/vendor/dashboard/profile?tab=subscription')}
+                className="px-8 py-4 sm:px-10 sm:py-5 bg-sky-500 text-white font-black text-[11px] uppercase tracking-[0.2em] rounded-2xl hover:bg-slate-900 transition-all shadow-2xl shadow-sky-200 active:scale-95"
+              >
+                Go to Subscription Panel
+              </button>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-6">Contact support if you believe this is an error</p>
+            </div>
+          ) : (
+            <div id="admin-main-scroll" className="flex-1 p-4 md:p-8 md:overflow-hidden md:overflow-y-auto flex flex-col">
               <Suspense fallback={
                 <div className="flex-1 flex flex-col items-center justify-center h-full min-h-[300px]">
                   <Loader2 size={32} className="animate-spin text-sky-500 mb-4" />
@@ -577,8 +610,8 @@ const AdminLayout = () => {
               }>
                 <Outlet />
               </Suspense>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Global Report Modal */}
