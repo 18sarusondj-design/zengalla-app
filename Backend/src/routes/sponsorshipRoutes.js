@@ -1,5 +1,5 @@
 import express from 'express';
-import { getSponsorshipStatus } from '../controllers/sponsorshipController.js';
+import { getSponsorshipStatus, requestRefund } from '../controllers/sponsorshipController.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -7,5 +7,6 @@ const router = express.Router();
 router.use(authenticate);
 
 router.get('/status', getSponsorshipStatus);
+router.post('/:id/refund-request', requestRefund);
 
 export default router;

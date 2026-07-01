@@ -11,14 +11,20 @@ export const getSponsorshipStatus = async (req, res) => {
       return res.status(400).json({ error: 'Please update your PIN code in Location Settings first.' });
     }
 
-    // Find all future/active sponsorships for this pincode
+    // Find all future/active sponsorships for this pincode to calculate slots
     const activeSponsorships = await Sponsorship.find({
       pinCode,
+      status: 'ACTIVE',
       endDate: { $gte: new Date() }
     });
 
-    // Check if current shop already has an active or pre-booked sponsorship
-    const mySponsorships = activeSponsorships.filter(s => s.shopId.toString() === shop._id.toString());
+    // Check if current shop already has an active, upcoming, or refund requested sponsorship
+    const mySponsorships = await Sponsorship.find({
+      shopId: shop._id,
+      status: { $in: ['ACTIVE', 'REFUND_REQUESTED'] },
+      endDate: { $gte: new Date() }
+    });
+    
     const hasActiveOrUpcoming = mySponsorships.length > 0;
     
     // Find slot availability
@@ -52,6 +58,35 @@ export const getSponsorshipStatus = async (req, res) => {
     });
   } catch (err) {
     console.error('getSponsorshipStatus Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const requestRefund = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const shop = await Shop.findOne({ owner: req.user._id });
+    if (!shop) return res.status(404).json({ error: 'Shop not found' });
+
+    const sponsorship = await Sponsorship.findOne({ _id: id, shopId: shop._id });
+    if (!sponsorship) return res.status(404).json({ error: 'Sponsorship not found' });
+
+    if (sponsorship.status !== 'ACTIVE') {
+      return res.status(400).json({ error: 'Refund already requested or processed' });
+    }
+
+    // Must be at least 1 day away
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    if (new Date(sponsorship.startDate) < tomorrow) {
+      return res.status(400).json({ error: 'You can only request a refund at least 24 hours before the sponsorship starts.' });
+    }
+
+    sponsorship.status = 'REFUND_REQUESTED';
+    await sponsorship.save();
+
+    res.json({ success: true, message: 'Refund request submitted successfully' });
+  } catch (err) {
+    console.error('requestRefund Error:', err);
     res.status(500).json({ error: err.message });
   }
 };

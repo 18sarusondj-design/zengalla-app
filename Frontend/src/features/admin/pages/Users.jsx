@@ -29,6 +29,7 @@ const Users = ({ roleFilter }) => {
 
   // Transaction History State
   const [transactions, setTransactions] = useState([]);
+  const [sponsorshipHistory, setSponsorshipHistory] = useState([]);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(false);
   const [showTransactionsModal, setShowTransactionsModal] = useState(false);
 
@@ -92,11 +93,26 @@ const Users = ({ roleFilter }) => {
       const { data } = await api.get(`/admin/users/${shopId}/transactions`);
       if (data.success) {
         setTransactions(data.transactions);
+        setSponsorshipHistory(data.sponsorships || []);
       }
     } catch (err) {
       toast.error('Failed to fetch transaction history');
     } finally {
       setIsTransactionsLoading(false);
+    }
+  };
+
+  const handleCancelSponsorship = async (id) => {
+    if (!window.confirm("Are you sure you want to cancel and refund this sponsorship? ₹49 will be deducted.")) return;
+    const toastId = toast.loading('Cancelling and processing refund...');
+    try {
+      await api.post(`/admin/sponsorships/${id}/cancel-refund`, { deductionAmount: 49 });
+      toast.success('Sponsorship cancelled and refunded successfully', { id: toastId });
+      if (modalData?.shopId) {
+        fetchTransactions(modalData.shopId);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to cancel sponsorship', { id: toastId });
     }
   };
 
@@ -906,7 +922,7 @@ const Users = ({ roleFilter }) => {
                   <RefreshCcw size={24} className="animate-spin" style={{ margin: '0 auto 12px' }} />
                   <p style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Loading History...</p>
                 </div>
-              ) : transactions.length === 0 ? (
+              ) : (transactions.length === 0 && (!sponsorshipHistory || sponsorshipHistory.length === 0)) ? (
                 <div style={{ padding: '40px 0', textAlign: 'center', color: '#94a3b8' }}>
                   <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                     <ShieldCheck size={32} color="#cbd5e1" />
@@ -916,6 +932,38 @@ const Users = ({ roleFilter }) => {
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* Sponsorships Section */}
+                  {sponsorshipHistory && sponsorshipHistory.length > 0 && (
+                    <div style={{ marginBottom: '24px' }}>
+                      <h4 style={{ fontSize: '12px', fontWeight: '900', color: '#0f172a', textTransform: 'uppercase', marginBottom: '12px' }}>Sponsorship Purchases</h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {sponsorshipHistory.map((s, idx) => (
+                          <div key={idx} style={{ padding: '16px', background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)', border: '1px solid #fde68a', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                              <p style={{ margin: 0, fontSize: '14px', fontWeight: '900', color: '#92400e', textTransform: 'uppercase' }}>TOP SPOT SPONSORSHIP - SLOT {s.slotNumber}</p>
+                              <p style={{ margin: '4px 0 0', fontSize: '11px', fontWeight: '800', color: '#b45309', textTransform: 'uppercase' }}>
+                                Valid: {new Date(s.startDate).toLocaleDateString()} to {new Date(s.endDate).toLocaleDateString()}
+                              </p>
+                              <p style={{ margin: '2px 0 0', fontSize: '10px', fontWeight: '700', color: '#d97706', textTransform: 'uppercase' }}>
+                                Pin Code: {s.pinCode} | Status: {s.status}
+                              </p>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <p style={{ margin: 0, fontSize: '16px', fontWeight: '900', color: '#92400e' }}>₹199</p>
+                              {(s.status === 'ACTIVE' || s.status === 'REFUND_REQUESTED') && new Date(s.startDate) >= new Date(Date.now() + 24 * 60 * 60 * 1000) && (
+                                <button
+                                  onClick={() => handleCancelSponsorship(s._id)}
+                                  style={{ marginTop: '8px', padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', cursor: 'pointer' }}
+                                >
+                                  Cancel & Refund
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {transactions.map(tx => (
                     <div key={tx._id} style={{ padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0', background: 'white', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
                       <div style={{ display: 'flex', gap: '12px' }}>

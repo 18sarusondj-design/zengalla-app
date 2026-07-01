@@ -292,7 +292,7 @@ export const getMyShop = async (req, res) => {
         // Plan expired — disable and persist so it stays off
         shop.bannersEnabled = false;
         shop.bannersPlan = 'none';
-        await shop.save();
+        await Shop.updateOne({ _id: shop._id }, { $set: { bannersEnabled: false, bannersPlan: 'none' } });
       }
     } else if (shop.bannersEnabled && shop.bannersEnabledAt && !shop.bannersExpiresAt) {
       // Legacy: shops that had the old 7-day offset system — migrate them
@@ -300,7 +300,7 @@ export const getMyShop = async (req, res) => {
       if (daysDiff > 7) {
         shop.bannersEnabled = false;
         shop.bannersPlan = 'none';
-        await shop.save();
+        await Shop.updateOne({ _id: shop._id }, { $set: { bannersEnabled: false, bannersPlan: 'none' } });
       }
     }
 

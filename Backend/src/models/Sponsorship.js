@@ -7,7 +7,9 @@ const sponsorshipSchema = new mongoose.Schema({
   startDate: { type: Date, required: true },
   endDate: { type: Date, required: true },
   slotNumber: { type: Number, required: true, min: 1, max: 4 },
-  isActive: { type: Boolean, default: true }
+  isActive: { type: Boolean, default: true },
+  status: { type: String, enum: ['ACTIVE', 'REFUND_REQUESTED', 'CANCELLED'], default: 'ACTIVE' },
+  paymentId: { type: String }
 }, { timestamps: true });
 
 // Prevent duplicate sponsorships for same shop + pin code

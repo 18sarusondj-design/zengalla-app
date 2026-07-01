@@ -118,6 +118,7 @@ router.post('/verify-payment', authenticate, async (req, res) => {
         // Get the latest endDate for each of the 4 slots
         const activeSponsorships = await Sponsorship.find({
           pinCode,
+          status: 'ACTIVE',
           endDate: { $gte: new Date() }
         });
 
@@ -149,7 +150,8 @@ router.post('/verify-payment', authenticate, async (req, res) => {
           startDate,
           endDate,
           slotNumber: bestSlot,
-          priority: bestSlot // Priority determines display order
+          priority: bestSlot, // Priority determines display order
+          paymentId: razorpay_payment_id
         });
         
         res.json({ success: true, message: 'Sponsorship Slot Booked Successfully!' });

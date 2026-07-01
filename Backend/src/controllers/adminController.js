@@ -2,9 +2,10 @@ import User from '../models/User.js';
 import Shop from '../models/Shop.js';
 import Order from '../models/Order.js';
 import Report from '../models/Report.js';
-import SystemSettings from '../models/SystemSettings.js';
-import Sponsorship from '../models/Sponsorship.js';
 import Transaction from '../models/Transaction.js';
+import Sponsorship from '../models/Sponsorship.js';
+import Razorpay from 'razorpay';
+import SystemSettings from '../models/SystemSettings.js';
 
 // GET /api/admin/users?role=
 export const getUsers = async (req, res) => {
@@ -560,9 +561,58 @@ export const getUserTransactions = async (req, res) => {
   try {
     const { shopId } = req.params;
     const transactions = await Transaction.find({ shopId }).sort({ createdAt: -1 });
-    res.json({ success: true, transactions });
+    const sponsorships = await Sponsorship.find({ shopId }).sort({ createdAt: -1 });
+    res.json({ success: true, transactions, sponsorships });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /api/admin/sponsorships/:id/cancel-refund
+export const cancelAndRefundSponsorship = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { deductionAmount } = req.body;
+
+    const sponsorship = await Sponsorship.findById(id);
+    if (!sponsorship) return res.status(404).json({ error: 'Sponsorship not found' });
+
+    if (sponsorship.status === 'CANCELLED') {
+      return res.status(400).json({ error: 'Sponsorship is already cancelled' });
+    }
+
+    if (!sponsorship.paymentId) {
+      return res.status(400).json({ error: 'No associated payment found for automatic refund' });
+    }
+
+    const refundAmountRupees = 199 - (deductionAmount || 49);
+    
+    const settings = await SystemSettings.findOne({ key: 'SUPER_ADMIN_KEYS' });
+    if (!settings || !settings.razorpayKeyId || !settings.razorpayKeySecret) {
+      return res.status(500).json({ error: 'Razorpay keys not configured' });
+    }
+    
+    const rzp = new Razorpay({
+      key_id: settings.razorpayKeyId,
+      key_secret: settings.razorpayKeySecret
+    });
+
+    await rzp.payments.refund(sponsorship.paymentId, {
+      amount: refundAmountRupees * 100, // in paise
+      notes: {
+        reason: 'Vendor requested cancellation before start date',
+        sponsorshipId: sponsorship._id.toString()
+      }
+    });
+
+    sponsorship.status = 'CANCELLED';
+    sponsorship.isActive = false;
+    await sponsorship.save();
+
+    res.json({ success: true, message: `Sponsorship cancelled and ₹${refundAmountRupees} refunded successfully` });
+  } catch (err) {
+    console.error('Cancel and refund error:', err);
+    res.status(500).json({ error: err.message || 'Refund processing failed' });
   }
 };
 

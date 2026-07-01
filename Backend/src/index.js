@@ -92,6 +92,7 @@ app.use('/api/admin-payments', adminPaymentRoutes);
 app.use('/api/sponsorship', sponsorshipRoutes);
 app.use('/api/global-banners', globalBannerRoutes);
 app.use('/api/calls', callRoutes);
+app.use('/api/ledger', ledgerRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

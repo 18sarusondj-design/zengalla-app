@@ -4,7 +4,7 @@ import {
   getStats, getReports, replyToReport, getAllShops, toggleSponsorship,
   deleteReport, updateShopPlan, getSystemSettings, updateSystemSettings,
   getAllDeliveryPartners, updateDeliveryPartner, deleteDeliveryPartner, toggleShopBannersAccess,
-  getSponsorships, createSponsorship, updateSponsorship, deleteSponsorship, getShopsByPinCode, getUserTransactions,
+  getSponsorships, createSponsorship, updateSponsorship, deleteSponsorship, cancelAndRefundSponsorship, getShopsByPinCode, getUserTransactions,
   unlockShopLocation
 } from '../controllers/adminController.js';
 
@@ -41,6 +41,7 @@ router.get('/sponsorships', getSponsorships);
 router.post('/sponsorships', createSponsorship);
 router.put('/sponsorships/:id', updateSponsorship);
 router.delete('/sponsorships/:id', deleteSponsorship);
+router.post('/sponsorships/:id/cancel-refund', cancelAndRefundSponsorship);
 router.get('/shops/by-pincode/:pinCode', getShopsByPinCode);
 
 export default router;

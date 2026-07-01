@@ -43,7 +43,8 @@ const LONG_CACHE_TTL = 60000; // 1 minute cache for static-ish data
 
 // Helper to generate a unique key for a request
 const getRequestKey = (config) => {
-  return `${config.method}:${config.url}:${JSON.stringify(config.params)}:${JSON.stringify(config.data)}`;
+  const token = localStorage.getItem('token') || '';
+  return `${config.method}:${config.url}:${JSON.stringify(config.params)}:${JSON.stringify(config.data)}:${token}`;
 };
 
 api.interceptors.request.use((config) => {

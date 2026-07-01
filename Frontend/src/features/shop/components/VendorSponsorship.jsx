@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import api from '../../../config/api.js';
 import { toast } from 'sonner';
 import { Sparkles, Star, CalendarDays, Loader2, ArrowRight } from 'lucide-react';
-import useRazorpay from 'react-razorpay';
 
 export default function VendorSponsorship({ vendorShop }) {
   const [statusData, setStatusData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [Razorpay] = useRazorpay();
 
   useEffect(() => {
     fetchStatus();
@@ -23,6 +21,18 @@ export default function VendorSponsorship({ vendorShop }) {
       toast.error(err.response?.data?.error || 'Failed to fetch sponsorship status');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRefundRequest = async (id) => {
+    if (!window.confirm("Are you sure you want to request a refund? You will lose this slot and a deduction charge will apply.")) return;
+    const toastId = toast.loading('Submitting refund request...');
+    try {
+      await api.post(`/sponsorship/${id}/refund-request`);
+      toast.success('Refund request submitted successfully', { id: toastId });
+      fetchStatus();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to submit refund request', { id: toastId });
     }
   };
 
@@ -68,7 +78,7 @@ export default function VendorSponsorship({ vendorShop }) {
         theme: { color: '#f59e0b' }
       };
 
-      const rzp = new Razorpay(options);
+      const rzp = new window.Razorpay(options);
       rzp.on('payment.failed', function (response) {
         toast.error('Payment failed: ' + response.error.description);
       });
@@ -116,14 +126,24 @@ export default function VendorSponsorship({ vendorShop }) {
               <div key={idx} className="bg-white rounded-xl p-4 shadow-sm text-left flex justify-between items-center">
                 <div>
                   <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                    {new Date(s.startDate) <= new Date() ? 'Active Slot' : 'Upcoming Pre-Booking'}
+                    {s.status === 'REFUND_REQUESTED' ? 'Refund Pending' : (new Date(s.startDate) <= new Date() ? 'Active Slot' : 'Upcoming Pre-Booking')}
                   </p>
                   <p className="text-sm font-bold text-gray-800">
                     {new Date(s.startDate).toLocaleDateString()} to {new Date(s.endDate).toLocaleDateString()}
                   </p>
                 </div>
-                <div className="text-emerald-500 bg-emerald-50 px-3 py-1 rounded-lg font-black text-[10px]">
-                  SLOT {s.slotNumber}
+                <div className="flex flex-col items-end gap-2">
+                  <div className={`px-3 py-1 rounded-lg font-black text-[10px] ${s.status === 'REFUND_REQUESTED' ? 'text-orange-500 bg-orange-50' : 'text-emerald-500 bg-emerald-50'}`}>
+                    SLOT {s.slotNumber}
+                  </div>
+                  {s.status === 'ACTIVE' && new Date(s.startDate) >= new Date(Date.now() + 24 * 60 * 60 * 1000) && (
+                    <button 
+                      onClick={() => handleRefundRequest(s._id)}
+                      className="text-[9px] font-black uppercase text-rose-500 hover:text-rose-600 bg-rose-50 px-2 py-1 rounded-md"
+                    >
+                      Request Refund
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -154,7 +174,12 @@ export default function VendorSponsorship({ vendorShop }) {
               {isImmediate ? (
                 <span className="text-emerald-600">Slots are available immediately! Your 7-day sponsorship will start as soon as you pay.</span>
               ) : (
-                <span className="text-blue-600">All slots are currently full. You can pre-book now, and your 7-day sponsorship will automatically start on <b>{new Date(nextAvailableDate).toLocaleString()}</b>.</span>
+                <div className="flex flex-col">
+                  <span className="text-blue-600">All slots are currently full. If you make payment, you will go in queue and your 7-day sponsorship will automatically start on <b>{new Date(nextAvailableDate).toLocaleString()}</b>.</span>
+                  <span className="text-rose-500 text-[9px] uppercase tracking-wider mt-2 bg-rose-50 p-2 rounded-lg border border-rose-100">
+                    <b>Refund Policy:</b> If you want to get a refund, click "Request Refund" at least 1 day before the start date. ₹49 will be deducted and the remaining amount will be credited to you.
+                  </span>
+                </div>
               )}
             </p>
           </div>

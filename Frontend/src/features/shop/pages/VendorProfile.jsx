@@ -695,7 +695,7 @@ const VendorProfile = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full">
           {/* LEFT SIDEBAR: Console & Status */}
           <div className="lg:col-span-1 flex flex-col md:h-full md:overflow-hidden">
-            <div className="bg-white/40 backdrop-blur-md rounded-[40px] p-2 border border-white shadow-xl flex flex-col space-y-1">
+            <div className="bg-white/40 backdrop-blur-md rounded-[40px] p-2 border border-white shadow-xl flex flex-col space-y-1 flex-1 min-h-0 overflow-hidden">
               <p className="px-4 py-0.5 text-[8px] font-black text-gray-600 uppercase tracking-widest border-b border-white/30 mb-0.5">Store Console</p>
 
               {/* PWA Install Trigger - TOP OF SIDEBAR */}
@@ -736,8 +736,7 @@ const VendorProfile = () => {
                   { id: 'marketing', label: 'Coupons & Offers', icon: Award, color: '#0ea5e9' },
                   { id: 'credit', label: 'Credit Ledger', icon: Wallet, color: '#0ea5e9' },
                   { id: 'wholesale', label: 'B2B Wholesale', icon: Shield, color: '#0ea5e9' },
-                  { id: 'ledger', label: 'Platform Dues', icon: Banknote, color: '#f43f5e' },
-                  { id: 'sponsorship', label: 'Top Spot Sponsorship', icon: Sparkles, color: '#f59e0b' },
+                  { id: 'ledger', label: 'Platform Dues', icon: Banknote, color: '#f43f5e' }
                 ].filter(Boolean).map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -890,10 +889,19 @@ const VendorProfile = () => {
                       >
                         Banner Access
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setSubscriptionTabMode('sponsor')}
+                        className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${subscriptionTabMode === 'sponsor' ? 'bg-white text-amber-600 shadow-sm border border-amber-100' : 'text-gray-400 hover:text-gray-600'}`}
+                      >
+                        Sponsor Shop
+                      </button>
                     </div>
 
                     {/* Plans Grid */}
-                    {subscriptionTabMode === 'software' ? (
+                    {subscriptionTabMode === 'sponsor' ? (
+                      <VendorSponsorship vendorShop={vendorShop} />
+                    ) : subscriptionTabMode === 'software' ? (
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {[
                           { name: '1 Month', days: 30, price: 499, popular: false },
@@ -1587,12 +1595,6 @@ const VendorProfile = () => {
                 {activeTab === 'ledger' && (
                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <VendorPlatformDues />
-                  </div>
-                )}
-
-                {activeTab === 'sponsorship' && (
-                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <VendorSponsorship vendorShop={vendorShop} />
                   </div>
                 )}
               </div>
