@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Package, Search, Plus, Trash2, Edit2, Upload, Loader2, X, Download } from 'lucide-react';
+import { Package, Search, Plus, Trash2, Edit2, Upload, Loader2, X, Download, FileSpreadsheet } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import api from '../../../config/api.js';
 import { toast } from 'sonner';
 
@@ -22,6 +23,8 @@ const MasterCatalog = () => {
 
   const [bulkData, setBulkData] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchProducts();
@@ -112,6 +115,96 @@ const MasterCatalog = () => {
     }
   };
 
+  const handleExcelImport = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws, { raw: false }); // raw false treats everything as string where needed
+
+        // Transform if necessary to match DB keys
+        const formattedData = data.map(item => ({
+          barcode: String(item.Barcode || item.barcode || ''),
+          name: item.Name || item.name || '',
+          category: item.Category || item.category || 'General',
+          brand: item.Brand || item.brand || '',
+          mrp: parseFloat(item.MRP || item.mrp || 0),
+          unit: item.Unit || item.unit || 'pcs',
+          taxRate: parseFloat(item.GST || item['GST %'] || item.taxRate || 0)
+        })).filter(item => item.barcode && item.name); // only keep valid rows
+
+        if (formattedData.length === 0) {
+          throw new Error('No valid products found in file. Ensure columns like Barcode, Name exist.');
+        }
+
+        const res = await api.post('/master-products/bulk-import', { products: formattedData });
+        toast.success(`Imported: ${res.data.added}, Skipped: ${res.data.skipped}`);
+        fetchProducts();
+      } catch (err) {
+        toast.error(err.message || 'Excel import failed');
+      } finally {
+        setIsImporting(false);
+        e.target.value = ''; // reset file input
+      }
+    };
+    reader.onerror = () => {
+      toast.error('Failed to read file');
+      setIsImporting(false);
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const fd = new FormData();
+    fd.append('image', file);
+
+    setIsUploading(true);
+    const toastId = toast.loading('Uploading image...');
+    try {
+      const { data } = await api.post('/upload/image', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (data.success) {
+        setFormData(prev => ({ ...prev, imageUrl: data.url }));
+        toast.success('Image uploaded successfully', { id: toastId });
+      }
+    } catch (err) {
+      toast.error('Failed to upload image', { id: toastId });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleAutoFetch = async () => {
+    if (!formData.barcode) return toast.error('Enter a barcode first');
+    const toastId = toast.loading('Searching global database...');
+    try {
+      const { data } = await api.get(`/master-products/search?barcode=${formData.barcode}`);
+      if (data.success && data.data) {
+        toast.success('Found product details!', { id: toastId });
+        setFormData(prev => ({
+          ...prev,
+          name: data.data.name || prev.name,
+          category: data.data.category || prev.category,
+          imageUrl: data.data.imageUrl || prev.imageUrl,
+          description: data.data.description || prev.description
+        }));
+      }
+    } catch (err) {
+      toast.error('Product not found in global database', { id: toastId });
+    }
+  };
+
   return (
     <div className="h-full flex flex-col p-4 md:p-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -123,6 +216,21 @@ const MasterCatalog = () => {
         </div>
         
         <div className="flex flex-wrap gap-2">
+          <input 
+            type="file" 
+            accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" 
+            className="hidden" 
+            ref={fileInputRef} 
+            onChange={handleExcelImport} 
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isImporting}
+            className="flex items-center gap-2 bg-white border-2 border-blue-100 text-blue-600 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-50 transition-all shadow-sm"
+          >
+            {isImporting ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />} 
+            Bulk Excel Import
+          </button>
           <button 
             onClick={() => setIsBulkOpen(true)}
             className="flex items-center gap-2 bg-white border-2 border-emerald-100 text-emerald-600 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-50 transition-all shadow-sm"
@@ -239,27 +347,58 @@ const MasterCatalog = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1 col-span-2">
                   <label className="text-[10px] font-black text-gray-500 uppercase ml-2">Barcode *</label>
-                  <input required type="text" value={formData.barcode} onChange={e=>setFormData({...formData, barcode: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl border border-gray-100 focus:bg-white text-xs font-bold" />
+                  <div className="flex gap-2">
+                    <input required type="text" value={formData.barcode} onChange={e=>setFormData({...formData, barcode: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl border border-gray-300 focus:bg-white focus:border-emerald-500 text-xs font-bold transition-colors" />
+                    <button 
+                      type="button" 
+                      onClick={handleAutoFetch}
+                      className="whitespace-nowrap px-4 py-3 bg-blue-50 text-blue-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-blue-200 hover:bg-blue-100 transition-colors flex items-center gap-2"
+                    >
+                      <Search size={14} /> Auto Fetch
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-1 col-span-2">
                   <label className="text-[10px] font-black text-gray-500 uppercase ml-2">Name *</label>
-                  <input required type="text" value={formData.name} onChange={e=>setFormData({...formData, name: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl border border-gray-100 focus:bg-white text-xs font-bold" />
+                  <input required type="text" value={formData.name} onChange={e=>setFormData({...formData, name: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl border border-gray-300 focus:bg-white focus:border-emerald-500 text-xs font-bold transition-colors" />
                 </div>
                 <div className="space-y-1 col-span-2 md:col-span-1">
                   <label className="text-[10px] font-black text-gray-500 uppercase ml-2">Category</label>
-                  <input type="text" value={formData.category} onChange={e=>setFormData({...formData, category: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl border border-gray-100 focus:bg-white text-xs font-bold" />
+                  <input type="text" value={formData.category} onChange={e=>setFormData({...formData, category: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl border border-gray-300 focus:bg-white focus:border-emerald-500 text-xs font-bold transition-colors" />
                 </div>
                 <div className="space-y-1 col-span-2 md:col-span-1">
                   <label className="text-[10px] font-black text-gray-500 uppercase ml-2">GST %</label>
-                  <input type="number" min="0" value={formData.taxRate} onChange={e=>setFormData({...formData, taxRate: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl border border-gray-100 focus:bg-white text-xs font-bold" />
+                  <input type="number" min="0" value={formData.taxRate} onChange={e=>setFormData({...formData, taxRate: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl border border-gray-300 focus:bg-white focus:border-emerald-500 text-xs font-bold transition-colors" />
                 </div>
                 <div className="space-y-1 col-span-2 md:col-span-1">
                   <label className="text-[10px] font-black text-gray-500 uppercase ml-2">HSN Code</label>
-                  <input type="text" value={formData.hsnCode} onChange={e=>setFormData({...formData, hsnCode: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl border border-gray-100 focus:bg-white text-xs font-bold" />
+                  <input type="text" value={formData.hsnCode} onChange={e=>setFormData({...formData, hsnCode: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl border border-gray-300 focus:bg-white focus:border-emerald-500 text-xs font-bold transition-colors" />
                 </div>
                 <div className="space-y-1 col-span-2 md:col-span-1">
-                  <label className="text-[10px] font-black text-gray-500 uppercase ml-2">Image URL</label>
-                  <input type="text" value={formData.imageUrl} onChange={e=>setFormData({...formData, imageUrl: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl border border-gray-100 focus:bg-white text-xs font-bold" />
+                  <label className="text-[10px] font-black text-gray-500 uppercase ml-2">Product Image</label>
+                  <div className="flex items-center gap-3">
+                    {formData.imageUrl ? (
+                      <div className="relative group w-12 h-12 rounded-xl border border-gray-200 overflow-hidden flex-shrink-0">
+                        <img src={formData.imageUrl} alt="Product" className="w-full h-full object-cover" />
+                        <button 
+                          type="button" 
+                          onClick={() => setFormData({...formData, imageUrl: ''})} 
+                          className="absolute inset-0 bg-black/50 items-center justify-center text-white hidden group-hover:flex"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-400 flex-shrink-0">
+                        <Package size={16} />
+                      </div>
+                    )}
+                    <label className={`flex-1 flex items-center justify-center gap-2 p-3 bg-gray-50 rounded-xl border border-gray-300 focus-within:border-emerald-500 text-xs font-bold transition-colors cursor-pointer hover:bg-emerald-50 ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                      {isUploading ? <Loader2 size={16} className="animate-spin text-emerald-500" /> : <Upload size={16} className="text-gray-400" />}
+                      <span className="text-gray-600">{isUploading ? 'Uploading...' : 'Upload Image'}</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                    </label>
+                  </div>
                 </div>
               </div>
               <button type="submit" className="w-full py-4 bg-emerald-500 text-white rounded-xl font-black text-xs uppercase tracking-widest mt-4 hover:bg-emerald-600 transition-colors">
