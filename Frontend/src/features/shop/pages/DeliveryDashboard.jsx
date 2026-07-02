@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../shop/context/StoreContext';
 import { useAuth } from '../../auth/context/AuthContext';
-import { Package, Truck, CheckCircle, Clock, MapPin, Phone, ArrowRight, Loader2, Navigation, Navigation2, CheckCircle2, XCircle, LogOut, User, Zap, ShieldCheck, MessageSquare, ChevronRight, ChevronDown, Lock } from 'lucide-react';
+import { Package, Truck, CheckCircle, Clock, MapPin, Phone, ArrowRight, Loader2, Navigation, Navigation2, CheckCircle2, XCircle, LogOut, User, Zap, ShieldCheck, MessageSquare, ChevronRight, ChevronDown, Lock, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../../config/api';
 
@@ -91,6 +91,79 @@ const DeliveryDashboard = () => {
   const [platformFeeDeducted, setPlatformFeeDeducted] = useState(0);
   const [payoutAmount, setPayoutAmount] = useState('');
 
+  // Area Insights State
+  const [shopInsights, setShopInsights] = useState([]);
+  const [newArea, setNewArea] = useState('');
+  const [areaInsights, setAreaInsights] = useState([]); // for dropdown when changing area
+
+  // Referrals State
+  const [myReferrals, setMyReferrals] = useState([]);
+  const [loadingReferrals, setLoadingReferrals] = useState(false);
+  const [claimModal, setClaimModal] = useState({ isOpen: false, referredUser: null, milestone: null, payoutAccount: '' });
+
+  const handleClaimSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setActionLoading(true);
+      const { data } = await api.post('/auth/referrals/claim', {
+        referredUserId: claimModal.referredUser._id,
+        milestone: claimModal.milestone,
+        payoutAccount: claimModal.payoutAccount
+      });
+      if (data.success) {
+        toast.success(data.message);
+        setClaimModal({ isOpen: false, referredUser: null, milestone: null, payoutAccount: '' });
+        fetchMyReferrals();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Claim failed');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const fetchMyReferrals = async () => {
+    try {
+      setLoadingReferrals(true);
+      const { data } = await api.get('/auth/referrals');
+      if (data.success) {
+        setMyReferrals(data.referrals || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch referrals", err);
+    } finally {
+      setLoadingReferrals(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'profile' && user?.referralCode) {
+      fetchMyReferrals();
+    }
+  }, [activeTab, user?.referralCode]);
+
+  const fetchShopInsights = async () => {
+    try {
+      const { data } = await api.get('/delivery/shop-insights');
+      if (data.success) {
+        setShopInsights(data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch shop insights');
+    }
+  };
+
+  const fetchAreaInsights = async () => {
+    try {
+      const { data } = await api.get('/delivery/area-insights');
+      if (data.success) {
+        setAreaInsights(data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch area insights');
+    }
+  };
+
   const fetchPayouts = async () => {
     const res = await getMyPayouts();
     if (res) {
@@ -102,8 +175,39 @@ const DeliveryDashboard = () => {
   useEffect(() => {
     if (activeTab === 'wallet') {
       fetchPayouts();
+    } else if (activeTab === 'profile') {
+      fetchShopInsights();
+      fetchAreaInsights();
     }
   }, [activeTab]);
+
+  const handleChangeArea = async (e) => {
+    e.preventDefault();
+    if (!newArea) return toast.error('Please select an area');
+    const selected = areaInsights.find(a => a.pinCode === newArea);
+    
+    setActionLoading(true);
+    try {
+      const { data } = await api.post('/delivery/change-area', {
+        pinCode: selected.pinCode,
+        areaName: selected.areaName
+      });
+      if (data.success) {
+        toast.success(data.message);
+        setNewArea('');
+        fetchShopInsights();
+        // optionally update the local user state if needed
+      }
+    } catch (err) {
+      if (err.response?.data?.needsAdmin) {
+        toast.error(err.response.data.error, { duration: 10000 });
+      } else {
+        toast.error(err.response?.data?.error || 'Failed to change area');
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const handlePayoutRequest = async (e) => {
     e.preventDefault();
@@ -771,6 +875,182 @@ const DeliveryDashboard = () => {
                    </div>
                  </div>
 
+                 {/* Referral Program Section */}
+                 {user?.referralCode && (
+                   <div className="w-full relative z-10 mb-10 pb-8 border-b border-gray-100 space-y-6">
+                     <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-3 px-2">
+                         <div className="w-1 h-3 bg-emerald-500 rounded-full" />
+                         <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Refer & Earn ₹2000</h4>
+                       </div>
+                       <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100">
+                         <Gift size={12} />
+                         <span className="text-[10px] font-black uppercase">Active</span>
+                       </div>
+                     </div>
+
+                     <div className="bg-gradient-to-br from-emerald-500 to-teal-700 rounded-[24px] p-6 shadow-xl relative overflow-hidden">
+                       <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none scale-150">
+                         <Gift size={100} />
+                       </div>
+                       
+                       <div className="relative z-10">
+                         <h3 className="text-white text-lg font-black tracking-tight mb-2">Invite Friends, Earn Cash!</h3>
+                         <p className="text-emerald-50 text-[10px] font-bold mb-6 max-w-xs leading-relaxed">
+                           Share your code. When your friend completes 100 orders, you earn ₹500! Keep earning up to ₹2000 per friend (400 orders).
+                         </p>
+
+                         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 flex items-center justify-between">
+                           <div>
+                             <p className="text-emerald-100 text-[8px] font-black uppercase tracking-widest mb-1">Your Referral Code</p>
+                             <p className="text-white text-2xl font-black tracking-widest">{user.referralCode}</p>
+                           </div>
+                           <button 
+                             onClick={() => {
+                               navigator.clipboard.writeText(user.referralCode);
+                               toast.success("Code copied!");
+                             }}
+                             className="px-4 py-2 bg-white text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-transform"
+                           >
+                             Copy
+                           </button>
+                         </div>
+
+                         <div className="mt-6 flex items-center gap-4">
+                           <div className="flex-1 bg-black/20 rounded-xl p-3 border border-white/10">
+                             <p className="text-emerald-100 text-[8px] font-black uppercase tracking-widest mb-1">Friends Referred</p>
+                             <p className="text-white font-black text-lg">{myReferrals.length}</p>
+                           </div>
+                           <div className="flex-1 bg-black/20 rounded-xl p-3 border border-white/10">
+                             <p className="text-emerald-100 text-[8px] font-black uppercase tracking-widest mb-1">Total Earned</p>
+                             <p className="text-white font-black text-lg">
+                               ₹{myReferrals.reduce((sum, r) => sum + (Math.min(Math.floor((r.referralOrdersCount || 0) / 100), 4) * 500), 0)}
+                             </p>
+                           </div>
+                         </div>
+                       </div>
+                     </div>
+
+                     {/* Referred Users List */}
+                     {myReferrals.length > 0 && (
+                       <div className="space-y-3">
+                         <h5 className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-2">Referred Partners ({myReferrals.length})</h5>
+                         {myReferrals.map((refUser, idx) => (
+                           <div key={idx} className="bg-white border border-gray-100 p-4 rounded-2xl shadow-sm flex flex-col gap-3">
+                             <div className="flex items-center justify-between">
+                               <div>
+                                 <p className="text-sm font-black text-gray-900">{refUser.shopName || refUser.name}</p>
+                                 <p className="text-[10px] font-bold text-gray-400 uppercase">{refUser.role === 'vendor' ? 'Vendor' : 'Delivery'} • {refUser.areaName || refUser.serviceArea || 'No Area'}</p>
+                               </div>
+                               <div className="text-right">
+                                 <p className="text-xs font-black text-emerald-600">{refUser.referralOrdersCount || 0} Orders</p>
+                               </div>
+                             </div>
+                             
+                             <div className="flex items-center justify-between gap-2 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                               {[100, 200, 300, 400].map(milestone => {
+                                 const isCompleted = (refUser.referralOrdersCount || 0) >= milestone;
+                                 const isClaimed = (refUser.referralMilestonesClaimed || []).includes(milestone);
+                                 return (
+                                   <div key={milestone} className="flex flex-col items-center flex-1 relative">
+                                     <div className={`w-6 h-6 rounded-full flex items-center justify-center mb-1 z-10 transition-all ${isCompleted ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200 scale-110' : 'bg-gray-200 text-gray-400'}`}>
+                                       {isCompleted ? <CheckCircle size={12} /> : <span className="text-[8px] font-black">{milestone}</span>}
+                                     </div>
+                                     <p className={`text-[8px] font-black uppercase tracking-wider ${isCompleted ? 'text-emerald-600' : 'text-gray-400'}`}>₹500</p>
+                                     
+                                     {isCompleted && !isClaimed && (
+                                       <button 
+                                         onClick={() => setClaimModal({ isOpen: true, referredUser: refUser, milestone, payoutAccount: user.phone || '' })}
+                                         className="mt-1 px-2 py-1 bg-emerald-500 text-white rounded text-[8px] font-black uppercase tracking-widest shadow hover:scale-105 active:scale-95 transition-transform"
+                                       >
+                                         Claim
+                                       </button>
+                                     )}
+                                     {isClaimed && (
+                                       <span className="mt-1 text-[8px] font-black text-gray-400 uppercase">Claimed</span>
+                                     )}
+
+                                     {milestone !== 400 && (
+                                       <div className={`absolute top-3 left-[50%] w-full h-[2px] -z-0 ${isCompleted && (refUser.referralOrdersCount || 0) >= milestone + 100 ? 'bg-emerald-500' : 'bg-gray-200'}`} />
+                                     )}
+                                   </div>
+                                 );
+                               })}
+                             </div>
+                           </div>
+                         ))}
+                       </div>
+                     )}
+                   </div>
+                 )}
+
+                 {/* Area Insights & Change Area Section */}
+                 <div className="w-full relative z-10 mb-10 pb-8 border-b border-gray-100 space-y-6">
+                   <div className="flex items-center gap-3 px-2 mb-2">
+                      <div className="w-1 h-3 bg-sky-500 rounded-full" />
+                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Service Area Insights</h4>
+                   </div>
+                   
+                   <div className="bg-sky-50/50 rounded-[24px] p-6 border border-sky-100">
+                     <div className="flex items-center justify-between mb-4">
+                       <div>
+                         <p className="text-[10px] font-black text-sky-500 uppercase tracking-widest">Current Area</p>
+                         <h3 className="text-xl font-black text-gray-900 tracking-tight">{user?.serviceArea || 'Not Set'} ({user?.servicePincode || 'N/A'})</h3>
+                       </div>
+                       <MapPin className="text-sky-400" size={32} />
+                     </div>
+
+                     {shopInsights.length > 0 ? (
+                       <div className="space-y-3 mb-6">
+                         <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Top Shops in your area (7-Day Avg)</p>
+                         {shopInsights.slice(0, 5).map(shop => (
+                           <div key={shop._id} className="flex justify-between items-center bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                             <div className="flex items-center gap-3">
+                               <img src={shop.imageUrl || 'https://via.placeholder.com/40'} alt={shop.name} className="w-8 h-8 rounded-lg object-cover" />
+                               <div>
+                                 <p className="text-[11px] font-black text-gray-800">{shop.name}</p>
+                                 <p className="text-[8px] font-bold text-gray-400 uppercase">{shop.category}</p>
+                               </div>
+                             </div>
+                             <div className="text-right">
+                               <p className="text-[12px] font-black text-emerald-500 italic">{shop.dailyAverageOrders} / day</p>
+                             </div>
+                           </div>
+                         ))}
+                       </div>
+                     ) : (
+                       <p className="text-[10px] text-gray-500 italic mb-6">No shop insights available for this area.</p>
+                     )}
+
+                     <form onSubmit={handleChangeArea} className="flex flex-col gap-3">
+                       <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Request Area Change</label>
+                       <div className="flex gap-2">
+                         <select
+                           className="flex-1 px-4 h-12 bg-white border border-gray-200 rounded-2xl text-xs font-bold text-gray-800 focus:border-sky-500 outline-none truncate"
+                           value={newArea}
+                           onChange={e => setNewArea(e.target.value)}
+                           required
+                         >
+                           <option value="" disabled>Select New Area</option>
+                           {areaInsights.map((area, idx) => (
+                             <option key={idx} value={area.pinCode}>
+                               {area.areaName} - {area.pinCode} ({area.shopCount} Shops) {area.isHighDemand ? '🔥' : ''}
+                             </option>
+                           ))}
+                         </select>
+                         <button
+                           type="submit"
+                           disabled={actionLoading}
+                           className="px-6 h-12 bg-sky-500 text-white rounded-2xl font-black uppercase text-[9px] tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center min-w-[100px]"
+                         >
+                           {actionLoading ? <Loader2 className="animate-spin" size={14} /> : "Change"}
+                         </button>
+                       </div>
+                       <p className="text-[8px] font-bold text-gray-400 mt-1">* Subject to 15-day cooldown. Contact Superadmin for immediate change.</p>
+                     </form>
+                   </div>
+                 </div>
+
                  {/* Settlement Account Section */}
                  <form onSubmit={handleUpdateBankDetails} className="space-y-6 relative z-10 mb-10 pb-8 border-b border-gray-100">
                    <div className="flex items-center gap-3 px-2 mb-2">
@@ -1125,6 +1405,50 @@ const DeliveryDashboard = () => {
               <button onClick={() => setShowItemsFor(null)} className="w-full h-14 sm:h-16 bg-gray-900 text-white rounded-[24px] sm:rounded-[28px] font-black uppercase text-[10px] sm:text-[11px] tracking-[0.4em] shadow-2xl active:scale-95 transition-all">
                 Briefing Verified
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Claim Payout Modal */}
+      {claimModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-[32px] w-full max-w-md overflow-hidden shadow-2xl relative animate-in fade-in zoom-in duration-300">
+            <button 
+              onClick={() => setClaimModal({ isOpen: false, referredUser: null, milestone: null, payoutAccount: '' })}
+              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <XCircle size={24} />
+            </button>
+            <div className="p-8">
+              <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mb-6">
+                <Gift className="text-emerald-500" size={32} />
+              </div>
+              <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Claim Your ₹500</h2>
+              <p className="text-sm font-bold text-gray-500 mb-6">
+                Your friend <strong>{claimModal.referredUser?.shopName || claimModal.referredUser?.name}</strong> has completed {claimModal.milestone} orders!
+              </p>
+              
+              <form onSubmit={handleClaimSubmit} className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-1 block">Payout Phone Number / UPI ID</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={claimModal.payoutAccount}
+                    onChange={e => setClaimModal(prev => ({ ...prev, payoutAccount: e.target.value }))}
+                    className="w-full h-14 bg-gray-50 border border-gray-200 rounded-2xl px-4 font-bold text-gray-900 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                    placeholder="Enter Phone Number or UPI ID"
+                  />
+                  <p className="text-[10px] font-bold text-emerald-600 mt-2 ml-2">Is this correct? You can change it if you want.</p>
+                </div>
+                <button 
+                  type="submit" 
+                  disabled={actionLoading}
+                  className="w-full h-14 bg-emerald-500 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-600 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  {actionLoading ? <Loader2 className="animate-spin" size={20} /> : 'Get Amount to Account'}
+                </button>
+              </form>
             </div>
           </div>
         </div>

@@ -5,7 +5,7 @@ import {
   deleteReport, updateShopPlan, getSystemSettings, updateSystemSettings,
   getAllDeliveryPartners, updateDeliveryPartner, deleteDeliveryPartner, toggleShopBannersAccess,
   getSponsorships, createSponsorship, updateSponsorship, deleteSponsorship, cancelAndRefundSponsorship, getShopsByPinCode, getUserTransactions,
-  unlockShopLocation
+  unlockShopLocation, forceChangeDeliveryArea
 } from '../controllers/adminController.js';
 
 import { authenticate, requireRole } from '../middleware/auth.js';
@@ -35,6 +35,7 @@ router.patch('/system-settings', updateSystemSettings);
 router.get('/delivery-partners', getAllDeliveryPartners);
 router.put('/delivery-partners/:id', updateDeliveryPartner);
 router.delete('/delivery-partners/:id', deleteDeliveryPartner);
+router.post('/delivery-partners/:id/force-change-area', forceChangeDeliveryArea);
 
 // Sponsorships management
 router.get('/sponsorships', getSponsorships);

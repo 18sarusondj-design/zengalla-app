@@ -152,6 +152,52 @@ const VendorProfile = () => {
   const [subscriptionTabMode, setSubscriptionTabMode] = useState('software'); // 'software' or 'banner'
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
+  // Referrals State
+  const [myReferrals, setMyReferrals] = useState([]);
+  const [loadingReferrals, setLoadingReferrals] = useState(false);
+  const [claimModal, setClaimModal] = useState({ isOpen: false, referredUser: null, milestone: null, payoutAccount: '' });
+
+  const handleClaimSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setIsUpdating(true);
+      const { data } = await api.post('/auth/referrals/claim', {
+        referredUserId: claimModal.referredUser._id,
+        milestone: claimModal.milestone,
+        payoutAccount: claimModal.payoutAccount
+      });
+      if (data.success) {
+        toast.success(data.message);
+        setClaimModal({ isOpen: false, referredUser: null, milestone: null, payoutAccount: '' });
+        fetchMyReferrals();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Claim failed');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const fetchMyReferrals = async () => {
+    try {
+      setLoadingReferrals(true);
+      const { data } = await api.get('/auth/referrals');
+      if (data.success) {
+        setMyReferrals(data.referrals || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch referrals", err);
+    } finally {
+      setLoadingReferrals(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'details' && user?.referralCode) {
+      fetchMyReferrals();
+    }
+  }, [activeTab, user?.referralCode]);
+
   const shopUrl = `${window.location.protocol}//${window.location.host}/shop/${vendorShop?.id || vendorShop?._id || ''}`;
 
   const [formData, setFormData] = useState({
@@ -810,6 +856,112 @@ const VendorProfile = () => {
                         />
                       </div>
                     </div>
+
+                    </div>
+
+                    {/* Referral Program Section */}
+                    {user?.referralCode && (
+                      <div className="mt-8 space-y-4">
+                        <div className="flex items-center gap-3 ml-2">
+                           <div className="w-1 h-3 bg-emerald-500 rounded-full" />
+                           <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Refer & Earn</h4>
+                        </div>
+                        
+                        <div className="bg-gradient-to-br from-emerald-500 to-teal-700 rounded-[24px] p-6 shadow-xl relative overflow-hidden">
+                          <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none scale-150">
+                            <Gift size={100} />
+                          </div>
+                          
+                          <div className="relative z-10">
+                            <h3 className="text-white text-lg font-black tracking-tight mb-2">Invite Vendor Friends!</h3>
+                            <p className="text-emerald-50 text-[10px] font-bold mb-6 max-w-xs leading-relaxed">
+                              Share your code. When your friend completes 100 orders, you earn ₹500! Keep earning up to ₹2000 per friend.
+                            </p>
+
+                            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 flex items-center justify-between">
+                              <div>
+                                <p className="text-emerald-100 text-[8px] font-black uppercase tracking-widest mb-1">Your Referral Code</p>
+                                <p className="text-white text-2xl font-black tracking-widest">{user.referralCode}</p>
+                              </div>
+                              <button 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  navigator.clipboard.writeText(user.referralCode);
+                                  toast.success("Code copied!");
+                                }}
+                                className="px-4 py-2 bg-white text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-transform"
+                              >
+                                Copy
+                              </button>
+                            </div>
+
+                            <div className="mt-6 flex items-center gap-4">
+                              <div className="flex-1 bg-black/20 rounded-xl p-3 border border-white/10">
+                                <p className="text-emerald-100 text-[8px] font-black uppercase tracking-widest mb-1">Friends Referred</p>
+                                <p className="text-white font-black text-lg">{myReferrals.length}</p>
+                              </div>
+                              <div className="flex-1 bg-black/20 rounded-xl p-3 border border-white/10">
+                                <p className="text-emerald-100 text-[8px] font-black uppercase tracking-widest mb-1">Total Earned</p>
+                                <p className="text-white font-black text-lg">
+                                  ₹{myReferrals.reduce((sum, r) => sum + (Math.min(Math.floor((r.referralOrdersCount || 0) / 100), 4) * 500), 0)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Referred Users List */}
+                        {myReferrals.length > 0 && (
+                          <div className="space-y-3 mt-4">
+                            <h5 className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-2">Referred Partners ({myReferrals.length})</h5>
+                            {myReferrals.map((refUser, idx) => (
+                              <div key={idx} className="bg-white border border-gray-100 p-4 rounded-2xl shadow-sm flex flex-col gap-3">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="text-sm font-black text-gray-900">{refUser.shopName || refUser.name}</p>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase">{refUser.role === 'vendor' ? 'Vendor' : 'Delivery'} • {refUser.areaName || refUser.serviceArea || 'No Area'}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-xs font-black text-emerald-600">{refUser.referralOrdersCount || 0} Orders</p>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center justify-between gap-2 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                  {[100, 200, 300, 400].map(milestone => {
+                                    const isCompleted = (refUser.referralOrdersCount || 0) >= milestone;
+                                    const isClaimed = (refUser.referralMilestonesClaimed || []).includes(milestone);
+                                    return (
+                                      <div key={milestone} className="flex flex-col items-center flex-1 relative">
+                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center mb-1 z-10 transition-all ${isCompleted ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200 scale-110' : 'bg-gray-200 text-gray-400'}`}>
+                                          {isCompleted ? <CheckCircle size={12} /> : <span className="text-[8px] font-black">{milestone}</span>}
+                                        </div>
+                                        <p className={`text-[8px] font-black uppercase tracking-wider ${isCompleted ? 'text-emerald-600' : 'text-gray-400'}`}>₹500</p>
+                                        
+                                        {isCompleted && !isClaimed && (
+                                          <button 
+                                            onClick={(e) => { e.preventDefault(); setClaimModal({ isOpen: true, referredUser: refUser, milestone, payoutAccount: formData.phone || user.phone || '' }); }}
+                                            className="mt-1 px-2 py-1 bg-emerald-500 text-white rounded text-[8px] font-black uppercase tracking-widest shadow hover:scale-105 active:scale-95 transition-transform"
+                                          >
+                                            Claim
+                                          </button>
+                                        )}
+                                        {isClaimed && (
+                                          <span className="mt-1 text-[8px] font-black text-gray-400 uppercase">Claimed</span>
+                                        )}
+
+                                        {milestone !== 400 && (
+                                          <div className={`absolute top-3 left-[50%] w-full h-[2px] -z-0 ${isCompleted && (refUser.referralOrdersCount || 0) >= milestone + 100 ? 'bg-emerald-500' : 'bg-gray-200'}`} />
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     <SectionSaveButton label="Details" />
                   </div>
@@ -1865,6 +2017,50 @@ const HolidayScheduler = ({ formData, setFormData }) => {
             >
               Add Holiday
             </button>
+          </div>
+        </div>
+      )}
+      {/* Claim Payout Modal */}
+      {claimModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-[32px] w-full max-w-md overflow-hidden shadow-2xl relative animate-in fade-in zoom-in duration-300">
+            <button 
+              onClick={() => setClaimModal({ isOpen: false, referredUser: null, milestone: null, payoutAccount: '' })}
+              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <XCircle size={24} />
+            </button>
+            <div className="p-8">
+              <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mb-6">
+                <Gift className="text-emerald-500" size={32} />
+              </div>
+              <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Claim Your ₹500</h2>
+              <p className="text-sm font-bold text-gray-500 mb-6">
+                Your friend <strong>{claimModal.referredUser?.shopName || claimModal.referredUser?.name}</strong> has completed {claimModal.milestone} orders!
+              </p>
+              
+              <form onSubmit={handleClaimSubmit} className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-1 block">Payout Phone Number / UPI ID</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={claimModal.payoutAccount}
+                    onChange={e => setClaimModal(prev => ({ ...prev, payoutAccount: e.target.value }))}
+                    className="w-full h-14 bg-gray-50 border border-gray-200 rounded-2xl px-4 font-bold text-gray-900 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                    placeholder="Enter Phone Number or UPI ID"
+                  />
+                  <p className="text-[10px] font-bold text-emerald-600 mt-2 ml-2">Is this correct? You can change it if you want.</p>
+                </div>
+                <button 
+                  type="submit" 
+                  disabled={isUpdating}
+                  className="w-full h-14 bg-emerald-500 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-600 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  {isUpdating ? <Loader2 className="animate-spin" size={20} /> : 'Get Amount to Account'}
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       )}

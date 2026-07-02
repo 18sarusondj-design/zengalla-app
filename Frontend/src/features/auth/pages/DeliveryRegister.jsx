@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../auth/context/AuthContext';
 import { toast } from 'sonner';
-import { User, Phone, Lock, Loader2, ArrowRight, Camera, FileText, Image as ImageIcon } from 'lucide-react';
+import { User, Phone, Lock, Loader2, ArrowRight, Camera, FileText, Image as ImageIcon, MapPin, Gift } from 'lucide-react';
 import Logo from '../../common/components/Logo';
 import api from '../../../config/api.js';
 import SelfieCamera from '../components/SelfieCamera';
@@ -62,6 +62,9 @@ const DeliveryRegister = () => {
     phone: '',
     documentUrl: null,
     selfieUrl: null,
+    servicePincode: '',
+    serviceArea: '',
+    referralCode: '',
   });
   
   const [step, setStep] = useState(1); // 1 = Details, 2 = Docs, 3 = OTP
@@ -70,8 +73,23 @@ const DeliveryRegister = () => {
   const [localLoading, setLocalLoading] = useState(false);
   const [uploadingField, setUploadingField] = useState(null);
   const [showSelfieCamera, setShowSelfieCamera] = useState(false);
+  const [areaInsights, setAreaInsights] = useState([]);
   const { register, verifyOtp, user } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchInsights = async () => {
+      try {
+        const { data } = await api.get('/delivery/area-insights');
+        if (data.success) {
+          setAreaInsights(data.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch area insights', err);
+      }
+    };
+    fetchInsights();
+  }, []);
 
   // Redirect if logged in as delivery (regardless of status, so dashboard can show pending screen)
   useEffect(() => {
@@ -119,6 +137,9 @@ const DeliveryRegister = () => {
     e.preventDefault();
     if (!formData.name || !formData.phone || formData.phone.length < 10) {
       return toast.error('Please enter valid name and phone number');
+    }
+    if (!formData.servicePincode) {
+      return toast.error('Please select a service area');
     }
     setStep(2);
   };
@@ -249,6 +270,48 @@ const DeliveryRegister = () => {
                 value={formData.phone}
                 onChange={(val) => setFormData(p => ({...p, phone: val}))}
               />
+              <FormInput 
+                label="Referral Code (Optional)" 
+                icon={<Gift size={20} />} 
+                type="text" 
+                placeholder="E.g. JONE1234" 
+                value={formData.referralCode}
+                onChange={(val) => setFormData(p => ({...p, referralCode: val.toUpperCase()}))}
+              />
+
+              <div className="group/input relative">
+                <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4 mb-2 group-focus-within/input:text-emerald-600 transition-colors">
+                  Select Service Area
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-300">
+                    <MapPin size={20} strokeWidth={2.5} />
+                  </div>
+                  <select
+                    className="block w-full pl-12 pr-4 py-3.5 border-2 border-gray-50 rounded-[22px] bg-gray-50/50 text-xs font-bold text-gray-800 focus:outline-none focus:border-emerald-500/30 focus:bg-white transition-all appearance-none cursor-pointer"
+                    value={formData.servicePincode}
+                    onChange={(e) => {
+                      const selected = areaInsights.find(a => a.pinCode === e.target.value);
+                      setFormData(p => ({
+                        ...p,
+                        servicePincode: selected?.pinCode || '',
+                        serviceArea: selected?.areaName || ''
+                      }));
+                    }}
+                    required
+                  >
+                    <option value="" disabled>Select Area (Pincode)</option>
+                    {areaInsights.map((area, idx) => (
+                      <option key={idx} value={area.pinCode}>
+                        {area.areaName} - {area.pinCode} ({area.shopCount} Shops) {area.isHighDemand ? '🔥 High Demand' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-gray-400">
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
+                  </div>
+                </div>
+              </div>
 
               <button
                 type="submit"

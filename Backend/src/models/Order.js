@@ -51,6 +51,8 @@ const orderSchema = new mongoose.Schema({
   useWalletBalance: { type: Boolean, default: false },
   deliveryPartnerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   isPartnerAccepted: { type: Boolean, default: false },
+  deliveryAssignedAt: { type: Date, default: null }, // Auto-dispatch timer tracking
+  rejectedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Prevent pinging same user twice
   deliveryProofUrl: { type: String, default: '' },
   paymentProofUrl: { type: String, default: '' },
   invoiceNumber: { type: String, default: '' },

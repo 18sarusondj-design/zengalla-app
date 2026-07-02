@@ -3,6 +3,7 @@ import Shop from '../models/Shop.js';
 import jwt from 'jsonwebtoken';
 import { sendOTP } from '../utils/mailer.js';
 import { OAuth2Client } from 'google-auth-library';
+import axios from 'axios';
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -132,6 +133,19 @@ export const register = async (req, res) => {
       }
     }
 
+    // Generate a unique referral code
+    const baseStr = (name || 'USER').substring(0, 4).toUpperCase().replace(/[^A-Z]/g, 'X');
+    const userReferralCode = baseStr + Math.floor(1000 + Math.random() * 9000);
+    
+    // Check if they were referred
+    let referredById = null;
+    if (req.body.referralCode) {
+      const referrer = await User.findOne({ referralCode: req.body.referralCode.toUpperCase().trim() });
+      if (referrer) {
+        referredById = referrer._id;
+      }
+    }
+
     const isInternal = false; // Staff now requires verification too
     const status = (role === 'vendor' || role === 'delivery') ? 'pending' : 'active';
     
@@ -147,7 +161,9 @@ export const register = async (req, res) => {
       accountName: accountName || '',
       accountNumber: accountNumber || '',
       ifscCode: ifscCode || '',
-      bankName: bankName || ''
+      bankName: bankName || '',
+      referralCode: userReferralCode,
+      referredBy: referredById
     });
 
     // If vendor, create the initial shop record
@@ -622,6 +638,106 @@ export const logout = async (req, res) => {
       await user.save();
     }
     res.json({ success: true, message: 'Logged out from all devices successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+// GET /api/auth/referrals
+export const getReferrals = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user || !user.referralCode) {
+      return res.json({ success: true, referrals: [] });
+    }
+
+    const referrals = await User.find({ referredBy: user.referralCode })
+      .select('name role shopName areaName serviceArea referralOrdersCount referralMilestonesClaimed createdAt')
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, referrals });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /api/auth/referrals/claim
+export const claimReferralBonus = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    const { referredUserId, milestone, payoutAccount } = req.body;
+
+    if (!user || !user.referralCode) {
+      return res.status(400).json({ error: 'You are not eligible for referrals.' });
+    }
+
+    const referredUser = await User.findById(referredUserId);
+    if (!referredUser) {
+      return res.status(404).json({ error: 'Referred user not found.' });
+    }
+
+    if (referredUser.referredBy !== user.referralCode) {
+      return res.status(403).json({ error: 'You did not refer this user.' });
+    }
+
+    if ((referredUser.referralOrdersCount || 0) < milestone) {
+      return res.status(400).json({ error: 'Milestone not reached yet.' });
+    }
+
+    const claimed = referredUser.referralMilestonesClaimed || [];
+    if (claimed.includes(milestone)) {
+      return res.status(400).json({ error: 'Milestone already claimed.' });
+    }
+
+    // Process Razorpay Payout
+    try {
+      if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+        console.warn('Razorpay keys missing in .env, skipping actual API call for local testing.');
+      } else {
+        const authHeader = 'Basic ' + Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64');
+        const upiId = payoutAccount.includes('@') ? payoutAccount : `${payoutAccount}@paytm`;
+
+        // 1. Create Contact
+        const contactRes = await axios.post('https://api.razorpay.com/v1/contacts', {
+          name: user.name || 'Partner',
+          contact: user.phone || payoutAccount.replace(/[^0-9]/g, '').substring(0, 10),
+          type: 'vendor',
+          reference_id: user._id.toString()
+        }, { headers: { Authorization: authHeader } });
+        
+        const contactId = contactRes.data.id;
+
+        // 2. Create Fund Account (UPI)
+        const fundRes = await axios.post('https://api.razorpay.com/v1/fund_accounts', {
+          contact_id: contactId,
+          account_type: 'vpa',
+          vpa: { address: upiId }
+        }, { headers: { Authorization: authHeader } });
+
+        const fundAccountId = fundRes.data.id;
+
+        // 3. Create Payout (Amount is in paise, so 500 * 100 = 50000)
+        await axios.post('https://api.razorpay.com/v1/payouts', {
+          account_number: process.env.RAZORPAY_ACCOUNT_NUMBER || '2323230012345678',
+          fund_account_id: fundAccountId,
+          amount: 50000,
+          currency: 'INR',
+          mode: 'UPI',
+          purpose: 'cashback',
+          reference_id: `REF_${user._id}_${referredUser._id}_${milestone}`
+        }, { headers: { Authorization: authHeader } });
+      }
+    } catch (paymentError) {
+      console.error('[RAZORPAY PAYOUT ERROR]', paymentError?.response?.data || paymentError.message);
+      return res.status(400).json({ error: 'Failed to process automatic payout via Razorpay. Please check RazorpayX configuration or try again later.' });
+    }
+
+    // Mark as claimed
+    referredUser.referralMilestonesClaimed = [...claimed, milestone];
+    await referredUser.save();
+
+    res.json({ success: true, message: `₹500 sent automatically to ${payoutAccount} via Razorpay!` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, googleAuth, getMe, updateMe, updatePassword, lookup, verifyOTP, forgotPassword, resetPassword, verifyPassword, changePassword, refresh, logout, sendLoginOTP, verifyLoginOTP } from '../controllers/authController.js';
+import { register, login, googleAuth, getMe, updateMe, updatePassword, lookup, verifyOTP, forgotPassword, resetPassword, verifyPassword, changePassword, refresh, logout, sendLoginOTP, verifyLoginOTP, getReferrals, claimReferralBonus } from '../controllers/authController.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -23,5 +23,8 @@ router.put('/password', authenticate, updatePassword);
 router.get('/lookup', authenticate, lookup);
 router.put('/change-password', authenticate, changePassword);
 router.post('/verify-password', authenticate, verifyPassword);
+
+router.get('/referrals', authenticate, getReferrals);
+router.post('/referrals/claim', authenticate, claimReferralBonus);
 
 export default router;

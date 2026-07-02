@@ -43,6 +43,19 @@ const userSchema = new mongoose.Schema({
   bankName: { type: String, default: '' },
   // Delivery partner payout system
   platformFeeDeducted: { type: Number, default: 0 }, // Total deducted so far, max 600
+  
+  // Delivery partner area management
+  servicePincode: { type: String, default: null },
+  serviceArea: { type: String, default: null },
+  lastAreaChangeAt: { type: Date, default: null },
+  freeAreaChangeAvailable: { type: Boolean, default: false },
+  lastAssignedAt: { type: Date, default: null },
+  
+  // Referral System
+  referralCode: { type: String, unique: true, sparse: true },
+  referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  referralOrdersCount: { type: Number, default: 0 },
+  referralMilestonesClaimed: [{ type: Number }], // tracks milestones like [100, 200]
 }, { timestamps: true });
 
 

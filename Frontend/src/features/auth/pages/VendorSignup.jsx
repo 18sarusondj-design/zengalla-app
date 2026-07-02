@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { 
   Store, Mail, Lock, Phone, User, MapPin, 
   CheckCircle2, ArrowRight, Loader2, Camera,
-  ShieldCheck, Smartphone, Eye, EyeOff, X, Search, Navigation
+  ShieldCheck, Smartphone, Eye, EyeOff, X, Search, Navigation, Gift
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../../config/api.js';
@@ -87,7 +87,7 @@ const formatOSMAddress = (data) => {
 
 const VendorSignup = () => {
   const [formData, setFormData] = useState({
-    name: '', email: '', password: '', phone: '', pinCode: '',
+    name: '', email: '', password: '', phone: '', pinCode: '', referralCode: '',
     location: { address: '', coordinates: { lat: defaultCenter.lat, lng: defaultCenter.lng } }
   });
   const [loading, setLoading] = useState(false);
@@ -192,7 +192,8 @@ const VendorSignup = () => {
         shop_address: formData.location.address,
         shop_lat: formData.location.coordinates.lat,
         shop_lng: formData.location.coordinates.lng,
-        pinCode: formData.pinCode
+        pinCode: formData.pinCode,
+        referralCode: formData.referralCode
       });
 
       if (!regResult.success) throw new Error(regResult.error);
@@ -418,6 +419,15 @@ const VendorSignup = () => {
                      placeholder="" 
                      value={formData.email}
                      onChange={(val) => setFormData({...formData, email: val})}
+                   />
+
+                   <FormInput 
+                     label="Referral Code (Optional)" 
+                     icon={<Gift size={18} />} 
+                     type="text" 
+                     placeholder="E.g. JONE1234" 
+                     value={formData.referralCode}
+                     onChange={(val) => setFormData({...formData, referralCode: val.toUpperCase()})}
                    />
 
                    <div className="grid grid-cols-2 gap-4">

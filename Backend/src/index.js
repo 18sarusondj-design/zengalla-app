@@ -26,6 +26,7 @@ import ledgerRoutes from './routes/ledgerRoutes.js';
 import sponsorshipRoutes from './routes/sponsorshipRoutes.js';
 import globalBannerRoutes from './routes/globalBanners.js';
 import callRoutes from './routes/calls.js';
+import deliveryRoutes from './routes/delivery.js';
 
 const app = express();
 
@@ -93,6 +94,7 @@ app.use('/api/sponsorship', sponsorshipRoutes);
 app.use('/api/global-banners', globalBannerRoutes);
 app.use('/api/calls', callRoutes);
 app.use('/api/ledger', ledgerRoutes);
+app.use('/api/delivery', deliveryRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
@@ -125,6 +127,11 @@ mongoose.connect(MONGODB_URI)
       console.error('👉 Tip: Check your MONGO_URI credentials and authSource.');
     }
   });
+
+import { startDispatchEngine } from './services/dispatchService.js';
+
+// Start Auto-Dispatch Engine
+startDispatchEngine();
 
 // Handle Unhandled Rejections
 process.on('unhandledRejection', (reason, promise) => {

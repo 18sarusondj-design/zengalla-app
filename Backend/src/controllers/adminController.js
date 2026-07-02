@@ -616,3 +616,33 @@ export const cancelAndRefundSponsorship = async (req, res) => {
   }
 };
 
+// POST /api/admin/delivery-partners/:id/force-change-area
+export const forceChangeDeliveryArea = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { pinCode, areaName } = req.body;
+
+    if (!pinCode) {
+      return res.status(400).json({ error: 'Pincode is required' });
+    }
+
+    const partner = await User.findById(id);
+    if (!partner || partner.role !== 'delivery') {
+      return res.status(404).json({ error: 'Delivery partner not found' });
+    }
+
+    partner.servicePincode = pinCode;
+    partner.serviceArea = areaName || '';
+    partner.lastAreaChangeAt = new Date();
+    // optionally give them another free change
+    partner.freeAreaChangeAvailable = false;
+    
+    await partner.save();
+
+    res.json({ success: true, message: 'Delivery area manually updated', user: partner });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+

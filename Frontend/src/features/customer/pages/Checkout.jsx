@@ -145,8 +145,9 @@ const Checkout = () => {
     const threshold = activeShop?.freeDeliveryThreshold ?? 500;
     if (threshold > 0 && cartTotal >= threshold) return 0;
     
-    const base = activeShop?.deliveryFee || 0;
-    const distancePart = (distance || 0) * (activeShop?.deliveryPricePerKm || 0);
+    // Policy: 40 base + 10/km
+    const base = 40;
+    const distancePart = Math.round((distance || 0) * 10);
     return base + distancePart;
   };
 

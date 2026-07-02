@@ -662,6 +662,14 @@ const Users = ({ roleFilter }) => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '700', color: '#bae6fd', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                   Owner: {selectedVendor.name || 'Unknown'}
                 </div>
+                {selectedVendor.referredBy && (
+                  <>
+                    <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#7dd3fc' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '700', color: '#6ee7b7', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                      Referred By: {selectedVendor.referredBy}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 

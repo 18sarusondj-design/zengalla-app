@@ -4,6 +4,39 @@ import User from '../models/User.js';
 import Shop from '../models/Shop.js';
 import { sendPushNotification } from '../services/notificationService.js';
 
+const processReferral = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user || !user.referredBy) return;
+
+    // Increment orders count
+    user.referralOrdersCount = (user.referralOrdersCount || 0) + 1;
+    await user.save();
+
+    // Check milestones
+    const milestones = [100, 200, 300, 400];
+    const claimed = user.referralMilestonesClaimed || [];
+    
+    for (const milestone of milestones) {
+      if (user.referralOrdersCount === milestone && !claimed.includes(milestone)) {
+        // Milestone hit! Notify the referrer to claim their bonus
+        const referrer = await User.findById(user.referredBy);
+        if (referrer) {
+          sendPushNotification(referrer._id, {
+            title: '🎉 Referral Bonus Unlocked!',
+            body: `Your friend ${user.name} hit ${milestone} orders! Go to your Refer & Earn section to claim your ₹500 payout.`,
+            url: '/wallet',
+            priority: 'high',
+            tag: `referral-unlocked-${user._id}-${milestone}`
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error processing referral:', err);
+  }
+};
+
 const restoreStock = async (order) => {
   if (!order || !order.items || !order.items.length) return;
   for (const item of order.items) {
@@ -130,6 +163,14 @@ export const placeOrder = async (req, res) => {
       }
     }
 
+    // Auto-Calculate Delivery Fee Based on Policy: 40 Base + 10/km
+    let finalDeliveryFee = deliveryFee || 0;
+    if (orderType === 'DELIVERY' && deliveryDistance !== undefined) {
+      finalDeliveryFee = 40 + Math.round(Number(deliveryDistance) * 10);
+    }
+    // We don't recalculate totalPrice here assuming the frontend sends the correct total
+    // But we override the saved deliveryFee
+
     const order = await Order.create({
       shopId, userId: req.user?._id || null, items,
       totalPrice, orderType, paymentMethod,
@@ -139,7 +180,7 @@ export const placeOrder = async (req, res) => {
       phone: phone || req.user?.phone || '',
       pickupTime: pickupTime || 'ASAP', 
       deliveryAddress, deliveryLocation,
-      deliveryDistance, deliveryFee, platformFee, customerGstin, couponApplied,
+      deliveryDistance, deliveryFee: finalDeliveryFee, platformFee, customerGstin, couponApplied,
       razorpayOrderId, razorpayPaymentId, razorpaySignature, useWalletBalance,
       cashAmount, onlineAmount, customerBusinessName, customerBusinessAddress,
       paymentProofUrl,
@@ -370,6 +411,21 @@ export const updateOrderStatus = async (req, res) => {
       });
     }
 
+    // Process Referrals if completed
+    if (status === 'COMPLETED' && oldStatus !== 'COMPLETED') {
+      const populatedForReferral = await Order.findById(order._id).populate('shopId');
+      if (populatedForReferral) {
+        // Delivery Partner Referral
+        if (populatedForReferral.deliveryPartnerId) {
+          await processReferral(populatedForReferral.deliveryPartnerId);
+        }
+        // Vendor Referral
+        if (populatedForReferral.shopId && populatedForReferral.shopId.owner) {
+          await processReferral(populatedForReferral.shopId.owner);
+        }
+      }
+    }
+
     const populatedOrder = await Order.findById(order._id)
       .populate('shopId')
       .populate('deliveryPartnerId', 'name phone location isOnline');
@@ -534,10 +590,15 @@ export const rejectOrder = async (req, res) => {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
+    if (!order.rejectedBy.includes(order.deliveryPartnerId)) {
+      order.rejectedBy.push(order.deliveryPartnerId);
+    }
+    
     order.deliveryPartnerId = null;
-    order.status = 'NEW'; // Return to pool for reassignment
+    order.status = 'READY'; // Return to pool (READY status makes it visible to the engine)
     order.isPartnerAccepted = false;
     order.isDeliveryRejected = true;
+    order.deliveryAssignedAt = null;
     await order.save();
     res.json({ success: true, order });
   } catch (err) {
