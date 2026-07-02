@@ -857,8 +857,6 @@ const VendorProfile = () => {
                       </div>
                     </div>
 
-                    </div>
-
                     {/* Referral Program Section */}
                     {user?.referralCode && (
                       <div className="mt-8 space-y-4">
